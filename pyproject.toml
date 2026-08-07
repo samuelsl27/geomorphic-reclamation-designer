@@ -1,0 +1,157 @@
+[project]
+name = "geomorphic-reclamation-designer"
+version = "1.0.17"
+description = "QGIS plugin for fluvial-geomorphic mine reclamation design (Natural Regrade type method)"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "AGPL-3.0-or-later" }
+authors = [{ name = "Samuel Sáez López", email = "samuelimga@gmail.com" }]
+keywords = [
+    "qgis", "mining", "reclamation", "geomorphology", "landform",
+    "hydrology", "geofluv", "natural-regrade", "terrain", "dem",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Plugins",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Scientific/Engineering :: Hydrology",
+    "Natural Language :: Spanish",
+    "Natural Language :: English",
+]
+# El complemento NO tiene dependencias pip a proposito: usa solo la biblioteca
+# estandar y la API de QGIS/Qt que aporta el propio QGIS. Ver AGENTS.md §5.
+dependencies = []
+
+[project.urls]
+Homepage = "https://opengeorock.org/"
+Repository = "https://github.com/opengeorock/geomorphic-reclamation-designer"
+Issues = "https://github.com/opengeorock/geomorphic-reclamation-designer/issues"
+Changelog = "https://github.com/opengeorock/geomorphic-reclamation-designer/blob/main/CHANGELOG.md"
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.6"]
+
+# Este proyecto NO se instala con pip: se empaqueta con scripts/build_zip.py y
+# se instala desde QGIS. pyproject.toml esta aqui por las herramientas.
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+
+# --------------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra --strict-markers"
+markers = [
+    "qgis: necesita una instalacion de QGIS (se salta si no la hay)",
+    "lento: tarda mas de unos segundos",
+]
+filterwarnings = ["ignore::DeprecationWarning:qgis.*"]
+
+
+# ----------------------------------------------------------------------- ruff
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+src = ["src", "tests", "scripts"]
+extend-exclude = ["src/geomorphic_reclamation_designer/help"]
+
+[tool.ruff.lint]
+# CRITERIO: el linter esta para cazar ERRORES, no para reformatear 18 000 lineas
+# de motor geometrico que funciona y que no se puede validar sin QGIS delante.
+# Por eso se activan las familias que detectan bugs de verdad (F, B, C4) y se
+# silencian las que solo discuten estilo sobre codigo ya escrito.
+# El plan de endurecimiento progresivo esta en context/08_pendiente.md (P-14).
+select = [
+    "E",    # pycodestyle
+    "F",    # pyflakes  <- aqui vive F821, que ya ha cazado un bug real
+    "W",    # warnings
+    "UP",   # pyupgrade
+    "B",    # bugbear
+    "C4",   # comprehensions
+    "SIM",  # simplify
+    "RUF",  # ruff
+]
+ignore = [
+    # --- estilo de la casa, deliberado ---
+    "E501",    # longitud: la marca la regla de 88 del editor, no el linter
+    "E702",    # `a = 1; b = 2`: se usa a proposito para agrupar lineas afines
+    "E741",    # nombres de una letra: en formulas (l, I, O) es lo legible
+    "UP009",   # `# -*- coding: utf-8 -*-`: se mantiene en todos los ficheros
+    "UP031",   # formato %: hay cadenas antiguas que no compensa tocar
+    # --- patrones normales en Qt/QGIS ---
+    "B008",    # llamada en argumento por defecto
+    "SIM105",  # `contextlib.suppress`: el try/except explicito se lee mejor aqui
+    "SIM108",  # ternario obligatorio: a veces el if es mas claro
+    "SIM115",  # open sin context manager: hay usos de vida larga deliberados
+    # --- acentos y simbolos a proposito ---
+    "RUF001",
+    "RUF002",
+    "RUF003",
+    # --- pendientes de limpiar, sin urgencia (P-14 en context/08_pendiente.md).
+    # Se silencian para que la CI nazca en verde: una CI roja el primer dia
+    # ensena a todo el mundo a ignorar la CI. La lista es corta y esta acotada;
+    # se van quitando de aqui a medida que se limpian, con QGIS delante.
+    "RUF005",  # concatenacion de literales
+    "RUF046",  # int() innecesario
+    "RUF059",  # variable desempaquetada sin usar
+    "RUF012",  # valor mutable por defecto en atributo de clase
+    "RUF013",  # Optional implicito en anotaciones
+    "RUF015",  # next(iter(x)) en vez de list(x)[0]
+    "B007",    # variable de bucle sin usar
+    "B904",    # raise ... from
+    "C401",    # generador que podria ser comprension de conjunto
+    "E731",    # lambda asignada a nombre
+    "F841",    # variable local sin usar  <- revisar una a una, pueden ser restos
+]
+
+[tool.ruff.lint.per-file-ignores]
+# En los tests importar dentro de la funcion es deliberado: permite saltar
+# limpiamente cuando no hay QGIS instalado.
+# Los `# noqa: E402` de los tests documentan que el import va DESPUES de tocar
+# sys.path; se conservan aunque E402 este silenciado, por si se reactiva.
+"tests/*" = ["E402", "F401", "F841", "I001", "RUF100", "E401"]
+"scripts/*" = ["E402"]
+# compat.py existe precisamente para tener imports condicionales
+"src/geomorphic_reclamation_designer/core/compat.py" = ["F401", "E402"]
+# builder.py define cierres dentro del bucle y los consume EN LA MISMA
+# iteracion; B023 es correcto como regla general pero aqui es falso positivo.
+# No se reescribe sin poder medir el resultado en QGIS (ver AGENTS.md).
+"src/geomorphic_reclamation_designer/core/builder.py" = ["B023"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["geomorphic_reclamation_designer"]
+
+[tool.ruff.format]
+# `ruff format` NO se aplica al codigo existente ni se exige en la CI.
+# Reformatear de golpe 18 000 lineas de motor geometrico que funciona, sin poder
+# validar el resultado en QGIS, es exactamente lo que AGENTS.md prohibe: un
+# diff enorme donde un cambio real pasaria desapercibido.
+# Si quieres formatear algo, hazlo fichero a fichero y en un commit propio.
+quote-style = "preserve"
+indent-style = "space"
+
+
+# --------------------------------------------------------------------- cobertura
+[tool.coverage.run]
+source = ["src/geomorphic_reclamation_designer"]
+omit = ["*/help/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]

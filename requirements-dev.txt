@@ -1,0 +1,14 @@
+# Herramientas de desarrollo. NO son dependencias del complemento.
+#
+# El complemento no tiene ninguna dependencia pip a proposito: se ejecuta dentro
+# de QGIS y usa solo la biblioteca estandar y la API de QGIS/Qt. Ver AGENTS.md.
+#
+#   pip install -r requirements-dev.txt
+
+pytest>=7.0
+pytest-cov>=4.0
+ruff>=0.6
+
+# Opcional: depurar dentro de QGIS desde VSCode
+# (en la consola de QGIS: import debugpy; debugpy.listen(5678))
+debugpy>=1.8
