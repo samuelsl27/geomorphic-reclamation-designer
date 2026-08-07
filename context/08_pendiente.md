@@ -1,7 +1,12 @@
 # Backlog — lo que falta y lo que está a medias
 
-Estado a **v1.0.17**. Actualiza esta página en cada sesión: mueve lo hecho a
+Estado a **v1.0.18**. Actualiza esta página en cada sesión: mueve lo hecho a
 `09_historial_sesiones.md` y añade lo nuevo.
+
+> **Numeración**: el proyecto sigue en **1.0.x** mientras no haya nada
+> definitivo. Aunque una versión cambie rótulos visibles, se numera como parche.
+> El salto a 1.1 se reserva para cuando la geometría se dé por estable y el
+> complemento deje de ser `experimental`.
 
 ---
 
@@ -84,9 +89,9 @@ identificarlas.
 
 ## 🔵 Infraestructura (nuevo, esta sesión)
 
-### P-15 · Verificar la v1.1.0 en QGIS real 🔴
+### P-15 · Verificar la v1.0.18 en QGIS real 🔴
 
-**Lo más urgente.** El renombrado de la v1.1.0 no se ha probado con QGIS
+**Lo más urgente.** El renombrado de la v1.0.18 no se ha probado con QGIS
 delante: los tests que lo necesitan (`test_integracion`, `test_gui`) se saltan
 solos si no lo encuentran, así que las 84 pruebas en verde **no cubren esto**.
 
@@ -146,7 +151,7 @@ Como el bloque va dentro de un `try/except` que devuelve `None`, el `NameError`
 se tragaba en silencio y **la imagen que recibía el modelo de IA salía sin
 simbolizar**. Ver B-019.
 
-**Familia `FA` activada** (v1.1.0): `FA102` marca cualquier unión PEP 604
+**Familia `FA` activada** (v1.0.18): `FA102` marca cualquier unión PEP 604
 (`float | None`) sin `from __future__ import annotations`. Es lo que habría
 evitado B-020, que dejaba el complemento sin cargar en todo QGIS 3.22–3.28. No
 saltaba antes porque `FA` no estaba en `select`, aunque `target-version` sí
@@ -161,7 +166,7 @@ seguridad (necesitan QGIS, así que solo correrían en local).
 
 ---
 
-## Terminado recientemente (v1.1.0)
+## Terminado recientemente (v1.0.18)
 
 - ✅ **P-10 · Publicado en GitHub**: `github.com/samuelsl27/geomorphic-reclamation-designer`,
   público, con Actions en verde en toda la matriz

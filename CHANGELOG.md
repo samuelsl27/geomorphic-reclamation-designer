@@ -8,16 +8,19 @@ Los códigos `B-0xx` remiten a [`context/04_bugs_resueltos.md`], los `ADR-0xx` a
 
 ## [No publicado]
 
-## [1.1.0] — 2026-08-07
+## [1.0.18] — 2026-08-07
 
 **Primera versión publicada.** Cierra la preparación del proyecto como
 repositorio público: quita la marca ajena de la interfaz, corrige un fallo que
 impedía cargar el complemento en el rango de QGIS que declaraba soportar, y
 ajusta la documentación de seguridad a lo que el código hace de verdad.
 
-Sube a **1.1.0** y no a 1.0.18 porque cambian rótulos que el usuario ve y el
-nombre del grupo de capas, y porque el complemento pasa a funcionar por primera
-vez en QGIS 3.22–3.28.
+> **Sobre la numeración.** El proyecto sigue en la serie **1.0.x** mientras no
+> haya nada definitivo: el motor todavía se está calibrando contra la salida
+> del programa original y el complemento sale marcado como `experimental`.
+> Aunque esta versión cambia rótulos visibles, se numera como parche a
+> propósito. El primer salto a 1.1 se reservará para cuando el diseño
+> geométrico se dé por estable.
 
 ### Cambiado (interfaz)
 - **La marca ajena sale de toda la interfaz** (ADR-015). Completa el renombrado
@@ -392,8 +395,8 @@ Construcción del complemento por partes:
   curvas con maestras; balance corte/relleno con semáforo; centroides de regiones
   conexas con plan de acarreo optimizado; perfil longitudinal automático.
 
-[No publicado]: https://github.com/samuelsl27/geomorphic-reclamation-designer/compare/v1.1.0...HEAD
-[1.1.0]: https://github.com/samuelsl27/geomorphic-reclamation-designer/releases/tag/v1.1.0
+[No publicado]: https://github.com/samuelsl27/geomorphic-reclamation-designer/compare/v1.0.18...HEAD
+[1.0.18]: https://github.com/samuelsl27/geomorphic-reclamation-designer/releases/tag/v1.0.18
 [1.0.17]: https://github.com/samuelsl27/geomorphic-reclamation-designer/releases/tag/v1.0.17
 [1.0.16]: https://github.com/samuelsl27/geomorphic-reclamation-designer/releases/tag/v1.0.16
 [1.0.14]: https://github.com/samuelsl27/geomorphic-reclamation-designer/releases/tag/v1.0.14

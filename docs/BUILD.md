@@ -135,19 +135,31 @@ si no, falla y te pide que lo regeneres.
 ## Publicar una release
 
 ```bash
-python scripts/bump_version.py minor
+python scripts/bump_version.py patch
 # redactar CHANGELOG.md y actualizar context/
 python scripts/genera_guia.py
 ruff check . && pytest -q
 python scripts/build_zip.py
-git add -A && git commit -m "chore: versión 1.1.0"
-git tag -a v1.1.0 -m "v1.1.0"
+git add -A && git commit -m "chore: versión 1.0.19"
+git tag -a v1.0.19 -m "v1.0.19"
 git push && git push --tags
 ```
 
 `.github/workflows/release.yml` se dispara con la etiqueta: pasa los tests,
 comprueba que la etiqueta coincide con `metadata.txt`, construye el zip y
 **publica la release con el zip adjunto** y las notas extraídas del CHANGELOG.
+
+> **Numeración**: el proyecto va por **1.0.x** (`bump_version.py patch`)
+> mientras no haya nada definitivo. No uses `minor` sin decidirlo antes: una vez
+> publicada una 1.1.0, cualquier 1.0.x posterior deja de ofrecerse como
+> actualización en el gestor de complementos de QGIS, porque es una versión
+> *anterior*.
+
+> **Etiquetas**: `git push --tags` sube **todas** las etiquetas locales, así que
+> dispara el workflow también para las antiguas que aún no estuvieran en el
+> remoto —y crea una release por cada una—. Si solo quieres publicar la nueva,
+> usa `git push origin v1.0.19`. Comprueba después cuál quedó marcada como
+> *Latest*: GitHub marca la última creada, no la de número más alto.
 
 ---
 

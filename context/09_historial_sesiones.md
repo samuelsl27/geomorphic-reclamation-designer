@@ -5,9 +5,9 @@ terminar.** Plantilla al final.
 
 ---
 
-## 2026-08-07 · v1.1.0 — publicación en GitHub
+## 2026-08-07 · v1.0.18 — publicación en GitHub
 
-**Versión**: **1.1.0** (sin cambios de motor; rótulos, compatibilidad y
+**Versión**: **1.0.18** (sin cambios de motor; rótulos, compatibilidad y
 documentación). Primera versión publicada.
 
 **Qué se hizo.** Revisión completa del repositorio antes de hacerlo público y de
@@ -50,9 +50,14 @@ enviarlo a `plugins.qgis.org`.
   4.2 y Python 3.12. Corregido con `from __future__ import annotations` y
   blindado activando la familia `FA` de `ruff` (FA102 lo marca solo;
   comprobado quitando la línea).
-- **Versión cerrada como 1.1.0** y no 1.0.18: cambian rótulos que el usuario ve
-  y el nombre del grupo de capas, y el complemento pasa a funcionar por primera
-  vez por debajo de QGIS 3.30.
+- **Versión cerrada como 1.0.18.** Se etiquetó primero como 1.1.0 —cambian
+  rótulos visibles y el nombre del grupo de capas—, pero **el proyecto se queda
+  en la serie 1.0.x mientras no haya nada definitivo**: el motor sigue
+  calibrándose contra el original y el complemento sale como `experimental`. El
+  salto a 1.1 se reserva para cuando la geometría se dé por estable. La release
+  1.1.0 y su etiqueta se retiraron de GitHub el mismo día, antes de que nadie
+  las instalara: en el gestor de complementos de QGIS, publicar 1.0.18 después
+  de una 1.1.0 haría que la nueva **no** se ofreciera como actualización.
 
 **Medido.** `ruff check .` limpio y **84 tests en verde** después del
 renombrado: ningún test dependía de los rótulos. **CI en verde en la matriz

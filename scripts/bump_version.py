@@ -8,9 +8,14 @@
     python scripts/bump_version.py major      # 1.0.17 -> 2.0.0
     python scripts/bump_version.py 1.0.18 --seco   # solo dice que haria
 
-La version vive en CUATRO ficheros. Que se descoordinen es una de esas cosas
+La version vive en CINCO ficheros. Que se descoordinen es una de esas cosas
 que cuestan media tarde: QGIS lee metadata.txt, el panel muestra dock.VERSION y
 la guia imprime la suya. build_zip.py se niega a empaquetar si no coinciden.
+
+pyproject.toml se anadio despues: se habia quedado en 1.0.17 mientras el resto
+subia, porque no lo tocaba nadie y build_zip.py no lo comprueba (no viaja en el
+zip). No rompe la instalacion, pero es el numero que ven las herramientas de
+empaquetado y quien lee el repositorio.
 """
 
 import argparse
@@ -30,6 +35,8 @@ SITIOS = [
      r'^(VERSION\s*=\s*")([^"]+)(")', r"\g<1>{v}\g<3>", re.M),
     (os.path.join(RAIZ, "scripts", "genera_guia.py"),
      r'^(VER\s*=\s*")([^"]+)(")', r"\g<1>{v}\g<3>", re.M),
+    (os.path.join(RAIZ, "pyproject.toml"),
+     r'^(version\s*=\s*")([^"]+)(")', r"\g<1>{v}\g<3>", re.M),
 ]
 
 
