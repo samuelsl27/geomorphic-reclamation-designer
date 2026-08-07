@@ -14,6 +14,8 @@ from qgis.PyQt.QtWidgets import (
     QMessageBox, QScrollArea,
 )
 
+from ..core.project import EXT_AJUSTES, FILTRO_AJUSTES
+
 
 def _spin(minv, maxv, val, dec=2, suf=""):
     s = QDoubleSpinBox()
@@ -175,7 +177,7 @@ class SettingsDialog(QDialog):
         f2.addRow("Valley across the slope above (deg):", self.sp_ang_v)
         lay.addWidget(g2)
 
-        # ================= GeoFluvQ additional settings =================
+        # ============== Additional settings (beyond the original) ==============
         g3 = QGroupBox("Additional settings (not in the original)")
         f3 = QFormLayout(g3)
         self.sp_sinA = _spin(1.0, 1.2, self.s.sinuosidad_canal_A, 3)
@@ -253,11 +255,11 @@ class SettingsDialog(QDialog):
     # ---------- Load / Save As (settings file, like the original) ----------
     def _save_as(self):
         ruta, _ = QFileDialog.getSaveFileName(
-            self, "Save Settings As", "", "Design settings (*.geofluv-settings.json)")
+            self, "Save Settings As", "", FILTRO_AJUSTES)
         if not ruta:
             return
-        if not ruta.endswith(".geofluv-settings.json"):
-            ruta += ".geofluv-settings.json"
+        if not ruta.endswith(EXT_AJUSTES):
+            ruta += EXT_AJUSTES
         self.aplicar()
         with open(ruta, "w", encoding="utf-8") as fh:
             json.dump(self.s.to_dict(), fh, indent=2, ensure_ascii=False)
@@ -265,7 +267,7 @@ class SettingsDialog(QDialog):
 
     def _load(self):
         ruta, _ = QFileDialog.getOpenFileName(
-            self, "Load Settings", "", "Design settings (*.geofluv-settings.json)")
+            self, "Load Settings", "", FILTRO_AJUSTES)
         if not ruta:
             return
         try:

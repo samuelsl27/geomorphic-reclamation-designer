@@ -146,7 +146,7 @@ class VentanaRegistro(QDialog):
 
     def _guardar(self):
         ruta, _ = QFileDialog.getSaveFileName(
-            self, "Save log", "geofluv_optimization_log.txt", "Text (*.txt)")
+            self, "Save log", "grd_optimization_log.txt", "Text (*.txt)")
         if ruta:
             try:
                 with open(ruta, "w", encoding="utf-8") as fh:
@@ -673,7 +673,7 @@ class AITab(QWidget):
             r = QMessageBox.question(
                 self, "AI Optimization",
                 "The best solution also shifts the valley bottom lines.\n"
-                "Write those shifted lines into the GF_ValleyBottoms layer?\n"
+                "Write those shifted lines into the GRD_ValleyBottoms layer?\n"
                 "(the original geometry will be replaced)")
             if r == QMessageBox.StandardButton.Yes:
                 n = self._aplicar_valles(mejor.geom["xy"])
@@ -691,7 +691,7 @@ class AITab(QWidget):
                       "full resolution.")
 
     def _aplicar_valles(self, offsets):
-        """Escribe en GF_ValleyBottoms los fondos de valle desplazados."""
+        """Escribe en GRD_ValleyBottoms los fondos de valle desplazados."""
         from qgis.core import QgsGeometry, QgsPointXY
         from ..core.ai_optimizer import Evaluador
         d = self.dock

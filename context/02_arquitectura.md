@@ -39,8 +39,8 @@
 
 | Capa | Tipo | Qué es |
 |---|---|---|
-| `GF_Boundary` | Polígono | Límite del área a rehabilitar |
-| `GF_ValleyBottoms` | Línea 2D | Fondos de valle aproximados, patrón dendrítico |
+| `GRD_Boundary` | Polígono | Límite del área a rehabilitar |
+| `GRD_ValleyBottoms` | Línea 2D | Fondos de valle aproximados, patrón dendrítico |
 | DEM | Ráster | Terreno de partida |
 
 **Salidas**: área, cotas, longitud de valle, **densidad de drenaje con
@@ -63,8 +63,8 @@ Para cada canal, `GeoFluvBuilder`:
    Amplitud resuelta para la sinuosidad objetivo. Bordes paralelos en 3D.
 4. **Nombres** (`naming`): R1 / L1 / R1L1 según margen mirando aguas abajo.
 
-**Capas generadas** (`02 Diseño`): `GF_Channels` (eje 3D), `GF_Banks`,
-`GF_XSections` (un punto por estación con toda la hidráulica como atributos).
+**Capas generadas** (`02 Diseño`): `GRD_Channels` (eje 3D), `GRD_Banks`,
+`GRD_XSections` (un punto por estación con toda la hidráulica como atributos).
 
 ### Fase 3 — Relieve de ladera
 
@@ -87,7 +87,7 @@ topology.*                      empalmes, crestas de encuentro, sellado,
 > **El orden ES el algoritmo.** Ver reglas de oro 4 y 6 en `AGENTS.md` y los
 > bugs B-014 y B-017.
 
-**Capas** (`02 Diseño`): `GF_Ridges`, `GF_SubRidges`, `GF_Swales`.
+**Capas** (`02 Diseño`): `GRD_Ridges`, `GRD_SubRidges`, `GRD_Swales`.
 
 ### Fase 4 — Superficie (`surface.py`)
 
@@ -98,9 +98,9 @@ puntos del límite con cota del terreno                   ─┤► QgsTinInterp
    → ráster de diseño (celda automática, ligada a la anchura mediana bankfull)
    → suavizado con máscara que PROTEGE el corredor del cauce
    → recorte al límite (fuera, NoData)
-   → gdal:contour → GF_Contours (LineStringZ, con maestras)
+   → gdal:contour → GRD_Contours (LineStringZ, con maestras)
    → corte/relleno dentro del límite + esponjamiento/compactación
-   → GF_HaulRegions (polígonos) y GF_HaulRoutes (acarreos optimizados)
+   → GRD_HaulRegions (polígonos) y GRD_HaulRoutes (acarreos optimizados)
 ```
 
 ### Fase 5 — Revisión (`checks.py`)
@@ -117,7 +117,7 @@ permite filtrar, pulsar una fila para hacer zoom a la entidad y exportar a CSV.
 El bucle lo lleva el complemento, no el modelo:
 
 ```
-motor GeoFluv regenera el diseño   →  volúmenes en local (exactos, rápidos)
+el motor regenera el diseño        →  volúmenes en local (exactos, rápidos)
         ▲                                       │
         │                                       ▼
    validar contra rangos  ◄── JSON ──  modelo local (Ollama / LM Studio)
@@ -132,20 +132,21 @@ numérico. Ver `core/ai_context.py` (`MEMORIA`, 7 secciones) y
 ## Árbol de capas de QGIS
 
 ```
-GeoFluv <proyecto>
-├── 01 Entradas   GF_Boundary · GF_ValleyBottoms · DEM
-├── 02 Diseño     GF_Channels · GF_Banks · GF_XSections
-│                 GF_Ridges · GF_SubRidges · GF_Swales
-├── 03 Salida     GF_DesignSurface · GF_Contours · GF_SubWatersheds
-└── 04 Análisis   GF_CutFill (m) · GF_HaulRegions · GF_HaulRoutes
+Geomorphic Reclamation <proyecto>
+├── 01 Inputs     GRD_Boundary · GRD_ValleyBottoms · DEM
+├── 02 Design     GRD_Channels · GRD_ChannelBanks · GRD_XSections
+│                 GRD_Ridges · GRD_SubRidges · GRD_Swales · GRD_Vanes
+├── 03 Output     GRD_DesignSurface · GRD_Contours · GRD_SubWatershed
+└── 04 Analysis   GRD_CutFill (m) · GRD_Centroids · GRD_HaulRegions · GRD_HaulRoutes
 ```
 
 Almacenamiento a elegir al crear las capas: **memoria**, una carpeta elegida, o
 una carpeta nueva junto al proyecto QGIS con nombre + fecha y hora
 (`layer_manager.carpeta_unica_proyecto`).
 
-> El prefijo `GF_` y la extensión `.geofluv.json` **se conservan por
-> compatibilidad**. No los renombres (regla de oro 9).
+> El prefijo `GRD_` y la extensión `.grd.json` son los definitivos (ADR-016;
+> antes eran `GF_` y `.geofluv.json`). Ya se rompió la compatibilidad una vez
+> para sacar la marca de la interfaz: no los vuelvas a renombrar (regla de oro 9).
 
 ## Ciclo de edición del usuario
 
@@ -159,13 +160,13 @@ Setup → Añadir canales → «Generar / actualizar diseño de canales»
         edita crestas o vaguadas a mano en QGIS,
         o «Perfil longitudinal automático»,
         o cambia cotas y ajustes de canal
-  → «Dibujar curvas de nivel GeoFluv»  (re-TIN, sin regenerar canales)
+  → «Draw Design Contours»             (re-TIN, sin regenerar canales)
   → «Releer fondos de valle»           (regenera TODO desde las geometrías)
   → repetir hasta densidad de drenaje y balance en verde
   → «Centroides de corte/relleno» para planificar el movimiento de tierras
 ```
 
-El proyecto `.geofluv.json` guarda **referencias** a las geometrías, no copias:
+El proyecto `.grd.json` guarda **referencias** a las geometrías, no copias:
 si el usuario edita una capa, el diseño se actualiza al regenerar.
 
 ## Reglas de dependencia

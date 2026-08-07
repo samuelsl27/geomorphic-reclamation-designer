@@ -97,8 +97,11 @@ cualquier fase a mano y regenerar la geometría desde ahí.
    añade un campo `fid` al principio y desplaza todo. Usa `compat.attrs()`.
 
 9. **No rompas la compatibilidad de proyectos existentes.** El prefijo de capa
-   `GF_`, el nombre de fichero `*.geofluv.json` y las claves del JSON se
+   `GRD_`, el nombre de fichero `*.grd.json` y las claves del JSON se
    mantienen. Cualquier campo nuevo se lee con `d.get(clave, valor_por_defecto)`.
+   *(Hasta ADR-016 el prefijo era `GF_` y la extensión `.geofluv.json`. Se
+   renombraron a propósito, aceptando la ruptura, para sacar la marca de todo lo
+   que el usuario ve. Esa ruptura ya está pagada: no vuelvas a moverlos.)*
 
 10. **Cambio de comportamiento = test.** Todo arreglo de geometría o de hidráulica
     entra con su test en `tests/`, y el docstring del test cita la fuente
@@ -148,7 +151,7 @@ geomorphic-reclamation-designer/
 |---|---|---|
 | `compat.py` | Absorber diferencias QGIS 3.22↔4.x, PyQt5↔6 | contener lógica de diseño |
 | `params.py` | `GlobalSettings` y `ChannelSettings` (todos los ajustes) | tocar capas |
-| `project.py` | Estado del proyecto y serialización `.geofluv.json` | calcular geometría |
+| `project.py` | Estado del proyecto y serialización `.grd.json` | calcular geometría |
 | `naming.py` | Convención R1 / L1 / R1L1 | |
 | `setup_tools.py` | Fase Setup: validaciones, DEM, transición, densidad de drenaje | |
 | `hydrology.py` | Qpk racional, sección trapecial, Manning, Shields, meandros (Williams 1986) | conocer QGIS |
@@ -247,9 +250,10 @@ los valores del programa original sobre el mismo terreno.
   por QGIS. **Nada de pip install en el complemento.**
 - **Idioma**: identificadores y comentarios en **español**; los nombres de los
   ajustes y de las capas, en **inglés**, para que coincidan con la interfaz del
-  programa original (`GF_Ridges`, `Maximum distance from ridgeline to swale
-  head`…). No traduzcas esos. **Excepción (ADR-015)**: donde el rótulo original
-  llevaba la marca, va sin ella — *Design Boundary*, no *GeoFluv Boundary*.
+  programa original (`GRD_Ridges`, `Maximum distance from ridgeline to swale
+  head`…). No traduzcas esos. **Excepción (ADR-015 y ADR-016)**: donde el rótulo
+  original llevaba la marca, va sin ella — *Design Boundary*, no *GeoFluv
+  Boundary*; prefijo `GRD_`, no `GF_`.
 - **Docstrings que explican el PORQUÉ**, no el qué. El estilo de la casa es
   contar la razón física o el bug que motivó el código:
   ```python
@@ -391,7 +395,10 @@ de validar un cambio geométrico.**
 - ❌ Rellenar atributos por posición.
 - ❌ Editar `src/geomorphic_reclamation_designer/help/guide.html` a mano (se regenera; edita
   `scripts/guia_datos.py`).
-- ❌ Renombrar el prefijo `GF_` de las capas ni la extensión `.geofluv.json`.
+- ❌ Renombrar el prefijo `GRD_` de las capas ni la extensión `.grd.json` (ya se
+  renombraron una vez en ADR-016; una segunda ruptura no la paga nadie).
+- ❌ Meter la marca en nada que el usuario vea: rótulo, título, mensaje, filtro
+  de diálogo, nombre de fichero propuesto o texto de la guía (§12).
 - ❌ Cambiar una constante del método "porque queda mejor" sin cita.
 - ❌ Dar por bueno un cambio geométrico sin medirlo en QGIS.
 
@@ -417,9 +424,20 @@ libre del método publicado**, no un derivado de su software, y no está
 afiliado ni respaldado por ellos. En texto público (README, metadata, interfaz,
 mensajes) usa siempre la forma *"método fluvio-geomórfico (tipo Natural
 Regrade)"* citando la fuente, y **nunca** presentes el complemento como
-"GeoFluv" a secas ni como compatible u oficial. Los identificadores internos
-históricos (`GeoFluvBuilder`, `GF_`, `.geofluv.json`, la clave de QSettings) se
-conservan por compatibilidad técnica y no son de cara al público.
+"GeoFluv" a secas ni como compatible u oficial.
+
+**Desde ADR-016 la marca no aparece en NADA de cara al usuario**: ni en el
+prefijo de capa (`GRD_`), ni en la extensión del proyecto (`.grd.json`) o de los
+ajustes (`.grd-settings.json`), ni en el formato por defecto del *Report
+Formatter* (`STANDARD`), ni en los nombres que se proponen al exportar, ni en la
+clave de QSettings (`GeomorphicReclamation/…`). Solo sobreviven **identificadores
+internos** que no se muestran en ninguna parte (`GeoFluvBuilder`,
+`GeoFluvProject`, `GeoFluvDock`, `GeoFluvQPlugin`): renombrarlos sería ruido sin
+beneficio, pero tampoco los propagues a código nuevo.
+
+Los comentarios y docstrings **sí** nombran la marca cuando citan el método o
+miden contra la salida del programa original. Eso no es presentarse como el
+producto, es atribuir la fuente, y es obligatorio (regla de oro nº 1).
 
 **Esto ya se incumplió una vez y costó una revisión entera**: hasta ADR-015 el
 menú se llamaba *Natural Regrade* y media interfaz decía *GeoFluv*. Antes de

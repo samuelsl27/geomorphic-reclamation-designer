@@ -45,7 +45,7 @@ body:
         Cotas, longitudes, pendientes, distancias, número de errores del
         *Check Design*… lo que puedas cuantificar.
       placeholder: |
-        Cresta fid 182 de GF_Ridges:
+        Cresta fid 182 de GRD_Ridges:
           cota alta 1079.16, cota baja 1047.85, longitud 118 m
           pendiente máxima vértice a vértice: 220 %
         Check Design: 5 errores, 71 avisos
@@ -59,7 +59,7 @@ body:
         1. Cargar el proyecto adjunto
         2. Setup → seleccionar límite, canal y DEM
         3. Output → Draw Design Surface
-        4. Mirar GF_Ridges en la zona oeste
+        4. Mirar GRD_Ridges en la zona oeste
     validations: { required: true }
 
   - type: textarea
@@ -67,7 +67,7 @@ body:
     attributes:
       label: Adjuntos
       description: |
-        Captura si es geométrico; el `.geofluv.json` si lo tienes; el registro
+        Captura si es geométrico; el `.grd.json` si lo tienes; el registro
         del panel. Un proyecto mínimo (límite + un par de fondos de valle + un
         DEM pequeño) que lo reproduzca vale más que todo lo demás.
 

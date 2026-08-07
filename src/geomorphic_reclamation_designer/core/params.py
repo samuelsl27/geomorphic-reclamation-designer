@@ -64,7 +64,7 @@ class GlobalSettings:
     intervalo_curvas_maestras: float = 5.0        # m
     intervalo_estaciones: float = 10.0            # m, para informes de sección transversal
     # --- 'Triangulate and Contour From TIN' (ventana de Draw Design Surface) ---
-    resolucion_dem: float = 1.0                   # m, tamaño de celda de GF_DesignSurface
+    resolucion_dem: float = 1.0                   # m, tamaño de celda de GRD_DesignSurface
     naturalidad: int = 3                          # 0-10, pasadas del filtro de redondeo
     radio_suavizado: int = 1                      # celdas del filtro de redondeo
     recortar_superficie: bool = True              # NoData fuera del límite GeoFluv

@@ -306,8 +306,8 @@ def generar_subcrestas(disenos, g_lim, glob, lm, dem=None, crestas=None,
         else g_lim.asMultiPolygon()[0][0])
     banda_mezcla = max(glob.max_dist_cresta_cabecera, 4.0 * PASO_CRESTA)
 
-    capa_s = lm.obtener_capa("GF_SubRidges")
-    capa_v = lm.obtener_capa("GF_Swales")
+    capa_s = lm.obtener_capa("GRD_SubRidges")
+    capa_v = lm.obtener_capa("GRD_Swales")
     capa_s.dataProvider().truncate()
     capa_v.dataProvider().truncate()
     fs, fv = [], []

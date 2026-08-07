@@ -83,7 +83,7 @@ Con QGIS abierto y el MCP en marcha (`docs/MCP_QGIS.md`):
 from qgis.core import QgsProject
 p = QgsProject.instance()
 orig = [c for c in p.mapLayers().values() if "origen" in c.name()]
-mio  = [c for c in p.mapLayers().values() if c.name().startswith("GF_")]
+mio  = [c for c in p.mapLayers().values() if c.name().startswith("GRD_")]
 
 # 2. para cada línea de cresta: cota alta, cota baja, longitud, pendientes
 def resumen(capa):

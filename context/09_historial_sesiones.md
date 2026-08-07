@@ -5,6 +5,66 @@ terminar.** Plantilla al final.
 
 ---
 
+## 2026-08-07 · La marca sale de los nombres de fichero y de capa (ADR-016)
+
+**Versión**: sin subir (queda en 1.0.18). Cambio en el árbol, sin cerrar
+versión ni tocar el CHANGELOG — decisión del usuario.
+
+**Qué se hizo.** Rematar lo que ADR-015 dejó a medias. ADR-015 limpió rótulos y
+menús pero dejó fuera el prefijo `GF_` y la extensión `.geofluv.json` con el
+argumento de que eran «compatibilidad técnica, no de cara al público». Ese
+argumento no se sostiene: el prefijo se ve en **cada capa del panel de capas** y
+la extensión en **cada diálogo de guardado**.
+
+- `GF_` → `GRD_` en las 18 capas (171 apariciones en 19 ficheros de código).
+- `.geofluv.json` → `.grd.json`, `.geofluv-settings.json` → `.grd-settings.json`.
+  **Ruptura limpia**: no se lee la extensión antigua, porque mantenerla en el
+  filtro del diálogo deja la marca justo donde se quería quitar. El JSON no
+  cambia, así que migrar es renombrar el fichero.
+- Formato `GEOFLUV` del Report Formatter → `STANDARD`; clave de QSettings
+  `GeoFluvQ/report_formats` → `GeomorphicReclamation/report_formats`.
+- Ficheros que el complemento propone o escribe: `geofluv_check.csv`,
+  `geofluv_optimization_log.txt`, los cinco temporales `geofluv_*.tif` y la
+  memoria de IA `memoria_geofluv.md` → todos con `grd_` / nombre descriptivo.
+- Prompts del optimizador: «diseño GeoFluv» → «diseño fluvio-geomórfico»,
+  dejando **una** cita del método con atribución para que el modelo lo reconozca.
+
+**Lo que costó tiempo.** Darse cuenta de que `AGENTS.md` **prohibía
+explícitamente este cambio** en tres sitios (§1 regla 9, §10 y §12). Había que
+reescribirlas en el mismo commit: si no, la siguiente sesión de cualquier agente
+lo revierte por contrato. Es el tipo de cosa que no aparece si solo miras el
+código.
+
+**Decisión de fondo.** Ahora o nunca. El complemento aún no está en
+`plugins.qgis.org`, así que el universo de proyectos rotos es el del propio
+autor. Dentro de seis meses el argumento de compatibilidad ya no sería retórico.
+
+**Verificado en QGIS 4.2.0 real** (P-15, cerrado): **15/15** pasos de
+integración, **7/7** de GUI, 84 unitarias y `ruff` limpio. Más una prueba
+específica de la ida y vuelta del `.grd.json`: la extensión se aplica, el
+esquema del JSON no cambia, `nombre_desde_ruta()` deja «mina_norte» y no
+«mina_norte.grd», y un fichero renombrado desde `.geofluv.json` se lee igual —
+que es la demostración de que migrar es renombrar y nada más.
+
+**Lo que apareció por el camino** (→ B-021). Los dos tests que necesitan QGIS
+llevaban **meses rotos** en siete puntos, y nadie se había enterado porque
+`conftest.py` los salta en silencio y el resumen dice «84 passed». Ninguno era
+fallo del motor —el motor estaba bien y el test desfasado (firmas que pasaron a
+devolver tuplas, campos e informes traducidos al inglés en ADR-015, una pestaña
+nueva, un botón que ya no existe)—, pero mientras estuvieran rotos **no podían
+detectar nada**, y son los únicos que cubren la búsqueda de capas por nombre,
+que es exactamente lo que ADR-016 toca.
+
+Aprovechado para que el test llame como llama el panel de verdad
+(`generar_subcrestas` con `dem` y `crestas`), no una versión simplificada.
+
+**Para la próxima sesión.** P-16: `scripts/correr_tests_qgis.py`, para que estos
+dos tests no dependan de que alguien monte el envoltorio a mano. Y la
+comprobación visual de los diálogos de fichero, que es lo único de P-15 que
+queda sin mirar con el ratón.
+
+---
+
 ## 2026-08-07 · v1.0.18 — publicación en GitHub
 
 **Versión**: **1.0.18** (sin cambios de motor; rótulos, compatibilidad y

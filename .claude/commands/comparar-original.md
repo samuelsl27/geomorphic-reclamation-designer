@@ -5,7 +5,7 @@ description: Medir el diseño generado contra la salida del GeoFluv original
 Compara nuestro diseño con el del programa original sobre el mismo terreno.
 Foco de la comparación: **$ARGUMENTS** (si no digo nada, compara todo).
 
-En QGIS están cargados los dos: nuestras capas `GF_*` y el grupo de referencia
+En QGIS están cargados los dos: nuestras capas `GRD_*` y el grupo de referencia
 importado del DXF original (busca «origen» en el nombre del grupo).
 
 Mide, para cada elemento comparable:

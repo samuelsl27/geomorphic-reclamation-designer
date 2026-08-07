@@ -69,6 +69,8 @@ datos/
 *.cpg
 *.sbn
 *.sbx
+*.grd.json
+*.grd-settings.json
 *.geofluv.json
 *_optimization_*/
 

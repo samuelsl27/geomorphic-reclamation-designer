@@ -423,7 +423,7 @@ class Evaluador:
     def _metricas_lineas(self, s):
         """Pendientes de crestas/vaguadas frente al máximo admisible."""
         peor, fuera, total = 0.0, 0, 0
-        for nom in ("GF_Ridges", "GF_SubRidges", "GF_Swales"):
+        for nom in ("GRD_Ridges", "GRD_SubRidges", "GRD_Swales"):
             capa = self.lm.obtener_capa(nom, crear=False)
             if capa is None:
                 continue
@@ -445,7 +445,7 @@ class Evaluador:
     def _metricas_canales(self, disenos, s):
         dd = [d.dd_m_ha for d in disenos.values() if d.dd_m_ha]
         tau_alto = 0
-        capa = self.lm.obtener_capa("GF_XSections", crear=False)
+        capa = self.lm.obtener_capa("GRD_XSections", crear=False)
         n_sec = 0
         if capa is not None:
             for f in capa.getFeatures():
@@ -730,7 +730,7 @@ class Optimizador:
     # ---------- ejecución ----------
     def ejecutar(self, candidato_inicial):
         self.log("=" * 72)
-        self.log(f"Optimización GeoFluv — {self.n_iter} iteraciones, "
+        self.log(f"Optimización del diseño — {self.n_iter} iteraciones, "
                  f"tolerancia {self.tol:g} %, malla {self.ev.paso_malla:g} m")
         self.log(f"Carpeta de trabajo: {self.carpeta}")
         self.log("=" * 72)
@@ -925,7 +925,7 @@ class Optimizador:
 
 
 def carpeta_optimizacion(proyecto_nombre, ruta_json=None):
-    """<carpeta del .geofluv.json>/<nombre>_optimization_<fecha>_<hora>."""
+    """<carpeta del .grd.json>/<nombre>_optimization_<fecha>_<hora>."""
     base = None
     if ruta_json:
         base = os.path.dirname(ruta_json)

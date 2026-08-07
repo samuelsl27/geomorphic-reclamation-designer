@@ -48,13 +48,13 @@ puedes editar. Mueve un fondo de valle, arrastra los vértices de una cresta,
 cambia un ajuste y regenera: el diseño se reconstruye a partir de las entradas.
 Nada queda congelado. El ciclo habitual es Preview → mirar la densidad de
 drenaje → Draw Design Surface → mirar el corte/relleno → ajustar → repetir."""),
- ("File...", """Opens, saves and names the design project (<code>.geofluv.json</code>). The
+ ("File...", """Opens, saves and names the design project (<code>.grd.json</code>). The
 project file stores the settings, the list of channels and <i>references</i> to
 the input layers and features — not the coordinates. That is deliberate: you can
 edit the input polylines afterwards and regenerate, and the project still points
 at them. Keep the project file next to the QGIS project so relative paths stay
 short.""",
- """Abre, guarda y nombra el proyecto de diseño (<code>.geofluv.json</code>). El
+ """Abre, guarda y nombra el proyecto de diseño (<code>.grd.json</code>). El
 fichero guarda los ajustes, la lista de canales y <i>referencias</i> a las capas
 y entidades de entrada, no las coordenadas. Es a propósito: puedes editar
 después las polilíneas de entrada y regenerar, y el proyecto sigue apuntando a
@@ -62,11 +62,11 @@ ellas. Guarda el fichero junto al proyecto de QGIS para que las rutas relativas
 sean cortas."""),
  ("Settings...", """Opens the <i>Global Settings</i> dialog (documented in the
 Setup tab of this guide). <b>Load / Save As</b> inside that dialog store the
-settings in a separate <code>.geofluv-settings.json</code>, so a calibrated set
+settings in a separate <code>.grd-settings.json</code>, so a calibrated set
 of values can be reused across projects with similar material and climate.""",
  """Abre el diálogo <i>Global Settings</i> (documentado en la
 pestaña Setup de esta guía). <b>Load / Save As</b> dentro de ese diálogo guardan
-los ajustes en un <code>.geofluv-settings.json</code> aparte, de modo que un
+los ajustes en un <code>.grd-settings.json</code> aparte, de modo que un
 juego de valores ya calibrado se puede reutilizar en proyectos con material y
 clima parecidos."""),
  ("__layers", """<b>Layer organisation.</b> Everything lands in the layer panel under
@@ -74,7 +74,7 @@ clima parecidos."""),
 valley bottoms), <code>02 Design</code> (channels, banks, cross-sections,
 ridges, sub-ridges, swales), <code>03 Output</code> (design surface, contours,
 sub-watersheds) and <code>04 Analysis</code> (cut/fill raster, centroids, haul
-regions and routes). Layer names all start with <code>GF_</code> and the
+regions and routes). Layer names all start with <code>GRD_</code> and the
 attribute fields follow the report nomenclature, so they can be styled, joined
 and exported like any other QGIS data.""",
  """<b>Organización de las capas.</b> Todo aparece en el panel de capas bajo
@@ -83,7 +83,7 @@ and exported like any other QGIS data.""",
 crestas, subcrestas, vaguadas), <code>03 Output</code> (superficie de diseño,
 curvas, subcuencas) y <code>04 Analysis</code> (ráster de corte/relleno,
 centroides, regiones y rutas de acarreo). Todos los nombres empiezan por
-<code>GF_</code> y los campos siguen la nomenclatura de los informes, así que se
+<code>GRD_</code> y los campos siguen la nomenclatura de los informes, así que se
 pueden simbolizar, unir y exportar como cualquier dato de QGIS."""),
  ("__storage", """<b>Where the layers live.</b> When you press <i>Create Design Layers</i> you
 choose the storage: <b>virtual (memory)</b> is the fastest but is lost when QGIS
@@ -117,12 +117,12 @@ the order you need them.""",
  """La pestaña Setup reúne las tres cosas sin las que el diseño no puede empezar,
 en el orden en que las necesitas."""),
  ("Create Design Layers", """Builds the group tree and the two empty input layers
-(<code>GF_Boundary</code>, <code>GF_ValleyBottoms</code>) so you can draw into
+(<code>GRD_Boundary</code>, <code>GRD_ValleyBottoms</code>) so you can draw into
 them, and asks where the layers should be stored. You can skip it entirely and
 point the plugin at your own polygon and line layers instead — the selectors
 accept any layer of the right geometry type.""",
  """Crea el árbol de grupos y las dos capas de entrada vacías
-(<code>GF_Boundary</code>, <code>GF_ValleyBottoms</code>) para que dibujes en
+(<code>GRD_Boundary</code>, <code>GRD_ValleyBottoms</code>) para que dibujes en
 ellas, y pregunta dónde guardar las capas. Puedes saltártelo por completo y
 apuntar el complemento a tus propias capas de polígono y de línea: los
 selectores aceptan cualquier capa del tipo de geometría correcto."""),
@@ -861,10 +861,10 @@ that does not reach the boundary.""",
 rápida de detectar un defecto que la planta esconde: un drenaje invertido, una
 depresión cerrada, una cresta que no llega al límite."""),
  ("Calculate Design Volume", """Reports cut, fill and net volume inside the boundary, in place and corrected for
-swell and shrink, and produces the <code>GF_CutFill</code> raster clipped to the
+swell and shrink, and produces the <code>GRD_CutFill</code> raster clipped to the
 perimeter: negative is cut, positive is fill.""",
  """Informa del corte, el relleno y el neto dentro del límite, en banco y corregidos
-por esponjamiento y compactación, y genera el ráster <code>GF_CutFill</code>
+por esponjamiento y compactación, y genera el ráster <code>GRD_CutFill</code>
 recortado al perímetro: negativo es corte, positivo es relleno."""),
  ("Mass Haul", """Groups the cut and fill into connected regions above a minimum volume you set —
 match it to the equipment, because regions smaller than a machine's working unit

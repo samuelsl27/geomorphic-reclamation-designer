@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # SPDX-FileCopyrightText: 2026 Samuel Saez Lopez y colaboradores
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""GF_DesignSurface y análisis de tierras.
+"""GRD_DesignSurface y análisis de tierras.
 
 - SUPERFICIE DE DISEÑO: interpolación TIN (QgsTinInterpolator, qgis.analysis)
   usando como líneas de rotura los ejes y bordes 3D de los canales, las
@@ -36,8 +36,8 @@ from .compat import tipo_geom, attrs
 
 # ------------------------------------------------------------------ TIN
 def _capas_diseno(lm):
-    nombres = ["GF_Channels", "GF_ChannelBanks", "GF_Ridges",
-               "GF_SubRidges", "GF_Swales"]
+    nombres = ["GRD_Channels", "GRD_ChannelBanks", "GRD_Ridges",
+               "GRD_SubRidges", "GRD_Swales"]
     return [lm.obtener_capa(n, crear=False) for n in nombres]
 
 
@@ -286,7 +286,7 @@ def suavizar_raster(ruta, pasadas=0, radio=1, ruta_salida=None,
             a = np.where(fija, original, a)
         a = np.where(valido, a, 0.0)
     salida = ruta_salida or os.path.join(tempfile.gettempdir(),
-                                         "geofluv_superficie_suave.tif")
+                                         "grd_superficie_suave.tif")
     drv = gdal.GetDriverByName("GTiff")
     nd = nodata if nodata is not None else -9999.0
     out = drv.Create(salida, ds.RasterXSize, ds.RasterYSize, 1, gdal.GDT_Float32)
@@ -306,7 +306,7 @@ def recortar_al_limite(ruta, g_lim, ruta_salida=None):
     debe existir superficie de diseño (queda NoData)."""
     from qgis import processing
     salida = ruta_salida or os.path.join(tempfile.gettempdir(),
-                                         "geofluv_superficie_rec.tif")
+                                         "grd_superficie_rec.tif")
     try:
         processing.run("gdal:cliprasterbymasklayer", {
             "INPUT": ruta, "MASK": _capa_mascara(g_lim),
@@ -386,7 +386,7 @@ def interpolar_superficie(lm, g_lim, dem, disenos, glob, ruta_salida=None,
     celda = _celda_para_el_cauce(celda, bb, disenos)
     cols = max(10, int(bb.width() / celda))
     filas = max(10, int(bb.height() / celda))
-    ruta_tin = os.path.join(tempfile.gettempdir(), "geofluv_superficie_tin.tif")
+    ruta_tin = os.path.join(tempfile.gettempdir(), "grd_superficie_tin.tif")
     escritor = QgsGridFileWriter(interp, ruta_tin, bb, cols, filas)
     res = escritor.writeFile()
     if res != 0:
@@ -405,7 +405,7 @@ def interpolar_superficie(lm, g_lim, dem, disenos, glob, ruta_salida=None,
             ruta = ruta_salida
         except Exception:
             pass
-    capa = QgsRasterLayer(ruta, "GF_DesignSurface")
+    capa = QgsRasterLayer(ruta, "GRD_DesignSurface")
     if not capa.isValid():
         raise RuntimeError("No se pudo cargar el ráster de la superficie de diseño.")
     return capa, ruta
@@ -436,7 +436,7 @@ def _a_3d(g, z):
 
 def generar_contornos(ruta_raster, lm, glob, intervalo=None, indice=None,
                       long_min=0.0, bezier=True, factor_bezier=5):
-    """GF_Contours gdal:contour → capa 'GF_Contours' con maestras.
+    """GRD_Contours gdal:contour → capa 'GRD_Contours' con maestras.
 
     intervalo / indice: intervalos de curva y de curva maestra (m).
     long_min: descarta curvas más cortas (limpia el ruido de curvas cerradas).
@@ -451,7 +451,7 @@ def generar_contornos(ruta_raster, lm, glob, intervalo=None, indice=None,
     from qgis.core import QgsVectorLayer
     src = res["OUTPUT"]
     vc = src if isinstance(src, QgsVectorLayer) else QgsVectorLayer(src, "tmp", "ogr")
-    capa = lm.obtener_capa("GF_Contours")
+    capa = lm.obtener_capa("GRD_Contours")
     capa.dataProvider().truncate()
     im = max(indice, intervalo)
     # 'Bezier Smoothing Factor' 1-10 → iteraciones y desplazamiento de Chaikin
@@ -587,7 +587,7 @@ def raster_diferencia(ruta_diseno, capa_comp, lm, g_lim=None):
     capa_d = QgsRasterLayer(ruta_diseno, "d")
     e1 = QgsRasterCalculatorEntry(); e1.ref = "d@1"; e1.raster = capa_d; e1.bandNumber = 1
     e2 = QgsRasterCalculatorEntry(); e2.ref = "c@1"; e2.raster = capa_comp; e2.bandNumber = 1
-    salida = os.path.join(tempfile.gettempdir(), "geofluv_corte_relleno.tif")
+    salida = os.path.join(tempfile.gettempdir(), "grd_corte_relleno.tif")
     try:
         calc = QgsRasterCalculator(
             '"d@1" - "c@1"', salida, "GTiff", capa_d.extent(), capa_d.crs(),
@@ -602,8 +602,8 @@ def raster_diferencia(ruta_diseno, capa_comp, lm, g_lim=None):
     if g_lim is not None:
         salida = recortar_al_limite(
             salida, g_lim,
-            os.path.join(tempfile.gettempdir(), "geofluv_corte_relleno_rec.tif"))
-    capa = QgsRasterLayer(salida, "GF_CutFill (m)")
+            os.path.join(tempfile.gettempdir(), "grd_corte_relleno_rec.tif"))
+    capa = QgsRasterLayer(salida, "GRD_CutFill (m)")
     if capa.isValid():
         _estilo_cutfill(capa)
         lm.anadir_raster_a_grupo(capa, "04 Analysis")
@@ -691,7 +691,7 @@ def _poligono_region(celdas, bb, dx, dy):
 def centroides(cf, vol_min, lm, dibujar_areas=True):
     """Regiones conexas de corte/relleno ≥ vol_min, centroides ponderados,
     POLÍGONOS de cada área y plan de acarreo optimizado (asignación voraz por
-    distancia). Escribe GF_Centroids, GF_HaulRegions y GF_HaulRoutes."""
+    distancia). Escribe GRD_Centroids, GRD_HaulRegions y GRD_HaulRoutes."""
     malla, filas, cols = cf["malla"], cf["filas"], cf["cols"]
     bb, dx, dy = cf["bb"], cf["dx"], cf["dy"]
     area = dx * dy
@@ -736,7 +736,7 @@ def centroides(cf, vol_min, lm, dibujar_areas=True):
         R["prof_media"] = (R["volumen"] / R["area_m2"]) if R["area_m2"] else 0.0
 
     # capa de puntos (centroides)
-    capa = lm.obtener_capa("GF_Centroids")
+    capa = lm.obtener_capa("GRD_Centroids")
     capa.dataProvider().truncate()
     feats = []
     for R in regiones:
@@ -749,7 +749,7 @@ def centroides(cf, vol_min, lm, dibujar_areas=True):
 
     # --- capa de ÁREAS (polígonos) con toda la información ---
     if dibujar_areas:
-        capa_a = lm.obtener_capa("GF_HaulRegions")
+        capa_a = lm.obtener_capa("GRD_HaulRegions")
         if capa_a is not None:
             capa_a.dataProvider().truncate()
             fa = []
@@ -788,7 +788,7 @@ def centroides(cf, vol_min, lm, dibujar_areas=True):
             dest["volumen"] -= mov
 
     # --- capa de RUTAS de acarreo ---
-    capa_r = lm.obtener_capa("GF_HaulRoutes")
+    capa_r = lm.obtener_capa("GRD_HaulRoutes")
     if capa_r is not None:
         capa_r.dataProvider().truncate()
         fr = []
@@ -827,8 +827,8 @@ def informe_centroides(regiones, plan, cf, glob):
                   f"{R.get('area_m2', 0):>12,.0f} {R.get('prof_media', 0):>11,.2f} "
                   f"{R['x']:>12,.1f} {R['y']:>12,.1f}")
     ln.append("")
-    ln.append("Areas drawn in layer 'GF_HaulRegions' (cut red / fill blue) and "
-              "haul lines in 'GF_HaulRoutes'.")
+    ln.append("Areas drawn in layer 'GRD_HaulRegions' (cut red / fill blue) and "
+              "haul lines in 'GRD_HaulRoutes'.")
     ln.append("")
     ln.append("Earth Movement Report (minimum-distance assignment):")
     ln.append(f"{'from':>5s} {'to':>5s} {'volume (m³)':>14s} {'dist. (m)':>10s}")

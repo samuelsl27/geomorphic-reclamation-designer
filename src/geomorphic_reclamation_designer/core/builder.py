@@ -223,7 +223,7 @@ class GeoFluvBuilder:
 
     # ================= entrada =================
     def _geom_limite(self):
-        capa = self.lm.obtener_capa(getattr(self.p, "capa_limite", "GF_Boundary"),
+        capa = self.lm.obtener_capa(getattr(self.p, "capa_limite", "GRD_Boundary"),
                                     crear=False)
         if capa is None or self.p.fid_limite is None:
             return None
@@ -237,7 +237,7 @@ class GeoFluvBuilder:
             g = QgsGeometry.fromPolylineXY([QgsPointXY(x, y) for x, y in pts])
         else:
             capa = self.lm.obtener_capa(
-                getattr(self.p, "capa_valles", "GF_ValleyBottoms"), crear=False)
+                getattr(self.p, "capa_valles", "GRD_ValleyBottoms"), crear=False)
             if capa is None or canal.fid_fondo_valle is None:
                 return None
             f = capa.getFeature(canal.fid_fondo_valle)
@@ -599,7 +599,7 @@ class GeoFluvBuilder:
 
 
         # --- ejes 3D ---
-        capa = self.lm.obtener_capa("GF_Channels")
+        capa = self.lm.obtener_capa("GRD_Channels")
         capa.dataProvider().truncate()
         feats = []
         for d in disenos:
@@ -624,7 +624,7 @@ class GeoFluvBuilder:
         capa.updateExtents(); capa.triggerRepaint()
 
         # --- bordes ---
-        capa_b = self.lm.obtener_capa("GF_ChannelBanks")
+        capa_b = self.lm.obtener_capa("GRD_ChannelBanks")
         capa_b.dataProvider().truncate()
         feats = []
         for d in disenos:
@@ -655,7 +655,7 @@ class GeoFluvBuilder:
         capa_b.updateExtents(); capa_b.triggerRepaint()
 
         # --- secciones ---
-        capa_s = self.lm.obtener_capa("GF_XSections")
+        capa_s = self.lm.obtener_capa("GRD_XSections")
         capa_s.dataProvider().truncate()
         feats = []
         for d in disenos:
@@ -698,7 +698,7 @@ def recalcular_por_aportes(disenos, layer_manager, glob, log=None):
 
     Devuelve el nº de canales recalculados."""
     log = log or (lambda *_a: None)
-    capa = layer_manager.obtener_capa("GF_Swales", crear=False)
+    capa = layer_manager.obtener_capa("GRD_Swales", crear=False)
     if capa is None or capa.featureCount() == 0:
         return 0
     porcanal = {}
@@ -741,7 +741,7 @@ def recalcular_por_aportes(disenos, layer_manager, glob, log=None):
     # reescribir la capa de secciones con la hidráulica nueva
     try:
         from .compat import attrs as _attrs
-        capa_s = layer_manager.obtener_capa("GF_XSections", crear=False)
+        capa_s = layer_manager.obtener_capa("GRD_XSections", crear=False)
         if capa_s is not None:
             capa_s.dataProvider().truncate()
             feats = []

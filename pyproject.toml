@@ -8,7 +8,7 @@ license = { text = "AGPL-3.0-or-later" }
 authors = [{ name = "Samuel Sáez López", email = "samuelimga@gmail.com" }]
 keywords = [
     "qgis", "mining", "reclamation", "geomorphology", "landform",
-    "hydrology", "geofluv", "natural-regrade", "terrain", "dem",
+    "hydrology", "fluvial-geomorphic", "natural-regrade", "terrain", "dem",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",

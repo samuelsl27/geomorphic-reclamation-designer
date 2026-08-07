@@ -123,7 +123,7 @@ Resumen:
 ```python
 # medir una capa de líneas 3D
 from qgis.core import QgsProject
-capa = QgsProject.instance().mapLayersByName("GF_Ridges")[0]
+capa = QgsProject.instance().mapLayersByName("GRD_Ridges")[0]
 for f in capa.getFeatures():
     zs = [v.z() for v in f.geometry().vertices()]
     print(f.id(), round(max(zs), 2), round(min(zs), 2),

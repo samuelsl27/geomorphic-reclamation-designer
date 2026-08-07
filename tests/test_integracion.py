@@ -85,7 +85,7 @@ def preparar(ruta_dem):
 
 @paso("Límite y fondos de valle (entidades)")
 def entradas(lm):
-    capa_l = lm.obtener_capa("GF_Boundary")
+    capa_l = lm.obtener_capa("GRD_Boundary")
     f = QgsFeature(capa_l.fields())
     anillo = [QgsPointXY(60, 160), QgsPointXY(740, 160), QgsPointXY(740, 640),
               QgsPointXY(60, 640), QgsPointXY(60, 160)]
@@ -94,7 +94,7 @@ def entradas(lm):
     capa_l.dataProvider().addFeatures([f])
     fid_lim = next(capa_l.getFeatures()).id()
 
-    capa_v = lm.obtener_capa("GF_ValleyBottoms")
+    capa_v = lm.obtener_capa("GRD_ValleyBottoms")
     valles = [
         [(120, 420), (400, 405), (750, 400)],                 # principal (sale por el E)
         [(300, 600), (305, 500), (310, 412)],                 # tributario N
@@ -113,8 +113,8 @@ def entradas(lm):
 @paso("Validaciones de Setup (límite, principal, tributarios, transición)")
 def validaciones(lm, dem, fid_lim, fids):
     from geomorphic_reclamation_designer.core import setup_tools as st
-    capa_l = lm.obtener_capa("GF_Boundary")
-    capa_v = lm.obtener_capa("GF_ValleyBottoms")
+    capa_l = lm.obtener_capa("GRD_Boundary")
+    capa_v = lm.obtener_capa("GRD_ValleyBottoms")
     g_lim = capa_l.getFeature(fid_lim).geometry()
     ok, area_ha, msg = st.validar_limite(g_lim)
     assert ok and 30 < area_ha < 40, (ok, area_ha)
@@ -159,11 +159,11 @@ def construir(lm, dem, fid_lim, fids):
             z_p = principal.perfil.z(d.s_confluencia)
             assert abs(d.perfil.z_boca - z_p) < 1e-6, (n, d.perfil.z_boca, z_p)
     # capas escritas
-    assert lm.obtener_capa("GF_Channels").featureCount() == 4
-    assert lm.obtener_capa("GF_ChannelBanks").featureCount() == 24   # 6 por canal
-    assert lm.obtener_capa("GF_XSections").featureCount() > 40
+    assert lm.obtener_capa("GRD_Channels").featureCount() == 4
+    assert lm.obtener_capa("GRD_ChannelBanks").featureCount() == 24   # 6 por canal
+    assert lm.obtener_capa("GRD_XSections").featureCount() > 40
     # geometrías con Z
-    g = next(lm.obtener_capa("GF_Channels").getFeatures()).geometry()
+    g = next(lm.obtener_capa("GRD_Channels").getFeatures()).geometry()
     assert g.constGet().is3D()
     print(f"      canales: {sorted(nombres)}  avisos: {len(b.avisos)}")
     return p, disenos
@@ -178,14 +178,14 @@ def subcuencas(disenos, g_lim, lm):
     assert abs(a_tot - g_lim.area() / 10000.0) < 0.5, a_tot   # cubren el límite
     return sub
 
-@paso("GF_Ridges")
+@paso("GRD_Ridges")
 def crestas(disenos, sub, g_lim, dem, lm):
     from geomorphic_reclamation_designer.core import ridges
     from geomorphic_reclamation_designer.core.params import GlobalSettings
     glob = GlobalSettings()
     n = ridges.generar_crestas(disenos, sub, g_lim, glob, dem, lm)
     assert n >= 3, n
-    g = next(lm.obtener_capa("GF_Ridges").getFeatures()).geometry()
+    g = next(lm.obtener_capa("GRD_Ridges").getFeatures()).geometry()
     assert g.constGet().is3D()
     return glob
 
@@ -196,7 +196,7 @@ def subcrestas(disenos, g_lim, glob, lm):
     assert ns > 4 and nv > 2, (ns, nv)
     print(f"      {ns} subcrestas, {nv} vaguadas")
 
-@paso("GF_DesignSurface (TIN)")
+@paso("GRD_DesignSurface (TIN)")
 def superficie(lm, g_lim, dem, disenos, glob):
     from geomorphic_reclamation_designer.core import surface
     capa, ruta = surface.interpolar_superficie(lm, g_lim, dem, disenos, glob)
@@ -209,12 +209,12 @@ def superficie(lm, g_lim, dem, disenos, glob):
     assert z is not None and abs(z - z_esp) < 5.0, (z, z_esp)
     return capa, ruta
 
-@paso("GF_Contours")
+@paso("GRD_Contours")
 def curvas(ruta, lm, glob):
     from geomorphic_reclamation_designer.core import surface
     n = surface.generar_contornos(ruta, lm, glob)
     assert n > 20, n
-    maestras = sum(1 for f in lm.obtener_capa("GF_Contours").getFeatures()
+    maestras = sum(1 for f in lm.obtener_capa("GRD_Contours").getFeatures()
                    if f["maestra"])
     assert maestras > 0
     print(f"      {n} curvas ({maestras} maestras)")
@@ -254,7 +254,7 @@ def informes(disenos, glob, g_lim):
 @paso("Regeneración tras editar geometría (Releer)")
 def releer(lm, dem, p):
     from geomorphic_reclamation_designer.core.builder import GeoFluvBuilder
-    capa_v = lm.obtener_capa("GF_ValleyBottoms")
+    capa_v = lm.obtener_capa("GRD_ValleyBottoms")
     c3 = p.canales[3]
     f = capa_v.getFeature(c3.fid_fondo_valle)
     g = f.geometry()
@@ -270,7 +270,7 @@ def releer(lm, dem, p):
 @paso("Auto-perfil sobre selección")
 def autoperfil(lm):
     from geomorphic_reclamation_designer.gui.auto_profile_dialog import aplicar_auto_perfil
-    capa = lm.obtener_capa("GF_Ridges")
+    capa = lm.obtener_capa("GRD_Ridges")
     ids = [f.id() for f in capa.getFeatures()][:1]
     capa.selectByIds(ids)
     n = aplicar_auto_perfil(capa, -10.0, -2.0, convexo_m=0.0)

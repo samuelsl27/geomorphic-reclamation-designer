@@ -17,7 +17,7 @@ lanzar desde ahí.
 
 ```
                  ENTRADAS                          (01 Entradas)
-    GF_Boundary · GF_ValleyBottoms · DEM
+    GRD_Boundary · GRD_ValleyBottoms · DEM
                      │
              ┌───────┴────────┐
              │  setup_tools   │  validaciones, transición, densidad de drenaje
@@ -27,7 +27,7 @@ lanzar desde ahí.
              │    builder     │  ← hydrology · profile · planform · naming
              └───────┬────────┘
                      │             (02 Diseño)
-        GF_Channels · GF_Banks · GF_XSections
+        GRD_Channels · GRD_Banks · GRD_XSections
                      │
              ┌───────┴────────┐
              │     ridges     │  subcuencas Voronoi + crestas divisorias
@@ -42,14 +42,14 @@ lanzar desde ahí.
              │    topology    │  empalmes, sellado, convergencia
              └───────┬────────┘
                      │
-          GF_Ridges · GF_SubRidges · GF_Swales
+          GRD_Ridges · GRD_SubRidges · GRD_Swales
                      │
              ┌───────┴────────┐
              │    surface     │  TIN → ráster → curvas → corte/relleno
              └───────┬────────┘
                      │             (03 Salida / 04 Análisis)
-   GF_DesignSurface · GF_Contours · GF_SubWatersheds
-   GF_CutFill · GF_HaulRegions · GF_HaulRoutes
+   GRD_DesignSurface · GRD_Contours · GRD_SubWatersheds
+   GRD_CutFill · GRD_HaulRegions · GRD_HaulRoutes
                      │
              ┌───────┴────────┐
              │     checks     │  22 comprobaciones. Solo lee
@@ -89,11 +89,11 @@ el pie es el punto más alto.
 
 No hay base de datos ni formato propio. **El estado vive en las capas de QGIS.**
 
-- El proyecto `.geofluv.json` guarda **parámetros y referencias** a las
+- El proyecto `.grd.json` guarda **parámetros y referencias** a las
   geometrías de entrada, no copias. Si el usuario edita una capa, el diseño se
   actualiza al regenerar.
-- Las propiedades hidráulicas viajan como **atributos** de `GF_Channels` y
-  `GF_XSections`: se consultan con la herramienta *Identificar* normal de QGIS y
+- Las propiedades hidráulicas viajan como **atributos** de `GRD_Channels` y
+  `GRD_XSections`: se consultan con la herramienta *Identificar* normal de QGIS y
   se pueden usar en expresiones, etiquetas y simbología.
 - Las capas pueden ser de memoria o estar en disco (GeoPackage), a elección del
   usuario al crearlas.

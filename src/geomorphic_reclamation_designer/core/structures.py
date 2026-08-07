@@ -35,7 +35,7 @@ def generar_vanes(d, glob, lm, n_vanes=3, espaciado_w=4.0, longitud_w=0.75,
     Devuelve el número de vanes creados."""
     if not d.puntos or d.L_valle <= 0:
         return 0
-    capa = lm.obtener_capa("GF_Vanes")
+    capa = lm.obtener_capa("GRD_Vanes")
     # borrar los vanes previos de este canal
     ids = [f.id() for f in capa.getFeatures() if f["channel"] == d.nombre]
     if ids:
@@ -86,10 +86,10 @@ def generar_vanes(d, glob, lm, n_vanes=3, espaciado_w=4.0, longitud_w=0.75,
 def generar_vegetacion(g_lim, disenos, lm, dem=None, capa_superficie=None,
                        arboles_ha=25.0, arbustos_ha=80.0, dist_min_canal=None,
                        semilla=1234):
-    """Genera GF_Vegetation: puntos aleatorios (árboles y arbustos) dentro del
+    """Genera GRD_Vegetation: puntos aleatorios (árboles y arbustos) dentro del
     límite, fuera del corredor de los canales, con cota de la superficie de
     diseño (o del DEM). Devuelve (n_arboles, n_arbustos)."""
-    capa = lm.obtener_capa("GF_Vegetation")
+    capa = lm.obtener_capa("GRD_Vegetation")
     capa.dataProvider().truncate()
     rng = random.Random(semilla)
     bb = g_lim.boundingBox()

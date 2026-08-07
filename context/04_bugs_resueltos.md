@@ -6,6 +6,55 @@
 
 ---
 
+## B-021 · Los tests que necesitan QGIS llevaban meses sin ejecutarse 🔴
+
+**Síntoma.** Ninguno, y ese es exactamente el problema. `pytest -q` daba
+**84/84 en verde** mientras `test_integracion.py` y `test_gui.py` estaban rotos
+en cinco sitios distintos. Se descubrió al ir a verificar ADR-016 con QGIS
+delante, que es la primera vez que se ejecutan de verdad en esta máquina.
+
+**Causa raíz.** `tests/conftest.py` los **salta solos** si no encuentra
+`qgis.core`, con un mensaje claro… que nadie lee cuando el resumen dice «84
+passed». En CI tampoco corren (no hay QGIS). Resultado: un test que se salta en
+silencio es indistinguible de un test que pasa, y el motor fue evolucionando
+por debajo sin que nada avisara. Lo que había derivado:
+
+| Sitio | El test pedía | El motor hace |
+|---|---|---|
+| `crestas` | `n = generar_crestas(...)`, `n >= 3` | devuelve `(n, crestas_3d)` |
+| `subcrestas` | `ns, nv = generar_subcrestas(...)` | devuelve `(ns, nv, avisos)` |
+| `curvas` | campo `f["maestra"]` | el campo es `is_index` (ADR-015, campos en inglés) |
+| `centr` | `"Plan de movimiento" in txt` | el informe está en inglés (ADR-015) |
+| `informes` | `"estación" in t1` | ídem |
+| `test_gui` | `dock.tabs.count() == 4` | son 5 desde la pestaña *AI Optimization* |
+| `test_gui` | `dock.btn_generar` | ya no existe: son `btn_prev` y `btn_draw` |
+
+Ninguna era un fallo del motor: **el motor estaba bien y el test, desfasado**.
+Pero mientras estuvieran rotos no podían detectar nada, que es lo grave: el
+renombrado de ADR-016 es búsqueda de capas *por nombre*, justo lo que estos dos
+tests son los únicos en cubrir.
+
+**Corrección.** Ajustados los siete puntos al comportamiento real, aprovechando
+para que las llamadas sean **las mismas que hace el panel** (`generar_subcrestas`
+ahora recibe `dem` y `crestas`, como en `dock._preview`) en vez de una versión
+simplificada que no probaba el camino real.
+
+**Medido.** Con QGIS 4.2.0 sobre el DEM sintético: **15/15 pasos** de
+integración y **7/7** de GUI. 73 subcrestas y 73 vaguadas, 1796 curvas (370
+maestras), corte 759,288 m³ / relleno 881,815 m³ (C/R 86.1 %), 19 regiones de
+acarreo y 17 movimientos. Regeneración tras editar geometría y auto-perfil, OK.
+
+**Cómo ejecutarlos en Windows.** Los dos están escritos para la CI de Linux:
+fijan el prefijo a `/usr` y buscan `processing` en
+`/usr/share/qgis/python/plugins`. Para correrlos aquí hay que neutralizar
+`QgsApplication.setPrefixPath` y añadir
+`%QGIS_PREFIX_PATH%\python\plugins` a `sys.path`, luego lanzarlos con
+`"C:\Program Files\QGIS 4.2.0\bin\python-qgis.bat"`. Ver P-16 en
+`context/08_pendiente.md`: esto debería estar en `scripts/`, no reinventarse
+cada vez.
+
+---
+
 ## B-020 · El complemento NO cargaba en QGIS 3.22–3.28 (Python 3.9) 🔴
 
 **Síntoma.** Ninguno *en el PC de desarrollo*, que tiene QGIS 4.2 con Python
@@ -48,9 +97,9 @@ encuentra*.
 
 ---
 
-## B-019 · `NameError` silencioso en la rampa de color de GF_CutFill
+## B-019 · `NameError` silencioso en la rampa de color de GRD_CutFill
 
-**Síntoma.** Ninguno visible… y ese es el problema. La capa `GF_CutFill (m)` se
+**Síntoma.** Ninguno visible… y ese es el problema. La capa `GRD_CutFill (m)` se
 quedaba **sin simbolizar**, así que la imagen de corte/relleno que se le pasaba
 al modelo de IA en cada iteración salía en escala de grises, sin la rampa
 divergente ni la leyenda de rangos. El modelo estaba "viendo" mucho menos de lo
@@ -300,8 +349,8 @@ confluencia y genera las dos, cada una anclada ahí en X, Y y Z.
 ## B-006 · Atributos desplazados una columna en GeoPackage (v1.0.11) 🔴
 
 **Síntoma.** Al elegir *"Save layers to a folder"*, las capas salían **vacías**
-(`GF_Channels`, `GF_XSections`, `GF_Contours`, `GF_HaulRegions`,
-`GF_HaulRoutes` con 0 entidades). De ahí venían también *"no veo las curvas"*,
+(`GRD_Channels`, `GRD_XSections`, `GRD_Contours`, `GRD_HaulRegions`,
+`GRD_HaulRoutes` con 0 entidades). De ahí venían también *"no veo las curvas"*,
 *"Mass Haul da problemas"* y *"Highlight Tractive Force Zones no muestra nada"*.
 
 **Causa raíz.** GPKG añade siempre un campo `fid` de clave primaria **al

@@ -21,7 +21,7 @@ Este módulo hace ese pase después de generar las laderas:
     empalmar_en_divisorias()  → regla 1
     crestas_de_encuentro()    → reglas 2 y 3
 
-Trabaja sobre las capas ya escritas (GF_SubRidges, GF_Swales, GF_Ridges), de
+Trabaja sobre las capas ya escritas (GRD_SubRidges, GRD_Swales, GRD_Ridges), de
 modo que es un post-proceso: si falla, el diseño de primer nivel sigue siendo
 válido.
 """
@@ -142,8 +142,8 @@ def empalmar_en_divisorias(lm, tol=TOL_EMPALME, log=None):
     El extremo alto se lleva EXACTAMENTE sobre la línea de la cresta divisoria,
     en planta y en cota. Devuelve cuántas se han empalmado."""
     log = log or (lambda *_a: None)
-    capa_div = lm.obtener_capa("GF_Ridges", crear=False)
-    capa_sr = lm.obtener_capa("GF_SubRidges", crear=False)
+    capa_div = lm.obtener_capa("GRD_Ridges", crear=False)
+    capa_sr = lm.obtener_capa("GRD_SubRidges", crear=False)
     if capa_div is None or capa_sr is None or capa_div.featureCount() == 0:
         return 0
     idx, divisorias = _indice(capa_div)
@@ -212,9 +212,9 @@ def crestas_de_encuentro(lm, glob, log=None, tol=TOL_ENCUENTRO):
 
     Devuelve (n_crestas_nuevas, n_vaguadas_nuevas)."""
     log = log or (lambda *_a: None)
-    capa_div = lm.obtener_capa("GF_Ridges", crear=False)
-    capa_sr = lm.obtener_capa("GF_SubRidges", crear=False)
-    capa_sw = lm.obtener_capa("GF_Swales", crear=False)
+    capa_div = lm.obtener_capa("GRD_Ridges", crear=False)
+    capa_sr = lm.obtener_capa("GRD_SubRidges", crear=False)
+    capa_sw = lm.obtener_capa("GRD_Swales", crear=False)
     if capa_div is None or capa_sr is None:
         return 0, 0
     idx, divisorias = _indice(capa_div)
@@ -361,12 +361,12 @@ def sellar_contra_divisorias(lm, log=None, tol=2.5):
     un diente o en una depresión cerrada. Aquí se iguala la cota del extremo a
     la de la divisoria en ese punto y se reparte la corrección hacia abajo."""
     log = log or (lambda *_a: None)
-    capa_div = lm.obtener_capa("GF_Ridges", crear=False)
+    capa_div = lm.obtener_capa("GRD_Ridges", crear=False)
     if capa_div is None or capa_div.featureCount() == 0:
         return 0
     idx, divs = _indice(capa_div)
     n = 0
-    for nombre in ("GF_SubRidges", "GF_Swales"):
+    for nombre in ("GRD_SubRidges", "GRD_Swales"):
         capa = lm.obtener_capa(nombre, crear=False)
         if capa is None:
             continue
@@ -442,8 +442,8 @@ def fundir_con_divisorias(lm, log=None, tol=TOL_FUSION):
        que no haga quiebro y con los extremos (confluencia y límite) fijos.
     """
     log = log or (lambda *_a: None)
-    capa_div = lm.obtener_capa("GF_Ridges", crear=False)
-    capa_sr = lm.obtener_capa("GF_SubRidges", crear=False)
+    capa_div = lm.obtener_capa("GRD_Ridges", crear=False)
+    capa_sr = lm.obtener_capa("GRD_SubRidges", crear=False)
     if capa_div is None or capa_sr is None or capa_div.featureCount() == 0:
         return 0
     idx, divisorias = _indice(capa_div)

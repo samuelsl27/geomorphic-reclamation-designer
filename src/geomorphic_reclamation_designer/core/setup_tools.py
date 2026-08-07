@@ -67,7 +67,7 @@ def validar_limite(geom):
         if not geom.isGeosValid():
             return False, 0.0, "The boundary polygon is not valid."
     area_ha = geom.area() / 10000.0
-    return True, area_ha, "GF_Boundary aceptado."
+    return True, area_ha, "GRD_Boundary aceptado."
 
 
 # ---------------- Canal principal ----------------

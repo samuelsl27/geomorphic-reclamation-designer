@@ -89,21 +89,56 @@ identificarlas.
 
 ## 🔵 Infraestructura (nuevo, esta sesión)
 
-### P-15 · Verificar la v1.0.18 en QGIS real 🔴
+### P-16 · Un lanzador de los tests de QGIS para Windows 🔴
 
-**Lo más urgente.** El renombrado de la v1.0.18 no se ha probado con QGIS
-delante: los tests que lo necesitan (`test_integracion`, `test_gui`) se saltan
-solos si no lo encuentran, así que las 84 pruebas en verde **no cubren esto**.
+`test_integracion.py` y `test_gui.py` están escritos para la CI de Linux:
+`setPrefixPath("/usr", True)` y `sys.path.insert(0,
+"/usr/share/qgis/python/plugins")`. En Windows hay que neutralizar lo primero y
+apuntar lo segundo a `%QGIS_PREFIX_PATH%\python\plugins`, y lanzarlos con
+`python-qgis.bat`. Eso se hizo a mano con un envoltorio temporal para verificar
+ADR-016 (ver B-021); **debería ser `scripts/correr_tests_qgis.py`**, con
+detección del prefijo en los dos sistemas.
+
+Mientras no exista, estos dos tests solo se ejecutan cuando alguien se acuerda,
+que es justo cómo se llegó a B-021: rotos durante meses sin que nadie lo notara.
+
+### P-15 · Verificar el renombrado en QGIS real ✅ (hecho 2026-08-08)
+
+Hecho con QGIS 4.2.0: **15/15** pasos de integración y **7/7** de GUI, más una
+comprobación específica de la ida y vuelta del proyecto `.grd.json`. De paso
+salió B-021 (los dos tests llevaban meses rotos y se saltaban en silencio).
+
+Queda **sin probar a mano en la interfaz**: abrir el diálogo *File… → Save
+Project As* y *Settings → Save As* con el ratón, y mirar el árbol de capas en el
+panel. El código está verificado; lo que falta es la comprobación visual.
+
+Contexto original, por si hay que repetirlo: los tests que necesitan QGIS
+(`test_integracion`, `test_gui`) se saltan solos si no lo encuentran, así que
+las 84 pruebas en verde **no cubren esto**.
 
 Lo que hay que mirar, por orden de riesgo:
 
-1. **El grupo de capas** pasa de `GeoFluv <proyecto>` a `Geomorphic Reclamation
+1. **El prefijo de capa** pasa de `GF_` a `GRD_` en las 18 capas (ADR-016).
+   Es lo más arriesgado de todo el renombrado, porque `layer_manager`,
+   `checks`, `surface` y `divides` buscan capas **por nombre**: si se ha
+   escapado una cadena, la capa no aparece o se crea duplicada. Comprobar que
+   *Create Design Layers* + *Preview* + *Draw Design Surface* dejan el árbol
+   completo, y que *Check Design* no da falsos «capa vacía».
+2. **El grupo de capas** pasa de `GeoFluv <proyecto>` a `Geomorphic Reclamation
    <proyecto>` (`layer_manager.GRUPO_RAIZ`). Comprobar que el árbol se crea
    entero, que *Create Design Layers* mete las capas en su subgrupo, y qué pasa
    al abrir un proyecto anterior (debería crear el grupo nuevo y no perder nada).
-2. **El menú** `Geomorphic Reclamation` y sus 13 comandos: que aparezcan, que no
+3. **Guardar y abrir proyecto** con la extensión nueva `.grd.json` (ADR-016):
+   que el filtro del diálogo la aplique, que `nombre_desde_ruta()` deje
+   «mina_norte» y no «mina_norte.grd» en el rótulo del panel y en el grupo de
+   capas, y lo mismo con *Load / Save As* de los ajustes (`.grd-settings.json`).
+4. **El menú** `Geomorphic Reclamation` y sus 13 comandos: que aparezcan, que no
    haya quedado ninguno huérfano y que `unload()` los quite todos.
-3. Rótulos del panel, títulos de ventana e informes.
+5. **Report Formatter**: que el desplegable arranque en `STANDARD` y que
+   *Save As* / *Delete* escriban en la clave nueva de QSettings. Ojo: los
+   formatos que hubiera guardados con la clave antigua **no se migran**, es la
+   ruptura aceptada en ADR-016.
+6. Rótulos del panel, títulos de ventana e informes.
 
 ### P-11 · Repositorio de complementos de QGIS
 
@@ -146,7 +181,7 @@ líneas de motor que funciona daría un diff en el que un cambio real pasaría
 desapercibido. Si algún día se hace, fichero a fichero y en commits propios.
 
 **Ya corregido por el linter** (v1.0.17+): `F821` en `ai_context.py` — se llamaba
-a un `_c(r, g, b)` inexistente al construir la rampa de color de `GF_CutFill`.
+a un `_c(r, g, b)` inexistente al construir la rampa de color de `GRD_CutFill`.
 Como el bloque va dentro de un `try/except` que devuelve `None`, el `NameError`
 se tragaba en silencio y **la imagen que recibía el modelo de IA salía sin
 simbolizar**. Ver B-019.

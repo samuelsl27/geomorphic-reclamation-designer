@@ -49,12 +49,16 @@ Es un complemento **distinto** para QGIS, con otro nombre de carpeta.
 **Desinstala el antiguo** desde el gestor de complementos, o tendrás dos botones
 y dos menús.
 
-**Tus proyectos siguen funcionando.** Se conservan el prefijo de capa `GF_`, la
-extensión `.geofluv.json` y las claves del fichero de proyecto: abre tu
-`.geofluv.json` con el complemento nuevo y sigue donde lo dejaste.
+**Tus proyectos antiguos hay que renombrarlos a mano.** El contenido del fichero
+no ha cambiado —sigue siendo el mismo JSON, con las mismas claves—, pero la
+extensión sí: renombra `mi_proyecto.geofluv.json` a `mi_proyecto.grd.json` y se
+abre igual. Las capas de un diseño ya generado ahora se llaman `GRD_*` en vez de
+`GF_*`; como se regeneran desde las entradas, basta con volver a pulsar
+*Create Design Layers* y *Preview*.
 
 El motivo del cambio de nombre está en
-[`../context/03_decisiones.md`](../context/03_decisiones.md) (ADR-014).
+[`../context/03_decisiones.md`](../context/03_decisiones.md) (ADR-014 para el
+paquete, ADR-016 para el prefijo y la extensión).
 
 ---
 
@@ -65,7 +69,7 @@ El motivo del cambio de nombre está en
    sentido y el complemento avisa.
 2. **Carga el DEM** del terreno de partida.
 3. **Guarda el proyecto de QGIS** antes de empezar: el complemento guarda su
-   `.geofluv.json` y, si quieres, las capas en disco, junto a él.
+   `.grd.json` y, si quieres, las capas en disco, junto a él.
 
 ## Primer diseño
 

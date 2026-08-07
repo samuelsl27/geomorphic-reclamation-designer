@@ -122,7 +122,7 @@ un 0.2.1 antiguo; el que cuenta es `QGIS4/profiles/default` (trampa 1).
 
 ```python
 from qgis.core import QgsProject
-capa = QgsProject.instance().mapLayersByName("GF_Ridges")[0]
+capa = QgsProject.instance().mapLayersByName("GRD_Ridges")[0]
 for f in capa.getFeatures():
     zs = [v.z() for v in f.geometry().vertices()]
     L  = f.geometry().length()
@@ -150,7 +150,7 @@ print("MARCA-grad")
 
 ```python
 from qgis.core import QgsProject, QgsGeometry
-ejes = QgsProject.instance().mapLayersByName("GF_Channels")[0]
+ejes = QgsProject.instance().mapLayersByName("GRD_Channels")[0]
 union = QgsGeometry.unaryUnion([f.geometry() for f in ejes.getFeatures()])
 for f in capa.getFeatures():
     print(f.id(), round(f.geometry().distance(union), 2))

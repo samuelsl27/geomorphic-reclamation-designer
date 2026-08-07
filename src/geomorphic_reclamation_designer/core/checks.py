@@ -226,8 +226,8 @@ def _puntos_interseccion(g):
 
 # =========================================================== 1. LÍNEAS DE
 #                                                               ROTURA / TIN
-CAPAS_ROTURA = ["GF_Channels", "GF_ChannelBanks", "GF_Ridges",
-                "GF_SubRidges", "GF_Swales"]
+CAPAS_ROTURA = ["GRD_Channels", "GRD_ChannelBanks", "GRD_Ridges",
+                "GRD_SubRidges", "GRD_Swales"]
 
 # Las líneas del propio cauce (eje, orillas bankfull y flood-prone) son
 # desplazamientos paralelos de la MISMA sección: en los meandros se cortan
@@ -237,7 +237,7 @@ CAPAS_ROTURA = ["GF_Channels", "GF_ChannelBanks", "GF_Ridges",
 # "los cruces que aparecen suelen ser intersecciones de líneas de canal y de
 # valle" y de que normalmente son incidentales. Por eso se separan: el defecto
 # de verdad es el cruce entre líneas de TERRENO.
-CAPAS_CANAL = {"GF_Channels", "GF_ChannelBanks"}
+CAPAS_CANAL = {"GRD_Channels", "GRD_ChannelBanks"}
 
 
 def cruces_de_rotura(lm, tol_z=0.10, tol_canal=1.0, max_hallazgos=400):
@@ -420,7 +420,7 @@ def pendientes_de_ladera(lm, glob):
     salida = []
     lim = float(glob.pendiente_max_pct)
     lim_ne = float(glob.pendiente_NE_pct)
-    for nombre, capa in _capas(lm, ["GF_SubRidges", "GF_Swales", "GF_Ridges"]):
+    for nombre, capa in _capas(lm, ["GRD_SubRidges", "GRD_Swales", "GRD_Ridges"]):
         for f in capa.getFeatures():
             pts = _pts3(f.geometry())
             p = _pendiente_recta_pct(pts)
@@ -461,7 +461,7 @@ def laderas_que_no_vierten(lm, disenos, margen_pct=1.0):
             ejes.append(d)
     if not ejes:
         return []
-    for nombre, capa in _capas(lm, ["GF_SubRidges", "GF_Swales"]):
+    for nombre, capa in _capas(lm, ["GRD_SubRidges", "GRD_Swales"]):
         for f in capa.getFeatures():
             pts = _pts3(f.geometry())
             p = _pendiente_recta_pct(pts)
@@ -511,7 +511,7 @@ def crestas_sobre_el_limite(lm, g_lim, dem, glob, tol=0.05):
         else g_lim.asMultiPolygon()[0][0]
     contorno = QgsGeometry.fromPolylineXY([QgsPointXY(p) for p in anillo])
     salida = []
-    for nombre, capa in _capas(lm, ["GF_Ridges"]):
+    for nombre, capa in _capas(lm, ["GRD_Ridges"]):
         for f in capa.getFeatures():
             pts = _pts3(f.geometry())
             if not pts:
@@ -763,7 +763,7 @@ def valles_a_media_ladera(lm, dem, ang_max=60.0, n_muestras=9):
     if dem is None:
         return []
     salida = []
-    for nombre, capa in _capas(lm, ["GF_ValleyBottoms"]):
+    for nombre, capa in _capas(lm, ["GRD_ValleyBottoms"]):
         for f in capa.getFeatures():
             g = f.geometry()
             L = g.length()

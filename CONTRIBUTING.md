@@ -33,7 +33,7 @@ Lo más útil que puedes aportar. Usa la plantilla de issue e incluye:
   encima del cauce, debería estar a ~2 m» sí.
 - **Cómo reproducirlo**: si puedes, un proyecto mínimo (límite + un par de
   fondos de valle + un DEM pequeño) que lo muestre.
-- El **`.geofluv.json`** y el registro del panel, si los tienes.
+- El **`.grd.json`** y el registro del panel, si los tienes.
 
 Un caso reproducible vale más que diez informes vagos.
 
@@ -92,7 +92,10 @@ Detalles en [`docs/DESARROLLO.md`](docs/DESARROLLO.md).
   escribe.
 - Una dependencia pip nueva.
 - Desactivar un test para que pase.
-- Renombrar el prefijo `GF_` o la extensión `.geofluv.json`.
+- Renombrar el prefijo `GRD_` o la extensión `.grd.json` (ya se hizo una vez, en
+  ADR-016, para sacar la marca de la interfaz; una segunda ruptura no).
+- Meter una marca registrada en algo que el usuario ve: rótulo, mensaje, filtro
+  de diálogo o nombre de fichero propuesto.
 - Editar `src/geomorphic_reclamation_designer/help/guide.html` a mano (se genera: edita
   `scripts/guia_datos.py` y ejecuta `python scripts/genera_guia.py`).
 

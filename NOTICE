@@ -39,10 +39,16 @@ fluvial-geomorphic landform design method. It is:
   - NOT authorised to use their trademarks other than for the nominative,
     descriptive citation of the scientific method it implements.
 
-Historical internal identifiers in the source code (the "GF_" layer prefix, the
-".geofluv.json" project extension, class names such as GeoFluvBuilder) are
-retained solely for backwards compatibility with projects created by earlier
-versions of this software. They are not public-facing product names.
+Nothing the user sees carries the trademark: design layers are prefixed "GRD_",
+projects are saved as ".grd.json" and settings as ".grd-settings.json", after
+the plugin's own initials (Geomorphic Reclamation Designer). A handful of
+historical internal identifiers survive in the source code (class names such as
+GeoFluvBuilder, GeoFluvProject); they are never displayed anywhere and are not
+public-facing product names.
+
+Comments and docstrings do name the method — and the original program they were
+measured against — because citing the source of an equation is required, not
+optional. That is nominative use, not branding.
 
 --------------------------------------------------------------------------------
 NAME

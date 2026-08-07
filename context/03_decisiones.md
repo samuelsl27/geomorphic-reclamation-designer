@@ -6,6 +6,87 @@ la sustituyó.
 
 ---
 
+## ADR-016 · La marca sale también de los NOMBRES DE FICHERO y de capa
+
+**Fecha**: 2026-08-07 · **Estado**: aceptada · **Completa a** ADR-015 ·
+**Deroga** la parte de ADR-014/ADR-015 que conservaba `GF_` y `.geofluv.json`
+
+**Contexto.** ADR-015 limpió los rótulos, los menús y los títulos, pero dejó
+fuera a propósito lo que llamó «compatibilidad técnica»: el prefijo de capa
+`GF_`, las extensiones `.geofluv.json` y `.geofluv-settings.json`, la clave de
+QSettings `GeoFluvQ/report_formats` y el formato por defecto `GEOFLUV` del
+Report Formatter.
+
+El razonamiento de entonces era que eso «no es de cara al público». **No es
+cierto, y basta con abrir el complemento para verlo**: el prefijo aparece en
+cada capa del panel de capas de QGIS, la extensión aparece en el filtro del
+diálogo *Open / Save Project As*, en el nombre de todo fichero que el usuario
+guarda y en el texto de ayuda; el formato `GEOFLUV` es la primera entrada del
+desplegable del Report Formatter. Es exactamente el mismo incumplimiento del
+§12 que motivó ADR-015, un nivel más abajo.
+
+Lo que sí era cierto era el coste: romperlo invalida los proyectos ya guardados.
+Pero el complemento **todavía no se ha publicado en el repositorio oficial de
+QGIS**, así que el universo de proyectos afectados es el del propio autor. Es
+ahora o nunca: dentro de seis meses el argumento de compatibilidad ya no será
+retórico.
+
+**Decisión.** `GRD`, por *Geomorphic Reclamation Designer*:
+
+| Antes | Ahora |
+|---|---|
+| prefijo de capa `GF_` (18 capas) | `GRD_` |
+| proyecto `*.geofluv.json` | `*.grd.json` |
+| ajustes `*.geofluv-settings.json` | `*.grd-settings.json` |
+| formato por defecto `GEOFLUV` | `STANDARD` |
+| clave QSettings `GeoFluvQ/report_formats` | `GeomorphicReclamation/report_formats` |
+| exporta `geofluv_check.csv`, `geofluv_optimization_log.txt` | `grd_check.csv`, `grd_optimization_log.txt` |
+| temporales `geofluv_*.tif` | `grd_*.tif` |
+| memoria de IA `memoria_geofluv.md` | `memoria_metodo.md` |
+
+La extensión y su filtro se definen **una sola vez**, en `core/project.py`
+(`EXT_PROYECTO`, `FILTRO_PROYECTO`, `EXT_AJUSTES`, `FILTRO_AJUSTES`), en vez de
+repetirse en cada `QFileDialog`. `nombre_desde_ruta()` quita la extensión
+entera: con `os.path.splitext` el proyecto se habría llamado «mina.grd».
+
+**Ruptura limpia, sin capa de compatibilidad.** Se descartó leer también la
+extensión antigua: mantener `*.geofluv.json` en el filtro de apertura deja la
+marca justo donde se quería quitar. El contenido del JSON no cambia —mismas
+claves, mismo esquema—, así que migrar es **renombrar el fichero**. Las capas se
+regeneran desde las entradas, que es el diseño de siempre, así que ahí no hay
+nada que migrar.
+
+**Qué NO se toca.** Los identificadores internos que no se muestran en ninguna
+parte: `GeoFluvBuilder`, `GeoFluvProject`, `GeoFluvDock`, `GeoFluvQPlugin`.
+Renombrarlos es ruido en el diff sin beneficio para nadie. Y siguen sin tocarse
+los comentarios y docstrings que citan el método o miden contra la salida del
+programa original: eso es atribución de la fuente, obligatoria por la regla de
+oro nº 1.
+
+**Consecuencias.**
+
+- Hubo que **reescribir tres reglas de `AGENTS.md`** (§1.9, §10 y §12) que
+  prohibían explícitamente este cambio. Sin eso, la siguiente sesión de
+  cualquier agente lo habría revertido por contrato.
+- Un proyecto anterior se abre renombrando `x.geofluv.json` → `x.grd.json`.
+- Las 84 pruebas que no necesitan QGIS siguen en verde; el árbol de capas y los
+  diálogos de fichero **están pendientes de verificar en QGIS real** (§8), que
+  es donde `test_integracion.py` y `test_gui.py` se saltan solos.
+
+**Alternativas descartadas.**
+
+- *No hacer nada*: es incumplir §12 en el panel de capas y en cada diálogo de
+  guardado, que es donde más se ve.
+- *`.grdesign.json` o `.geomorph.json`*: inequívocas, pero más largas. Se
+  aceptó el matiz de que en entorno SIG `.grd` suena a ráster de Surfer: no hay
+  colisión real, porque el glob es `*.grd.json` y el fichero es JSON.
+- *Aceptar también la extensión antigua al abrir*: costaba una línea y salvaba
+  la migración, pero deja «geofluv» escrito en el filtro del diálogo, que es
+  precisamente lo que se quería eliminar.
+- *Renombrar también las clases*: diff enorme, cero beneficio visible.
+
+---
+
 ## ADR-015 · La marca sale también de la INTERFAZ, no solo del nombre
 
 **Fecha**: 2026-08-07 · **Estado**: aceptada · **Completa a** ADR-014
@@ -42,6 +123,13 @@ complementos de QGIS antes de aprobar una publicación.
 `.geofluv.json` y `.geofluv-settings.json`, la clave de QSettings
 `GeoFluvQ/report_formats`, y las clases `GeoFluvBuilder`, `GeoFluvProject`,
 `GeoFluvDock`, `GeoFluvQPlugin`.
+
+> ⚠️ **SUPERADO por ADR-016.** Este párrafo ya no está vigente. El prefijo, las
+> dos extensiones, la clave de QSettings y el formato `GEOFLUV` **sí** son de
+> cara al usuario —se ven en el panel de capas y en cada diálogo de fichero— y
+> se renombraron a `GRD_`, `.grd.json`, `.grd-settings.json`,
+> `GeomorphicReclamation/report_formats` y `STANDARD`. De lo de arriba solo
+> siguen en pie las **clases**.
 
 **Qué tampoco se toca**: los **comentarios y docstrings** que citan el método o
 miden contra la salida del programa original. Citar la fuente con atribución es

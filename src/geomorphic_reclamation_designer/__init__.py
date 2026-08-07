@@ -6,10 +6,15 @@
 Copyright (C) 2026 Samuel Saez Lopez y colaboradores.
 Licencia AGPL-3.0-or-later. Ver LICENSE en la raíz del repositorio.
 
-El código histórico usa el prefijo interno `GeoFluv`/`GF_` porque el método de
-referencia es el fluvio-geomórfico publicado por Bugosh (Natural Regrade con
-GeoFluv™, marca de su titular). Se mantiene por compatibilidad con los
-proyectos ya creados; no implica relación con Carlson Software.
+El método de referencia es el fluvio-geomórfico publicado por Bugosh (Natural
+Regrade® con GeoFluv™, marcas de sus titulares), citado como fuente y nada
+más: esto es una implementación independiente y libre del método publicado, sin
+relación con Carlson Software.
+
+Nada de cara al usuario lleva la marca (ADR-016): las capas van con el prefijo
+`GRD_` y el proyecto se guarda como `.grd.json`. Sobreviven algunos
+identificadores internos históricos (`GeoFluvBuilder`, `GeoFluvProject`,
+`GeoFluvQPlugin`) que no se muestran en ninguna parte.
 """
 
 __version__ = "1.0.18"

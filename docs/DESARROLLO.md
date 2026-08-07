@@ -43,7 +43,7 @@ espacio de trabajo de varias raíces con el repositorio como **primera raíz**
 consulta añadidas aparte y excluidas de la búsqueda.
 
 El `.gitignore` cubre además `*.pdf`, `*.docx` y las extensiones de datos
-(`*.tif`, `*.dxf`, `*.gpkg`, `*.geofluv.json`…) por si acaso.
+(`*.tif`, `*.dxf`, `*.gpkg`, `*.grd.json`…) por si acaso.
 
 ### 1.2 Extensiones de VSCode
 
@@ -304,7 +304,7 @@ El repositorio local ya está inicializado, con historia y todo confirmado.
    subido de verdad.
 
 > **Antes del primer `push`**, comprueba que no se cuela nada que no debe:
-> `git ls-files | findstr /i "pdf tif dxf gpkg geofluv.json"` no debe devolver
+> `git ls-files | findstr /i "pdf tif dxf gpkg grd.json"` no debe devolver
 > nada. El `.gitignore` ya excluye los PDF del método (tienen copyright), los
 > datos de proyecto y los rásteres.
 
@@ -330,16 +330,16 @@ carpetas raíz QGIS lo instala mal y el error que da no dice por qué.
 
 ## 9. Preguntas frecuentes
 
-**¿Por qué el complemento se llama `geomorphic_reclamation_designer` y las capas siguen siendo
-`GF_*`?**
-Por compatibilidad: cambiar el prefijo rompería todos tus proyectos ya hechos, a
-cambio de nada. El renombrado del paquete se hizo por el tema de la marca
-registrada (ADR-014).
+**¿Por qué las capas se llaman `GRD_*` y antes eran `GF_*`?**
+`GRD` es *Geomorphic Reclamation Designer*. `GF` venía de *GeoFluv*, que es una
+marca registrada, y no pintaba nada en algo que el usuario ve en su panel de
+capas. Se renombró en ADR-016 aceptando la ruptura, que era el momento de
+pagarla.
 
 **Tenía `geofluv_q` instalado, ¿qué hago?**
 Desinstálalo desde el gestor de complementos: para QGIS son dos complementos
-distintos y tendrías dos botones. Tus proyectos `.geofluv.json` y tus capas
-funcionan igual con el nuevo.
+distintos y tendrías dos botones. Renombra tus `.geofluv.json` a `.grd.json`
+(mismo contenido) y vuelve a generar las capas.
 
 **Pylance me subraya todos los `import qgis` en rojo.**
 Ajusta `python.analysis.extraPaths` en `.vscode/settings.json` a tu instalación

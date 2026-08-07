@@ -193,7 +193,7 @@ def generar_subcuencas(disenos, g_lim, lm, crs):
         if g and not g.isEmpty():
             sub[f["canal"]] = g
 
-    capa = lm.obtener_capa("GF_SubWatershed")
+    capa = lm.obtener_capa("GRD_SubWatershed")
     capa.dataProvider().truncate()
     feats = []
     for n, g in sub.items():
@@ -456,7 +456,7 @@ def _salir_por_bisectriz(dens, anclaje, bisectrices, largo=30.0):
 
 
 def generar_crestas(disenos, subcuencas, g_lim, glob, dem, lm):
-    """GF_Ridges = CRESTAS DIVISORIAS entre subcuencas.
+    """GRD_Ridges = CRESTAS DIVISORIAS entre subcuencas.
 
     Dos cuencas contiguas solo pueden estar separadas por una CRESTA: lo que
     cae en una ladera va a un canal y lo que cae en la otra al otro. Por eso
@@ -480,7 +480,7 @@ def generar_crestas(disenos, subcuencas, g_lim, glob, dem, lm):
     bisectrices = bisectrices_confluencia(disenos)
     tol_conf = max(3.0 * PASO_CRESTA, glob.max_dist_cresta_cabecera)
 
-    capa = lm.obtener_capa("GF_Ridges")
+    capa = lm.obtener_capa("GRD_Ridges")
     capa.dataProvider().truncate()
     feats = []
     crestas_3d = []      # [(QgsGeometry 2D, [z por vértice])] para subcrestas

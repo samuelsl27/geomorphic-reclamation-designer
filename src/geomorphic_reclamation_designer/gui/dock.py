@@ -28,7 +28,8 @@ from qgis.PyQt.QtWidgets import (
 from qgis.core import QgsProject, QgsRasterLayer, QgsGeometry, QgsVectorLayer
 from qgis.gui import QgsMapLayerComboBox, QgsMapToolIdentifyFeature
 
-from ..core.project import GeoFluvProject
+from ..core.project import (GeoFluvProject, EXT_PROYECTO, FILTRO_PROYECTO,
+                            nombre_desde_ruta)
 from ..core.params import ChannelSettings
 from ..core.layer_manager import LayerManager
 from ..core import setup_tools as st
@@ -85,7 +86,7 @@ class PickLayerDialog(QDialog):
         self.cb = QgsMapLayerComboBox()
         self.cb.setFilters(filtro)
         v.addWidget(self.cb)
-        # preseleccionar la capa por defecto (GF_*) si existe
+        # preseleccionar la capa por defecto (GRD_*) si existe
         for lyr in QgsProject.instance().mapLayers().values():
             if lyr.name() == defecto:
                 self.cb.setLayer(lyr)
@@ -139,9 +140,9 @@ class DrawSurfaceDialog(QDialog):
             "bottom polylines, the Design Boundary, the Pre-Disturbed\n"
             "Surface, and the various settings.  Press OK to continue."))
         f = QFormLayout()
-        f.addRow("Channel Layer:", QLabel("GF_Channels"))
-        f.addRow("Ridge Layer:", QLabel("GF_Ridges"))
-        self.chk_sub = QCheckBox("Sub-Watershed Layer:  GF_SubWatershed")
+        f.addRow("Channel Layer:", QLabel("GRD_Channels"))
+        f.addRow("Ridge Layer:", QLabel("GRD_Ridges"))
+        self.chk_sub = QCheckBox("Sub-Watershed Layer:  GRD_SubWatershed")
         self.chk_sub.setChecked(True)
         f.addRow(self.chk_sub)
         self.chk_trim = QCheckBox("Trim intersecting channels")
@@ -543,7 +544,7 @@ class GeoFluvDock(QDockWidget):
         self.btn_capas = QPushButton("Create Design Layers")
         self.btn_capas.setToolTip(
             "Creates the design layer tree (01 Inputs ... 04 Analysis) with "
-            "GF_Boundary and GF_ValleyBottoms ready to draw on. Optional: you "
+            "GRD_Boundary and GRD_ValleyBottoms ready to draw on. Optional: you "
             "can also pick the boundary/valley bottoms from any of your own "
             "layers.")
         self.btn_capas.clicked.connect(self._crear_arbol)
@@ -574,8 +575,8 @@ class GeoFluvDock(QDockWidget):
         self.btn_surface.clicked.connect(self._surface_for_elevations)
         v.addWidget(self.btn_surface)
 
-        v.addWidget(QLabel("<i>Draw the boundary (polygon) in GF_Boundary and the\n"
-                           "valley bottoms (2D polylines) in GF_ValleyBottoms.\n"
+        v.addWidget(QLabel("<i>Draw the boundary (polygon) in GRD_Boundary and the\n"
+                           "valley bottoms (2D polylines) in GRD_ValleyBottoms.\n"
                            "Buttons activate as each prerequisite is completed.</i>"))
         v.addStretch()
         self.tabs.addTab(w, "Setup")
@@ -809,13 +810,13 @@ class GeoFluvDock(QDockWidget):
     def _toggle_tractiva(self, activo):
         capa = self.lm.resaltar_fuerza_tractiva(activo)
         if capa is None and activo:
-            self._msg("No GF_XSections layer yet; generate the design first.", 1)
+            self._msg("No GRD_XSections layer yet; generate the design first.", 1)
             self.btn_tractiva.setChecked(False)
             return
         if not activo:
             return
         if capa.featureCount() == 0:
-            self._msg("GF_XSections is empty: run 'Preview'/'Draw Design Surface' "
+            self._msg("GRD_XSections is empty: run 'Preview'/'Draw Design Surface' "
                       "first so the cross-sections are computed.", 1)
             self.btn_tractiva.setChecked(False)
             return
@@ -880,7 +881,7 @@ class GeoFluvDock(QDockWidget):
             "4. DWG: contours, 3D viewers, volumes, mass haul, cross-section "
             "report, tractive force zones, longitudinal profiles, Project "
             "Inspector.\n\n"
-            "File... saves the project (.geofluv.json): settings, channels and "
+            "File... saves the project (.grd.json): settings, channels and "
             "references to the input polylines. Layers are regenerable from "
             "those inputs at any time.")
 
@@ -897,7 +898,7 @@ class GeoFluvDock(QDockWidget):
             self._refrescar_canales()
         elif dlg.opcion == "open":
             ruta, _ = QFileDialog.getOpenFileName(self, "Open Project", "",
-                                                  "GeoFluv project (*.geofluv.json)")
+                                                  FILTRO_PROYECTO)
             if ruta:
                 self.proyecto = GeoFluvProject.cargar(ruta)
                 self.ruta_proyecto = ruta
@@ -912,12 +913,12 @@ class GeoFluvDock(QDockWidget):
                 self._releer_valles()
         elif dlg.opcion == "save":
             ruta, _ = QFileDialog.getSaveFileName(self, "Save Project As", "",
-                                                  "GeoFluv project (*.geofluv.json)")
+                                                  FILTRO_PROYECTO)
             if ruta:
+                if not ruta.endswith(EXT_PROYECTO):
+                    ruta += EXT_PROYECTO
                 self.ruta_proyecto = ruta
-                if not ruta.endswith(".geofluv.json"):
-                    ruta += ".geofluv.json"
-                self.proyecto.nombre = os.path.basename(ruta).replace(".geofluv.json", "")
+                self.proyecto.nombre = nombre_desde_ruta(ruta)
                 self.proyecto.guardar(ruta)
                 self.lb_proyecto.setText(os.path.basename(ruta))
                 self._msg("Project saved.", 3)
@@ -962,12 +963,12 @@ class GeoFluvDock(QDockWidget):
         s.carpeta_capas = carpeta
         self.lm.configurar_almacenamiento(modo, carpeta)
         self.lm.crear_arbol()
-        self.lm.obtener_capa("GF_Boundary")
-        self.lm.obtener_capa("GF_ValleyBottoms")
+        self.lm.obtener_capa("GRD_Boundary")
+        self.lm.obtener_capa("GRD_ValleyBottoms")
         destino = "virtual (memory)" if modo == "memory" else carpeta
         self._msg(f"Design layer tree created — storage: {destino}. "
-                  "Draw the boundary in GF_Boundary and the valley bottoms in "
-                  "GF_ValleyBottoms (or use your own layers when selecting).", 3)
+                  "Draw the boundary in GRD_Boundary and the valley bottoms in "
+                  "GRD_ValleyBottoms (or use your own layers when selecting).", 3)
         self._actualizar_estado_botones()
 
     def _sel_limite(self):
@@ -978,7 +979,7 @@ class GeoFluvDock(QDockWidget):
         capa = dlg.cb.currentLayer()
         if capa is None:
             self._msg("No polygon layer available. Use 'Create Design Layers' "
-                      "and draw the boundary in GF_Boundary.", 1)
+                      "and draw the boundary in GRD_Boundary.", 1)
             return
         if capa.featureCount() == 0:
             self._msg(f"Layer '{capa.name()}' has no features: draw the boundary "
@@ -1014,7 +1015,7 @@ class GeoFluvDock(QDockWidget):
         capa = dlg.cb.currentLayer()
         if capa is None or capa.featureCount() == 0:
             self._msg("Draw the main valley bottom polyline first (default "
-                      "layer: GF_ValleyBottoms).", 1)
+                      "layer: GRD_ValleyBottoms).", 1)
             return
         self.proyecto.capa_valles = capa.name()
         self._herramienta_identificar(capa, self._canal_elegido)
@@ -1098,7 +1099,7 @@ class GeoFluvDock(QDockWidget):
                                      espaciado_w=sp_esp.value(),
                                      longitud_w=sp_len.value(),
                                      angulo_deg=sp_ang.value())
-        self._msg(f"{n} vanes placed on '{d.nombre}' (layer GF_Vanes).", 3)
+        self._msg(f"{n} vanes placed on '{d.nombre}' (layer GRD_Vanes).", 3)
         self.iface.mapCanvas().refreshAllLayers()
 
     def _crear_vegetacion(self):
@@ -1121,9 +1122,9 @@ class GeoFluvDock(QDockWidget):
         f.addRow("Trees per ha:", sp_arb)
         f.addRow("Shrubs per ha:", sp_shr)
         f.addRow("Random seed:", sp_sem)
-        f.addRow(QLabel("<i>Creates GF_Vegetation (3D points with height_m).\n"
+        f.addRow(QLabel("<i>Creates GRD_Vegetation (3D points with height_m).\n"
                         "In the QGIS 3D view use rule/height-based symbols or\n"
-                        "billboards over GF_DesignSurface.</i>"))
+                        "billboards over GRD_DesignSurface.</i>"))
         bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok
                               | QDialogButtonBox.StandardButton.Cancel)
         bb.accepted.connect(dlg.accept); bb.rejected.connect(dlg.reject)
@@ -1140,7 +1141,7 @@ class GeoFluvDock(QDockWidget):
             capa_superficie=capa_sup, arboles_ha=sp_arb.value(),
             arbustos_ha=sp_shr.value(), semilla=sp_sem.value())
         self._msg(f"Vegetation scene: {n_a} trees + {n_s} shrubs "
-                  "(layer GF_Vegetation).", 3)
+                  "(layer GRD_Vegetation).", 3)
         self.iface.mapCanvas().refreshAllLayers()
 
     # ---------- DEM ----------
@@ -1536,7 +1537,7 @@ class GeoFluvDock(QDockWidget):
     def _interpolar_y_contornear(self, gl):
         from ..core import surface
         for lyr in list(QgsProject.instance().mapLayers().values()):
-            if lyr.name() == "GF_DesignSurface":
+            if lyr.name() == "GRD_DesignSurface":
                 QgsProject.instance().removeMapLayer(lyr.id())
         s = self.proyecto.settings
         capa, ruta = surface.interpolar_superficie(
@@ -1590,7 +1591,7 @@ class GeoFluvDock(QDockWidget):
             cf = surface.corte_relleno(capa_d, comp, gl, self.proyecto.settings, self.lm)
             self._ultimo_cf = cf
             for lyr in list(QgsProject.instance().mapLayers().values()):
-                if lyr.name() == "GF_CutFill (m)":
+                if lyr.name() == "GRD_CutFill (m)":
                     QgsProject.instance().removeMapLayer(lyr.id())
             surface.raster_diferencia(self.ruta_superficie, comp, self.lm, gl)
         except Exception as e:
@@ -1615,7 +1616,7 @@ class GeoFluvDock(QDockWidget):
 
     def _informe_volumen(self, cf):
         """'Calculate Design Volume': cifras de corte y relleno dentro del
-        límite GeoFluv + ráster GF_CutFill con las zonas."""
+        límite GeoFluv + ráster GRD_CutFill con las zonas."""
         from .report_dialog import ReportDialog
         s = self.proyecto.settings
         neto = cf["corte_ajustado_m3"] - cf["relleno_ajustado_m3"]
@@ -1643,7 +1644,7 @@ class GeoFluvDock(QDockWidget):
             + ("WITHIN range" if cf["ok"] else "OUT of range"),
             "",
             "  Cell size used: %.2f x %.2f m" % (cf["dx"], cf["dy"]),
-            "  Raster 'GF_CutFill (m)' added to 04 Analysis: negative = cut, "
+            "  Raster 'GRD_CutFill (m)' added to 04 Analysis: negative = cut, "
             "positive = fill (clipped to the boundary).",
         ]
         ReportDialog("Calculate Design Volume", "\n".join(ln), self).exec()
@@ -1691,7 +1692,7 @@ class GeoFluvDock(QDockWidget):
         capa = self.iface.activeLayer()
         if not isinstance(capa, QgsVectorLayer) or capa.selectedFeatureCount() != 1:
             self._msg("Select exactly ONE 3D line feature on the active layer "
-                      "(e.g. GF_Ridges, GF_SubRidges, GF_Channels).", 1)
+                      "(e.g. GRD_Ridges, GRD_SubRidges, GRD_Channels).", 1)
             return
         feat = capa.selectedFeatures()[0]
         g = feat.geometry()
@@ -1710,12 +1711,12 @@ class GeoFluvDock(QDockWidget):
                       "the surface.", 3)
 
     def _viewer_3d(self, superficie):
-        capas = "GF_DesignSurface (raster)" if superficie else "GF_Contours"
+        capas = "GRD_DesignSurface (raster)" if superficie else "GRD_Contours"
         QMessageBox.information(
             self, "3D Viewer",
             f"QGIS includes a native 3D viewer.\n\n"
             f"1. Menu View > 3D Map Views > New 3D Map View.\n"
-            f"2. In the 3D configuration set Terrain = GF_DesignSurface "
+            f"2. In the 3D configuration set Terrain = GRD_DesignSurface "
             f"(DEM type: raster layer).\n"
             f"3. Make {capas} visible to inspect the design"
             + (" surface shaded in 3D." if superficie else " contours in 3D.")
@@ -1728,7 +1729,7 @@ class GeoFluvDock(QDockWidget):
         from .feature_list_dialog import FeatureListDialog
         s_max = self.proyecto.settings.pendiente_max_pct
         total_seg, malos = 0, []
-        for nombre_capa in ("GF_Ridges", "GF_SubRidges", "GF_Swales"):
+        for nombre_capa in ("GRD_Ridges", "GRD_SubRidges", "GRD_Swales"):
             capa = self.lm.obtener_capa(nombre_capa, crear=False)
             if capa is None:
                 continue

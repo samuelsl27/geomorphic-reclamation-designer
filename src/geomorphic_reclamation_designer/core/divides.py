@@ -657,9 +657,9 @@ def ajustar_divisorias(lm, disenos, glob, dem=None, g_lim=None, log=None):
     min_divisoria = max(0.5 * float(getattr(glob, "max_dist_cresta_cabecera", 25.0)),
                         3.0 * holgura)
     for nombre, corr, pegar, long_min in (
-            ("GF_SubRidges", corr_ladera, True, min_ladera),
-            ("GF_Swales", corr_ladera, True, min_ladera),
-            ("GF_Ridges", corr_div, False, min_divisoria)):
+            ("GRD_SubRidges", corr_ladera, True, min_ladera),
+            ("GRD_Swales", corr_ladera, True, min_ladera),
+            ("GRD_Ridges", corr_div, False, min_divisoria)):
         capa = lm.obtener_capa(nombre, crear=False)
         if capa is None:
             continue
@@ -738,9 +738,9 @@ def ajustar_divisorias(lm, disenos, glob, dem=None, g_lim=None, log=None):
             f"flood-prone")
 
     # ---------- 2. cota de las divisorias ----------
-    capa_div = lm.obtener_capa("GF_Ridges", crear=False)
-    capa_sr = lm.obtener_capa("GF_SubRidges", crear=False)
-    capa_vg = lm.obtener_capa("GF_Swales", crear=False)
+    capa_div = lm.obtener_capa("GRD_Ridges", crear=False)
+    capa_sr = lm.obtener_capa("GRD_SubRidges", crear=False)
+    capa_vg = lm.obtener_capa("GRD_Swales", crear=False)
     if capa_div is None or capa_sr is None or capa_div.featureCount() == 0:
         return res
 
@@ -892,8 +892,8 @@ def ajustar_divisorias(lm, disenos, glob, dem=None, g_lim=None, log=None):
     divs = [[(x, y, z) for x, y, z in _pts3(f)] for f in capa_div.getFeatures()]
     if not divs:
         return res
-    for nombre, capa, subir in (("GF_SubRidges", capa_sr, True),
-                                ("GF_Swales", capa_vg, False)):
+    for nombre, capa, subir in (("GRD_SubRidges", capa_sr, True),
+                                ("GRD_Swales", capa_vg, False)):
         if capa is None:
             continue
         cambios = {}
@@ -986,7 +986,7 @@ def _cortar_en_divisorias(lm):
     corta en el primer cruce contando desde el pie y se conserva el trozo del
     pie, con el vértice final exactamente en el cruce.
     """
-    capa_div = lm.obtener_capa("GF_Ridges", crear=False)
+    capa_div = lm.obtener_capa("GRD_Ridges", crear=False)
     if capa_div is None or capa_div.featureCount() == 0:
         return 0
     divs = []
@@ -1002,7 +1002,7 @@ def _cortar_en_divisorias(lm):
     if not divs:
         return 0
     n = 0
-    for nombre in ("GF_SubRidges", "GF_Swales"):
+    for nombre in ("GRD_SubRidges", "GRD_Swales"):
         capa = lm.obtener_capa(nombre, crear=False)
         if capa is None:
             continue
@@ -1084,7 +1084,7 @@ def _empalmar_con_el_limite(lm, contorno, dem, corr, tol=TOL_BORDE):
         return 0, 0.0
     from . import setup_tools as st
     n, peor = 0, 0.0
-    for nombre in ("GF_SubRidges", "GF_Swales"):
+    for nombre in ("GRD_SubRidges", "GRD_Swales"):
         capa = lm.obtener_capa(nombre, crear=False)
         if capa is None:
             continue
@@ -1156,7 +1156,7 @@ def _rehacer_laderas(lm, glob, disenos):
     for d in iterable:
         canales[d.nombre] = d.settings
     n = 0
-    for nombre, es_vaguada in (("GF_SubRidges", False), ("GF_Swales", True)):
+    for nombre, es_vaguada in (("GRD_SubRidges", False), ("GRD_Swales", True)):
         capa = lm.obtener_capa(nombre, crear=False)
         if capa is None:
             continue

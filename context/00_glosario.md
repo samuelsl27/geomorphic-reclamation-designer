@@ -8,29 +8,29 @@ Esta tabla traduce entre los dos mundos.
 
 | Español (código) | English (UI / literatura) | Qué es |
 |---|---|---|
-| límite GeoFluv | GeoFluv boundary | Polígono del área a rehabilitar. `GF_Boundary` |
-| fondo de valle | valley bottom | Polilínea 2D aproximada del eje del futuro valle. Entrada del usuario. `GF_ValleyBottoms` |
-| canal / cauce | channel | Eje 3D generado. `GF_Channels` |
+| límite de diseño | Design Boundary | Polígono del área a rehabilitar. `GRD_Boundary`. En el programa original y en los comentarios antiguos aparece como *GeoFluv boundary* |
+| fondo de valle | valley bottom | Polilínea 2D aproximada del eje del futuro valle. Entrada del usuario. `GRD_ValleyBottoms` |
+| canal / cauce | channel | Eje 3D generado. `GRD_Channels` |
 | canal principal | main channel | El que desagua fuera del límite |
 | tributario | tributary | Canal que entra en otro |
 | boca / desembocadura | mouth / outlet | Extremo aguas abajo. Su pendiente es **el dato más crítico** |
 | cabecera | headwater / head | Extremo aguas arriba |
 | confluencia | confluence / junction | Donde un tributario entra en su receptor |
 | transición | transition point | Estación donde el canal deja de ser tipo A |
-| cresta / divisoria | ridge / ridgeline / divide | Línea de máxima cota entre dos cuencas. `GF_Ridges` |
-| subcresta | sub-ridge | Cresta secundaria en un ápice de meandro. `GF_SubRidges` |
-| vaguada | swale | Línea de vaguada entre dos subcrestas. `GF_Swales` |
+| cresta / divisoria | ridge / ridgeline / divide | Línea de máxima cota entre dos cuencas. `GRD_Ridges` |
+| subcresta | sub-ridge | Cresta secundaria en un ápice de meandro. `GRD_SubRidges` |
+| vaguada | swale | Línea de vaguada entre dos subcrestas. `GRD_Swales` |
 | silla | saddle | Rebaje de la cresta entre dos culminaciones (libro §9.4) |
 | ladera | hillslope | Superficie entre el cauce y la divisoria |
 | pie de ladera | hillslope toe | Arranque de la ladera **junto al cauce** (¡no el punto bajo!) |
 | espolón | spur | Arranque de una subcresta sobre el cauce |
 | corredor | corridor | Banda alrededor del eje del cauce donde no puede haber cresta |
-| borde | bank / edge | Líneas paralelas de fondo, bankfull y flood-prone. `GF_Banks` |
-| sección | cross-section | Punto de cálculo con toda la hidráulica. `GF_XSections` |
+| borde | bank / edge | Líneas paralelas de fondo, bankfull y flood-prone. `GRD_Banks` |
+| sección | cross-section | Punto de cálculo con toda la hidráulica. `GRD_XSections` |
 | subcuenca | sub-watershed | Área que drena a un canal. Partición Voronoi |
-| superficie de diseño | design surface | Ráster TIN del terreno propuesto. `GF_DesignSurface` |
-| curvas de nivel | contours | `GF_Contours` (LineStringZ) |
-| corte / relleno | cut / fill | `GF_CutFill (m)`, `GF_HaulRegions`, `GF_HaulRoutes` |
+| superficie de diseño | design surface | Ráster TIN del terreno propuesto. `GRD_DesignSurface` |
+| curvas de nivel | contours | `GRD_Contours` (LineStringZ) |
+| corte / relleno | cut / fill | `GRD_CutFill (m)`, `GRD_HaulRegions`, `GRD_HaulRoutes` |
 | acarreo | haul | Transporte de tierras, volumen × distancia |
 | densidad de drenaje | drainage density | Longitud de canal por unidad de área (m/ha) |
 | esponjamiento | swell | Aumento de volumen al excavar |

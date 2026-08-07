@@ -5,7 +5,7 @@
 Available list, order them in the Used list, and output the per-channel table
 as an on-screen table (Display), an HTML Report or a CSV file (opens directly
 in Excel — equivalent to the MS Excel tab). Named formats are stored with
-Save As / Delete (QgsSettings), the 'GEOFLUV' format being the default."""
+Save As / Delete (QgsSettings), the 'STANDARD' format being the default."""
 
 import json
 
@@ -16,7 +16,7 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.core import QgsSettings
 
-CLAVE_SETTINGS = "GeoFluvQ/report_formats"
+CLAVE_SETTINGS = "GeomorphicReclamation/report_formats"
 
 
 # ---------------------------------------------------------------- campos
@@ -135,8 +135,8 @@ class ReportFormatterDialog(QDialog):
         self._formatos = self._leer_formatos()
         self.cb_formato.addItems(list(self._formatos.keys()))
         self.cb_formato.currentTextChanged.connect(self._cargar_formato)
-        self.cb_formato.setCurrentText("GEOFLUV")
-        self._cargar_formato("GEOFLUV")
+        self.cb_formato.setCurrentText("STANDARD")
+        self._cargar_formato("STANDARD")
 
     # ---------- formatos guardados ----------
     def _leer_formatos(self):
@@ -144,8 +144,8 @@ class ReportFormatterDialog(QDialog):
             d = json.loads(QgsSettings().value(CLAVE_SETTINGS, "") or "{}")
         except Exception:
             d = {}
-        if "GEOFLUV" not in d:
-            d["GEOFLUV"] = list(FORMATO_DEFECTO)
+        if "STANDARD" not in d:
+            d["STANDARD"] = list(FORMATO_DEFECTO)
         return d
 
     def _guardar_formatos(self):
@@ -175,9 +175,9 @@ class ReportFormatterDialog(QDialog):
 
     def _delete(self):
         nombre = self.cb_formato.currentText()
-        if nombre == "GEOFLUV":
+        if nombre == "STANDARD":
             QMessageBox.information(self, "Report Formatter",
-                                    "The default GEOFLUV format cannot be deleted.")
+                                    "The default STANDARD format cannot be deleted.")
             return
         self._formatos.pop(nombre, None)
         self._guardar_formatos()

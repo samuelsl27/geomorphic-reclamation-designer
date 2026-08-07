@@ -218,7 +218,7 @@ class CheckDialog(QDialog):
     # ------------------------------------------------------------- CSV
     def _exportar(self):
         ruta, _ = QFileDialog.getSaveFileName(
-            self, "Export design check", "geofluv_check.csv", "CSV (*.csv)")
+            self, "Export design check", "grd_check.csv", "CSV (*.csv)")
         if not ruta:
             return
         import csv

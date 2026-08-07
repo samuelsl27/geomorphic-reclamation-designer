@@ -6,7 +6,7 @@
 En la carpeta de trabajo (una por sesión, con fecha y hora) queda:
 
     prompt_base.md        prompt de sistema + memoria del complemento
-    memoria_geofluv.md    qué es el método, qué hace el plugin, qué significa
+    memoria_metodo.md     qué es el método, qué hace el plugin, qué significa
                           cada variable y cada métrica (redactado para que lo
                           consuma un modelo local, no una persona)
     iteracion_XX.md       prompt exacto enviado en esa iteración
@@ -32,24 +32,26 @@ from qgis.PyQt.QtCore import QSize, Qt
 from qgis.PyQt.QtGui import QColor, QImage, QPainter, QFont, QPen
 
 
-MEMORIA = """# GeoFluvQ — memoria para el modelo de optimización
+MEMORIA = """# Memoria del método para el modelo de optimización
 
 ## 1. Qué estás optimizando
-GeoFluvQ es un complemento de QGIS que reproduce el método **GeoFluv / Natural
-Regrade** de restauración geomorfológica de minas. En vez de taludes y bermas
+Geomorphic Reclamation Designer es un complemento de QGIS que implementa el
+**método fluvio-geomórfico** de restauración geomorfológica de minas publicado
+por N. Bugosh (*Natural Regrade® / GeoFluv™*, marcas de sus titulares, citadas
+aquí solo para identificar el método de referencia). En vez de taludes y bermas
 rectos, construye la red de drenaje que se formaría de forma natural en ese
 sitio y la superficie estable asociada. El diseño se compone de:
 
-- **Canales** (`GF_Channels`): eje 3D de cada cauce. El principal y sus
+- **Canales** (`GRD_Channels`): eje 3D de cada cauce. El principal y sus
   tributarios (`main`, `main R1`, `main L1`…). Perfil longitudinal cóncavo.
   Donde la pendiente supera el 4 % el trazado es en **zigzag** (canal tipo A);
   por debajo del 4 % es **sinusoidal** (meandros).
-- **Crestas divisorias** (`GF_Ridges`): separan las cuencas de dos canales
+- **Crestas divisorias** (`GRD_Ridges`): separan las cuencas de dos canales
   contiguos y mueren en la confluencia de ambos cauces.
-- **Subcrestas** (`GF_SubRidges`) y **vaguadas** (`GF_Swales`): del ápice de
+- **Subcrestas** (`GRD_SubRidges`) y **vaguadas** (`GRD_Swales`): del ápice de
   cada meandro nace una subcresta hacia el interior de la curva y una vaguada
   hacia la margen opuesta; son las que dan el relieve ondulado de ladera.
-- **Superficie de diseño** (`GF_DesignSurface`): TIN sobre todas esas líneas
+- **Superficie de diseño** (`GRD_DesignSurface`): TIN sobre todas esas líneas
   de rotura, recortado al límite del proyecto.
 - **Corte y relleno**: diferencia entre la superficie de diseño y el terreno
   original, SOLO dentro del límite.
@@ -126,8 +128,8 @@ Comprueba siempre `perfiles_efectivos` para ver qué se ha aplicado de verdad.
   las crestas y las vaguadas: `ridges_pct` y `swales_pct` suben (+) o bajan (−)
   ese porcentaje el extremo alto de TODAS las subcrestas o de todas las
   vaguadas, y `per_line` permite hacerlo línea a línea con la clave
-  `"canal|indice"` (el índice es el campo `index` de las capas GF_SubRidges y
-  GF_Swales). Subir las crestas añade relleno; bajar las vaguadas añade corte,
+  `"canal|indice"` (el índice es el campo `index` de las capas GRD_SubRidges y
+  GRD_Swales). Subir las crestas añade relleno; bajar las vaguadas añade corte,
   y ambas cosas cambian el reparto por regiones sin tocar los canales.
 
 ## 4bis. Recetario del libro (Bugosh & Martín Duque, 2024)
@@ -181,8 +183,8 @@ llegó a 1.90 lb/ft2 frente a un umbral de 2 tras varias iteraciones.
 
 ### Sillas en la línea de cresta [9.4]
 La cabecera de una vaguada forma una **silla** en la divisoria. Sin ella el
-agua corre por el filo de la cresta, hace roderas y acaba en cárcava. En
-GeoFluvQ lo controla `prof_silla_pct`.
+agua corre por el filo de la cresta, hace roderas y acaba en cárcava. Aquí lo
+controla `prof_silla_pct`.
 
 ### Aviso del propio libro [8.4, 9.6]
 > «editing one element of an integrated landform to address a problem can
@@ -253,7 +255,7 @@ class ContextoIA:
     # ---------------------------------------------------------- memoria
     def _escribir_memoria(self):
         try:
-            with open(os.path.join(self.carpeta, "memoria_geofluv.md"), "w",
+            with open(os.path.join(self.carpeta, "memoria_metodo.md"), "w",
                       encoding="utf-8") as fh:
                 fh.write(MEMORIA)
         except Exception:
@@ -261,7 +263,8 @@ class ContextoIA:
 
     def sistema(self):
         return ("Eres un ingeniero de restauración geomorfológica que optimiza "
-                "un diseño GeoFluv dentro de QGIS. Piensa paso a paso antes de "
+                "un diseño fluvio-geomórfico dentro de QGIS. Piensa paso a paso "
+                "antes de "
                 "responder, pero responde ÚNICAMENTE con un objeto JSON válido "
                 "con las claves reasoning, global, channels, geometry y "
                 "expected_effect.\n\n" + MEMORIA)
@@ -331,7 +334,7 @@ class ContextoIA:
         from qgis.core import QgsProject as _P
         capa = None
         for l in _P.instance().mapLayers().values():
-            if l.name() == "GF_Channels":
+            if l.name() == "GRD_Channels":
                 capa = l
         if capa is None:
             return ""
@@ -481,7 +484,7 @@ class ContextoIA:
         from qgis.core import QgsProject as _P
         capa = None
         for l in _P.instance().mapLayers().values():
-            if l.name() == "GF_Channels":
+            if l.name() == "GRD_Channels":
                 capa = l
         if capa is None:
             return ""
@@ -521,7 +524,7 @@ class ContextoIA:
               "|:-----|:----|:-----------------|:---------------------|------:|-------:|---------:|"]
         for r in filas[:70]:
             ln.append("| %s | %s | (%s, %s, %s) | (%s, %s, %s) | %s | %s | %s |"
-                      % (r[0].replace("GF_", ""), r[1],
+                      % (r[0].replace("GRD_", ""), r[1],
                          f"{r[4]:,.0f}", f"{r[5]:,.0f}", f"{r[6]:.1f}",
                          f"{r[7]:,.0f}", f"{r[8]:,.0f}", f"{r[9]:.1f}",
                          f"{r[10]:.0f}", f"{r[11]:+.1f}", f"{r[12]:.0f}"))
@@ -534,7 +537,8 @@ class ContextoIA:
         self._ultimas_metricas = (mejor.metricas if mejor else None)
         partes = [
             f"# ITERACIÓN {it}",
-            "Tienes el estado actual de un diseño GeoFluv y debes proponer el "
+            "Tienes el estado actual de un diseño fluvio-geomórfico y debes "
+            "proponer el "
             "siguiente movimiento de variables para acercarte a los objetivos.",
             self._bloque_objetivos(objetivos),
             self._bloque_metricas(mejor.metricas if mejor else None,
@@ -602,8 +606,8 @@ class ContextoIA:
         ext = g_lim.boundingBox()
         ext.grow(max(ext.width(), ext.height()) * 0.05)
         salidas.append(self._render(
-            ext, ["GF_Boundary", "GF_Swales", "GF_SubRidges", "GF_Ridges",
-                  "GF_Channels"],
+            ext, ["GRD_Boundary", "GRD_Swales", "GRD_SubRidges", "GRD_Ridges",
+                  "GRD_Channels"],
             os.path.join(self.carpeta, "images", f"plan_{it:02d}.png"),
             "Design — blue: channels · red: divide ridges · "
             "yellow: sub-ridges · dotted: swales"))
@@ -613,13 +617,13 @@ class ContextoIA:
         # que tuviera la capa en ese momento.
         rango = self._simbolizar_cutfill()
         salidas.append(self._render(
-            ext, ["GF_CutFill (m)", "GF_Boundary", "GF_Channels"],
+            ext, ["GRD_CutFill (m)", "GRD_Boundary", "GRD_Channels"],
             os.path.join(self.carpeta, "images", f"cutfill_{it:02d}.png"),
             self._leyenda_cutfill(m, rango)))
         # TERRENO ORIGINAL: contexto de lo que hay dentro y fuera del área
         salidas.append(self._render(
             self._ext_ampliada(ext, 0.6),
-            ["_DEM_", "GF_Boundary", "GF_Channels"],
+            ["_DEM_", "GRD_Boundary", "GRD_Channels"],
             os.path.join(self.carpeta, "images", f"terrain_{it:02d}.png"),
             "ORIGINAL GROUND (hillshade + elevation) before any reclamation, "
             "with the design boundary in blue. The view is deliberately wider "
@@ -628,22 +632,22 @@ class ContextoIA:
             "outlet has to discharge."))
         # CURVAS DE NIVEL del diseño
         salidas.append(self._render(
-            ext, ["GF_Contours", "GF_Channels", "GF_Boundary"],
+            ext, ["GRD_Contours", "GRD_Channels", "GRD_Boundary"],
             os.path.join(self.carpeta, "images", f"contours_{it:02d}.png"),
             "DESIGN CONTOURS. Contours that close in small rings mark a peak or "
             "a hollow: a closed hollow is a defect (water cannot get out). "
             "Contours bending upstream mark a valley, bending downstream a "
             "ridge; their spacing is the slope (closer = steeper)."))
         salidas.append(self._render(
-            ext, ["GF_HaulRegions", "GF_HaulRoutes", "GF_Boundary",
-                  "GF_Channels"],
+            ext, ["GRD_HaulRegions", "GRD_HaulRoutes", "GRD_Boundary",
+                  "GRD_Channels"],
             os.path.join(self.carpeta, "images", f"regions_{it:02d}.png"),
             self._leyenda_regiones(m)))
         # planta de crestas y vaguadas con sus etiquetas, para poder actuar
         # sobre una línea concreta
         salidas.append(self._render(
-            ext, ["GF_Swales", "GF_SubRidges", "GF_Ridges", "GF_Channels",
-                  "GF_Boundary"],
+            ext, ["GRD_Swales", "GRD_SubRidges", "GRD_Ridges", "GRD_Channels",
+                  "GRD_Boundary"],
             os.path.join(self.carpeta, "images", f"lines_{it:02d}.png"),
             "Ridge and swale layout — yellow: sub-ridges · dotted blue: swales "
             "· thick red: divide ridges. Their numeric table (per line: index, "
@@ -682,7 +686,7 @@ class ContextoIA:
         return e
 
     def _simbolizar_cutfill(self):
-        """Rampa divergente con rangos numéricos sobre GF_CutFill.
+        """Rampa divergente con rangos numéricos sobre GRD_CutFill.
 
         Devuelve (min, max) en metros para poder escribirlos en la leyenda."""
         try:
@@ -691,7 +695,7 @@ class ContextoIA:
                                    QgsSingleBandPseudoColorRenderer)
             capa = None
             for l in _P.instance().mapLayers().values():
-                if l.name() == "GF_CutFill (m)":
+                if l.name() == "GRD_CutFill (m)":
                     capa = l
             if capa is None:
                 return None
@@ -709,7 +713,7 @@ class ContextoIA:
                 # QColor viene del import de cabecera del modulo. Aqui habia un
                 # `_c(r, g, b)` que no existia en ninguna parte: como todo el
                 # bloque va dentro de un try/except que devuelve None, el
-                # NameError se tragaba en silencio y GF_CutFill se quedaba SIN
+                # NameError se tragaba en silencio y GRD_CutFill se quedaba SIN
                 # simbolizar, con lo que la imagen que recibe el modelo de IA no
                 # llevaba la rampa de corte/relleno. Detectado por ruff (F821).
                 items.append(QgsColorRampShader.ColorRampItem(
@@ -755,7 +759,7 @@ class ContextoIA:
             with open(ruta, "w", newline="", encoding="utf-8") as fh:
                 w = csv.writer(fh)
                 w.writerow(["channel", "station_m", "x", "y", "z"])
-                c = capa("GF_Channels")
+                c = capa("GRD_Channels")
                 if c is not None:
                     for f in c.getFeatures():
                         vs = list(f.geometry().vertices())
@@ -783,7 +787,7 @@ class ContextoIA:
                 w.writerow(["layer", "key", "channel", "index", "x_channel",
                             "y_channel", "z_channel", "x_top", "y_top", "z_top",
                             "length_m", "dz_m", "mean_slope_pct"])
-                for nombre in ("GF_SubRidges", "GF_Swales", "GF_Ridges"):
+                for nombre in ("GRD_SubRidges", "GRD_Swales", "GRD_Ridges"):
                     c = capa(nombre)
                     if c is None:
                         continue

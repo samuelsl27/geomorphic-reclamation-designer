@@ -1,29 +1,35 @@
 # -*- coding: utf-8 -*-
 # SPDX-FileCopyrightText: 2026 Samuel Saez Lopez y colaboradores
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Gestión del árbol de capas del proyecto GeoFluvQ.
+"""Gestión del árbol de capas del proyecto.
 
-Estructura de grupos creada en el panel de capas de QGIS:
+Estructura de grupos creada en el panel de capas de QGIS. El prefijo es `GRD_`,
+por Geomorphic Reclamation Designer (ADR-016: nada de cara al usuario lleva la
+marca del método de referencia):
 
-GeoFluv <nombre_proyecto>
-├── 01 Entradas
-│   ├── GF_Boundary           (polígono)
-│   ├── GF_ValleyBottoms          (línea 2D dibujada por el usuario)
+Geomorphic Reclamation <nombre_proyecto>
+├── 01 Inputs
+│   ├── GRD_Boundary        (polígono, límite del área a rehabilitar)
+│   ├── GRD_ValleyBottoms   (línea 2D dibujada por el usuario)
 │   └── (DEM de elevaciones — capa ráster del usuario, se referencia)
-├── 02 Diseño
-│   ├── GF_Channels         (LineStringZ, uno por canal, con atributos)
-│   ├── GF_ChannelBanks          (LineStringZ: bankfull y flood-prone)
-│   ├── Secciones                (PointZ por estación con propiedades hidráulicas)
-│   ├── GF_Ridges      (LineStringZ)
-│   ├── Subcrestas               (LineStringZ)
-│   └── GF_Swales    (LineStringZ)
-├── 03 Salida
-│   ├── GF_DesignSurface     (ráster interpolado)
-│   ├── GF_Contours          (línea)
-│   └── Subcuencas               (polígono)
-└── 04 Análisis
-    ├── Corte-Relleno            (ráster diferencia)
-    └── GF_Centroids           (punto)
+├── 02 Design
+│   ├── GRD_Channels        (LineStringZ, uno por canal, con atributos)
+│   ├── GRD_ChannelBanks    (LineStringZ: bankfull y flood-prone)
+│   ├── GRD_XSections       (PointZ por estación con propiedades hidráulicas)
+│   ├── GRD_Ridges          (LineStringZ)
+│   ├── GRD_SubRidges       (LineStringZ)
+│   ├── GRD_Swales          (LineStringZ)
+│   └── GRD_Vanes           (LineStringZ)
+├── 03 Output
+│   ├── GRD_DesignSurface   (ráster interpolado)
+│   ├── GRD_Contours        (LineStringZ)
+│   ├── GRD_SubWatershed    (polígono)
+│   └── GRD_Vegetation      (PointZ)
+└── 04 Analysis
+    ├── GRD_CutFill (m)     (ráster diferencia)
+    ├── GRD_Centroids       (PointZ)
+    ├── GRD_HaulRegions     (polígono)
+    └── GRD_HaulRoutes      (línea)
 
 Todas las capas vectoriales de diseño son capas 'memory' que se pueden
 exportar/guardar en GPKG desde el propio panel del plugin. El usuario puede
@@ -80,7 +86,7 @@ CAMPOS_SECCION = [
     ("radius_curvature", CAMPO_DOUBLE),    # Rc (m)
 ]
 
-# Map tip HTML for GF_XSections: with QGIS 'Show Map Tips' enabled, hovering
+# Map tip HTML for GRD_XSections: with QGIS 'Show Map Tips' enabled, hovering
 # over a cross-section shows its hydraulic data sheet.
 MAPTIP_SECCION = """
 <div style="font-family:sans-serif; font-size:9pt; background:#ffffff;">
@@ -106,21 +112,21 @@ Elev [% format_number("elev",2) %] m · slope [% format_number("slope_pct",2) %]
 """
 
 DEF_CAPAS = {
-    "GF_Boundary":        ("Polygon",      "01 Inputs", [("name", CAMPO_STR), ("area_ha", CAMPO_DOUBLE)]),
-    "GF_ValleyBottoms":       ("LineString",   "01 Inputs", [("name", CAMPO_STR), ("is_main", CAMPO_BOOL)]),
-    "GF_Channels":      ("LineStringZ",  "02 Design",   CAMPOS_CANAL),
-    "GF_ChannelBanks":       ("LineStringZ",  "02 Design",   [("channel", CAMPO_STR), ("type", CAMPO_STR)]),
-    "GF_XSections":             ("PointZ",       "02 Design",   CAMPOS_SECCION),
-    "GF_Ridges":   ("LineStringZ",  "02 Design",   [("name", CAMPO_STR)]),
-    "GF_SubRidges":            ("LineStringZ",  "02 Design",   [("channel", CAMPO_STR), ("index", CAMPO_INT)]),
-    "GF_Swales": ("LineStringZ",  "02 Design",   [("channel", CAMPO_STR), ("index", CAMPO_INT)]),
-    "GF_Contours":       ("LineStringZ",  "03 Output",   [("elev", CAMPO_DOUBLE), ("is_index", CAMPO_BOOL)]),
-    "GF_SubWatershed":            ("Polygon",      "03 Output",   [("channel", CAMPO_STR), ("area_ha", CAMPO_DOUBLE), ("drainage_density", CAMPO_DOUBLE)]),
-    "GF_Centroids":        ("PointZ",       "04 Analysis", [("region", CAMPO_INT), ("type", CAMPO_STR), ("volume_m3", CAMPO_DOUBLE)]),
-    "GF_HaulRegions":      ("Polygon",      "04 Analysis", [("region", CAMPO_INT), ("type", CAMPO_STR), ("volume_m3", CAMPO_DOUBLE), ("area_m2", CAMPO_DOUBLE), ("mean_depth_m", CAMPO_DOUBLE), ("centroid_x", CAMPO_DOUBLE), ("centroid_y", CAMPO_DOUBLE)]),
-    "GF_HaulRoutes":       ("LineString",   "04 Analysis", [("from_region", CAMPO_INT), ("to_region", CAMPO_INT), ("volume_m3", CAMPO_DOUBLE), ("distance_m", CAMPO_DOUBLE), ("vol_x_dist", CAMPO_DOUBLE)]),
-    "GF_Vanes":            ("LineStringZ",  "02 Design",   [("channel", CAMPO_STR), ("index", CAMPO_INT), ("station", CAMPO_DOUBLE), ("bank", CAMPO_STR)]),
-    "GF_Vegetation":       ("PointZ",       "03 Output",   [("type", CAMPO_STR), ("height_m", CAMPO_DOUBLE)]),
+    "GRD_Boundary":        ("Polygon",      "01 Inputs", [("name", CAMPO_STR), ("area_ha", CAMPO_DOUBLE)]),
+    "GRD_ValleyBottoms":       ("LineString",   "01 Inputs", [("name", CAMPO_STR), ("is_main", CAMPO_BOOL)]),
+    "GRD_Channels":      ("LineStringZ",  "02 Design",   CAMPOS_CANAL),
+    "GRD_ChannelBanks":       ("LineStringZ",  "02 Design",   [("channel", CAMPO_STR), ("type", CAMPO_STR)]),
+    "GRD_XSections":             ("PointZ",       "02 Design",   CAMPOS_SECCION),
+    "GRD_Ridges":   ("LineStringZ",  "02 Design",   [("name", CAMPO_STR)]),
+    "GRD_SubRidges":            ("LineStringZ",  "02 Design",   [("channel", CAMPO_STR), ("index", CAMPO_INT)]),
+    "GRD_Swales": ("LineStringZ",  "02 Design",   [("channel", CAMPO_STR), ("index", CAMPO_INT)]),
+    "GRD_Contours":       ("LineStringZ",  "03 Output",   [("elev", CAMPO_DOUBLE), ("is_index", CAMPO_BOOL)]),
+    "GRD_SubWatershed":            ("Polygon",      "03 Output",   [("channel", CAMPO_STR), ("area_ha", CAMPO_DOUBLE), ("drainage_density", CAMPO_DOUBLE)]),
+    "GRD_Centroids":        ("PointZ",       "04 Analysis", [("region", CAMPO_INT), ("type", CAMPO_STR), ("volume_m3", CAMPO_DOUBLE)]),
+    "GRD_HaulRegions":      ("Polygon",      "04 Analysis", [("region", CAMPO_INT), ("type", CAMPO_STR), ("volume_m3", CAMPO_DOUBLE), ("area_m2", CAMPO_DOUBLE), ("mean_depth_m", CAMPO_DOUBLE), ("centroid_x", CAMPO_DOUBLE), ("centroid_y", CAMPO_DOUBLE)]),
+    "GRD_HaulRoutes":       ("LineString",   "04 Analysis", [("from_region", CAMPO_INT), ("to_region", CAMPO_INT), ("volume_m3", CAMPO_DOUBLE), ("distance_m", CAMPO_DOUBLE), ("vol_x_dist", CAMPO_DOUBLE)]),
+    "GRD_Vanes":            ("LineStringZ",  "02 Design",   [("channel", CAMPO_STR), ("index", CAMPO_INT), ("station", CAMPO_DOUBLE), ("bank", CAMPO_STR)]),
+    "GRD_Vegetation":       ("PointZ",       "03 Output",   [("type", CAMPO_STR), ("height_m", CAMPO_DOUBLE)]),
 }
 
 
@@ -192,7 +198,7 @@ class LayerManager:
         """True si el tipo de geometría de la capa existente sirve para lo que
         la versión actual va a escribir (sobre todo: si necesita Z, que la
         tenga). Al actualizar de versión pueden quedar capas antiguas 2D en el
-        proyecto —p. ej. GF_Contours— y ahí se perderían las cotas."""
+        proyecto —p. ej. GRD_Contours— y ahí se perderían las cotas."""
         try:
             necesita_z = geom_def.endswith("Z")
             tiene_z = QgsWkbTypes.hasZ(lyr.wkbType())
@@ -230,7 +236,7 @@ class LayerManager:
         sg = self.subgrupo(sub)
         sg.addLayer(lyr)
         self._aplicar_estilo(lyr, nombre)
-        if nombre == "GF_XSections":
+        if nombre == "GRD_XSections":
             try:
                 lyr.setMapTipTemplate(MAPTIP_SECCION)
             except Exception:
@@ -272,7 +278,7 @@ class LayerManager:
         """Estilo de la capa Secciones por estabilidad tractiva (equivalente a
         'Highlight Tractive Force Zones'): verde τ≤0.8·τcrit, ámbar 0.8–1,
         rojo τ>τcrit. Con activar=False restaura el símbolo simple."""
-        lyr = self.obtener_capa("GF_XSections", crear=False)
+        lyr = self.obtener_capa("GRD_XSections", crear=False)
         if lyr is None:
             return None
         try:
@@ -321,38 +327,38 @@ class LayerManager:
         try:
             from qgis.core import QgsLineSymbol, QgsFillSymbol, QgsMarkerSymbol
             sym = None
-            if nombre == "GF_Boundary":
+            if nombre == "GRD_Boundary":
                 sym = QgsFillSymbol.createSimple({"color": "0,0,0,0", "outline_color": "#0055aa",
                                                   "outline_width": "0.6"})
-            elif nombre == "GF_ValleyBottoms":
+            elif nombre == "GRD_ValleyBottoms":
                 sym = QgsLineSymbol.createSimple({"line_color": "#00aa66", "line_width": "0.5",
                                                   "line_style": "dash"})
-            elif nombre == "GF_Channels":
+            elif nombre == "GRD_Channels":
                 sym = QgsLineSymbol.createSimple({"line_color": "#0077ff", "line_width": "0.7"})
-            elif nombre == "GF_ChannelBanks":
+            elif nombre == "GRD_ChannelBanks":
                 sym = QgsLineSymbol.createSimple({"line_color": "#00c8ff", "line_width": "0.3"})
-            elif nombre == "GF_Ridges":
+            elif nombre == "GRD_Ridges":
                 sym = QgsLineSymbol.createSimple({"line_color": "#cc0000", "line_width": "0.6"})
-            elif nombre == "GF_SubRidges":
+            elif nombre == "GRD_SubRidges":
                 sym = QgsLineSymbol.createSimple({"line_color": "#e6b800", "line_width": "0.4"})
-            elif nombre == "GF_Swales":
+            elif nombre == "GRD_Swales":
                 sym = QgsLineSymbol.createSimple({"line_color": "#3366cc", "line_width": "0.3",
                                                   "line_style": "dot"})
-            elif nombre == "GF_XSections":
+            elif nombre == "GRD_XSections":
                 sym = QgsMarkerSymbol.createSimple({"name": "circle", "color": "#ff8800", "size": "1.2"})
-            elif nombre == "GF_Vanes":
+            elif nombre == "GRD_Vanes":
                 sym = QgsLineSymbol.createSimple({"line_color": "#8000c0",
                                                   "line_width": "0.8"})
-            elif nombre == "GF_Vegetation":
+            elif nombre == "GRD_Vegetation":
                 sym = QgsMarkerSymbol.createSimple({"name": "triangle",
                                                     "color": "#1d7a1d",
                                                     "size": "1.6"})
-            elif nombre == "GF_Centroids":
+            elif nombre == "GRD_Centroids":
                 sym = QgsMarkerSymbol.createSimple({"name": "cross2", "color": "#000000", "size": "3"})
-            elif nombre == "GF_HaulRoutes":
+            elif nombre == "GRD_HaulRoutes":
                 sym = QgsLineSymbol.createSimple({"line_color": "#000000",
                                                   "line_width": "0.5"})
-            if nombre == "GF_HaulRegions":
+            if nombre == "GRD_HaulRegions":
                 self._estilo_haul_regions(lyr)
                 return
             if sym is not None:
