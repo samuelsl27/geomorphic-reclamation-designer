@@ -12,7 +12,7 @@ GeoFluv™, marca de su titular). Se mantiene por compatibilidad con los
 proyectos ya creados; no implica relación con Carlson Software.
 """
 
-__version__ = "1.0.17"
+__version__ = "1.1.0"
 __author__ = "Samuel Saez Lopez"
 __license__ = "AGPL-3.0-or-later"
 

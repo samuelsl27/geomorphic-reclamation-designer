@@ -84,18 +84,31 @@ identificarlas.
 
 ## 🔵 Infraestructura (nuevo, esta sesión)
 
-### P-10 · Publicar en GitHub
+### P-15 · Verificar la v1.1.0 en QGIS real 🔴
 
-El repositorio está listo (git inicializado, CI, plantillas, licencia, CLA).
-Falta: crear el repositorio remoto, `git remote add origin`, `git push -u origin
-main`, y activar Actions. Ver `docs/DESARROLLO.md` §«Subir a GitHub».
+**Lo más urgente.** El renombrado de la v1.1.0 no se ha probado con QGIS
+delante: los tests que lo necesitan (`test_integracion`, `test_gui`) se saltan
+solos si no lo encuentran, así que las 84 pruebas en verde **no cubren esto**.
+
+Lo que hay que mirar, por orden de riesgo:
+
+1. **El grupo de capas** pasa de `GeoFluv <proyecto>` a `Geomorphic Reclamation
+   <proyecto>` (`layer_manager.GRUPO_RAIZ`). Comprobar que el árbol se crea
+   entero, que *Create Design Layers* mete las capas en su subgrupo, y qué pasa
+   al abrir un proyecto anterior (debería crear el grupo nuevo y no perder nada).
+2. **El menú** `Geomorphic Reclamation` y sus 13 comandos: que aparezcan, que no
+   haya quedado ninguno huérfano y que `unload()` los quite todos.
+3. Rótulos del panel, títulos de ventana e informes.
 
 ### P-11 · Repositorio de complementos de QGIS
 
-Cuando el complemento salga de `experimental=True`, publicar en
-plugins.qgis.org. Requiere: quitar `experimental`, `homepage`/`tracker`/
-`repository` apuntando a GitHub (ya está), y una versión estable probada en
-3.22, 3.34, 3.40 y 4.2.
+Publicar en plugins.qgis.org. Requiere cuenta OSGEO y subir el ZIP. Los campos
+`homepage`/`tracker`/`repository` ya apuntan a GitHub y la marca ya está fuera
+de la interfaz (ADR-015), que era el motivo más probable de rechazo.
+
+Queda por decidir si se quita `experimental=True`, y en todo caso probar antes
+en **3.22, 3.34, 3.40 y 4.2** — sobre todo en 3.22, que es donde B-020 impedía
+cargar el complemento y donde nunca se ha ejecutado de verdad.
 
 ### P-12 · `scripts/comparar_original.py`
 
@@ -133,6 +146,13 @@ Como el bloque va dentro de un `try/except` que devuelve `None`, el `NameError`
 se tragaba en silencio y **la imagen que recibía el modelo de IA salía sin
 simbolizar**. Ver B-019.
 
+**Familia `FA` activada** (v1.1.0): `FA102` marca cualquier unión PEP 604
+(`float | None`) sin `from __future__ import annotations`. Es lo que habría
+evitado B-020, que dejaba el complemento sin cargar en todo QGIS 3.22–3.28. No
+saltaba antes porque `FA` no estaba en `select`, aunque `target-version` sí
+fuera `py39`. Moraleja para el resto de esta tabla: **poner el target correcto
+no basta si no seleccionas las reglas que lo comprueban.**
+
 ### P-13 · Cobertura de tests
 
 84 tests, todos en verde. Sin medir cobertura. Faltan tests de
@@ -140,6 +160,17 @@ simbolizar**. Ver B-019.
 seguridad (necesitan QGIS, así que solo correrían en local).
 
 ---
+
+## Terminado recientemente (v1.1.0)
+
+- ✅ **P-10 · Publicado en GitHub**: `github.com/samuelsl27/geomorphic-reclamation-designer`,
+  público, con Actions en verde en toda la matriz
+- ✅ La marca ajena fuera de toda la interfaz (ADR-015)
+- ✅ **B-020**: el complemento no cargaba en QGIS 3.22–3.28 (Python 3.9)
+- ✅ Familia `FA` de `ruff` activada, para que B-020 no pueda repetirse
+- ✅ `SECURITY.md` y `docs/ARQUITECTURA.md` ajustados a lo que hace el código
+- ✅ Datos del caso de trabajo y rutas de la máquina fuera del repositorio, y
+  purgados también de la historia de git
 
 ## Terminado recientemente (v1.0.16 – v1.0.17)
 

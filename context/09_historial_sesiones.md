@@ -5,9 +5,10 @@ terminar.** Plantilla al final.
 
 ---
 
-## 2026-08-07 · Revisión previa a la publicación en GitHub
+## 2026-08-07 · v1.1.0 — publicación en GitHub
 
-**Versión**: 1.0.17 (sin cambios de motor; solo rótulos y documentación)
+**Versión**: **1.1.0** (sin cambios de motor; rótulos, compatibilidad y
+documentación). Primera versión publicada.
 
 **Qué se hizo.** Revisión completa del repositorio antes de hacerlo público y de
 enviarlo a `plugins.qgis.org`.
@@ -40,21 +41,44 @@ enviarlo a `plugins.qgis.org`.
   la organización `opengeorock` en GitHub). Los enlaces a `opengeorock.org` y la
   autoría del equipo se mantienen.
 - `.gitignore`: `*.pdf` y `*.docx` globales, no solo bajo `docs/metodo/`.
+- 🔴 **B-020: el complemento no cargaba en QGIS 3.22–3.28.** `params.py` usaba
+  `float | None` (PEP 604) en anotaciones de dataclass; en **Python 3.9** —el
+  que traen esas versiones de QGIS— la anotación se evalúa al definir la clase
+  y revienta con `TypeError`. Y `metadata.txt` declaraba
+  `qgisMinimumVersion=3.22`. **Lo cazó la CI en el primer push**, en la matriz
+  de 3.9; aquí no había forma de verlo, porque el PC de desarrollo va con QGIS
+  4.2 y Python 3.12. Corregido con `from __future__ import annotations` y
+  blindado activando la familia `FA` de `ruff` (FA102 lo marca solo;
+  comprobado quitando la línea).
+- **Versión cerrada como 1.1.0** y no 1.0.18: cambian rótulos que el usuario ve
+  y el nombre del grupo de capas, y el complemento pasa a funcionar por primera
+  vez por debajo de QGIS 3.30.
 
 **Medido.** `ruff check .` limpio y **84 tests en verde** después del
-renombrado: ningún test dependía de los rótulos. El zip se construye y verifica.
+renombrado: ningún test dependía de los rótulos. **CI en verde en la matriz
+completa** (3.9, 3.10, 3.11, 3.12 + lint + metadatos + ZIP). El zip se
+construye y verifica: 40 ficheros, 0.24 MB.
 
 **Comprobado y limpio.** Historia de git (un solo autor, ningún fichero de datos
 ha existido nunca en el árbol), `.gitignore`, `build_zip.py`, workflows de
 GitHub sin secretos, `.claude/settings.local.json` correctamente ignorado.
 
-**Lección.** Un renombrado «por marca» que solo toca el nombre del paquete deja
-el riesgo intacto: lo que se juzga es lo que se ve. Cuando una decisión sea de
-naming, la lista de sitios a revisar es *menú, botones, títulos de ventana,
-mensajes, informes, guía y nombres de grupo de capas*, no `metadata.txt`.
+**Lecciones.**
 
-**Pendiente**: decidir si la primera publicación sale con `experimental=True`
-(ahora sí lo está) y escribir `scripts/comparar_original.py` (P-12).
+1. Un renombrado «por marca» que solo toca el nombre del paquete deja el riesgo
+   intacto: lo que se juzga es lo que se ve. Cuando una decisión sea de naming,
+   la lista de sitios a revisar es *menú, botones, títulos de ventana, mensajes,
+   informes, guía y nombres de grupo de capas*, no `metadata.txt`.
+2. **El entorno de desarrollo es el más moderno del parque, así que es el que
+   menos bugs de compatibilidad encuentra.** Declarar `qgisMinimumVersion=3.22`
+   no lo verifica nadie: hace falta algo que *ejecute* el código en el Python de
+   esa versión. La matriz de la CI pagó su coste en el primer push.
+3. Anonimizar el estado actual no sirve si el dato sigue en la historia. Purgar
+   antes del primer push es gratis; después, no.
+
+**Pendiente**: **verificar el renombrado en QGIS real** (los tests que necesitan
+QGIS se saltan sin él; afecta al grupo de capas vía `layer_manager`), decidir si
+se quita `experimental=True` y escribir `scripts/comparar_original.py` (P-12).
 
 ---
 

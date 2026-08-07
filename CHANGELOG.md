@@ -8,7 +8,18 @@ Los códigos `B-0xx` remiten a [`context/04_bugs_resueltos.md`], los `ADR-0xx` a
 
 ## [No publicado]
 
-### Cambiado
+## [1.1.0] — 2026-08-07
+
+**Primera versión publicada.** Cierra la preparación del proyecto como
+repositorio público: quita la marca ajena de la interfaz, corrige un fallo que
+impedía cargar el complemento en el rango de QGIS que declaraba soportar, y
+ajusta la documentación de seguridad a lo que el código hace de verdad.
+
+Sube a **1.1.0** y no a 1.0.18 porque cambian rótulos que el usuario ve y el
+nombre del grupo de capas, y porque el complemento pasa a funcionar por primera
+vez en QGIS 3.22–3.28.
+
+### Cambiado (interfaz)
 - **La marca ajena sale de toda la interfaz** (ADR-015). Completa el renombrado
   de ADR-014, que solo había tocado el nombre del paquete y del repositorio:
   - menú de QGIS: *Natural Regrade* → **Geomorphic Reclamation**;
@@ -74,7 +85,7 @@ Los códigos `B-0xx` remiten a [`context/04_bugs_resueltos.md`], los `ADR-0xx` a
 - Licencia **AGPL-3.0-or-later**, **CLA**, `NOTICE`, `CONTRIBUTING.md`,
   `SECURITY.md`, `CODE_OF_CONDUCT.md`, `AUTHORS.md`.
 
-### Corregido
+### Corregido (entorno de desarrollo)
 - **La configuración del MCP de QGIS apuntaba a un proyecto que no era el
   instalado.** `.mcp.json` y `.vscode/mcp.json` describían
   `jjsantos01/qgis_mcp` en una ruta local inexistente, mientras que el
@@ -93,7 +104,7 @@ Los códigos `B-0xx` remiten a [`context/04_bugs_resueltos.md`], los `ADR-0xx` a
   iteración salía sin la rampa divergente ni la leyenda de rangos. Detectado por
   `ruff` (regla F821) al montar el repositorio.
 
-### Cambiado
+### Cambiado (nombre y estructura)
 - **Nombre del complemento**: *GeoFluvQ — Natural Regrade* → **Geomorphic
   Reclamation Designer**. Paquete `geofluv_q` → `geomorphic_reclamation_designer`,
   repositorio `geomorphic-reclamation-designer` (ADR-014). *GeoFluv™* y *Natural
@@ -106,8 +117,35 @@ Los códigos `B-0xx` remiten a [`context/04_bugs_resueltos.md`], los `ADR-0xx` a
 ### Compatibilidad
 - **Los proyectos existentes siguen funcionando sin tocar nada.** Se conservan el
   prefijo de capa `GF_`, la extensión `.geofluv.json` y las claves del JSON.
+- ⚠️ **El grupo de capas cambia de nombre** (`GeoFluv <proyecto>` → `Geomorphic
+  Reclamation <proyecto>`): un proyecto anterior creará el grupo nuevo al
+  abrirse. Las capas y el `.geofluv.json` no cambian y no se pierde nada.
 - Quien tuviera instalado `geofluv_q` debe **desinstalarlo**: son dos
   complementos distintos para QGIS.
+- **QGIS 3.22 → 4.x, Qt5 y Qt6.** Por B-020, esta es la primera versión que
+  arranca de verdad por debajo de QGIS 3.30.
+
+### Medido
+- **84 tests en verde** y `ruff check .` limpio, antes y después del renombrado:
+  ningún test dependía de los rótulos.
+- **CI en verde en la matriz completa** — Python 3.9, 3.10, 3.11 y 3.12, más
+  lint, coherencia de metadatos y construcción del ZIP.
+- Renombrado de interfaz: **119 líneas en 20 ficheros** + guía regenerada. La
+  marca queda en **2 apariciones**, las dos en la cita atribuida de la fuente.
+- ZIP: **40 ficheros, 0.24 MB**, una sola carpeta raíz.
+- MCP contra QGIS 4.2.0: 118 herramientas, `ping` y `get_qgis_info` correctos.
+
+### Conocido
+- `experimental=True` en `metadata.txt`: la primera publicación sale marcada
+  como experimental a propósito.
+- *Check Design* deja **2 errores** de tensión tractiva (τ > τ_crit) en el caso
+  de referencia. Está por decidir si es del motor, del `D50` introducido o un
+  aviso legítimo. Ver `context/08_pendiente.md`.
+- El renombrado **no se ha verificado todavía en QGIS real** (los tests que
+  necesitan QGIS se saltan sin él). Afecta sobre todo al nombre del grupo de
+  capas, que pasa por `layer_manager`.
+- P-04: el pipeline pasó de ~3 s a ~15 s en algún punto de la 1.0.17, sin causa
+  identificada.
 
 ---
 
@@ -354,7 +392,8 @@ Construcción del complemento por partes:
   curvas con maestras; balance corte/relleno con semáforo; centroides de regiones
   conexas con plan de acarreo optimizado; perfil longitudinal automático.
 
-[No publicado]: https://github.com/samuelsl27/geomorphic-reclamation-designer/compare/v1.0.17...HEAD
+[No publicado]: https://github.com/samuelsl27/geomorphic-reclamation-designer/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/samuelsl27/geomorphic-reclamation-designer/releases/tag/v1.1.0
 [1.0.17]: https://github.com/samuelsl27/geomorphic-reclamation-designer/releases/tag/v1.0.17
 [1.0.16]: https://github.com/samuelsl27/geomorphic-reclamation-designer/releases/tag/v1.0.16
 [1.0.14]: https://github.com/samuelsl27/geomorphic-reclamation-designer/releases/tag/v1.0.14
