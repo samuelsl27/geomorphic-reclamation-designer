@@ -706,8 +706,14 @@ class ContextoIA:
             for v, (r, g, b) in pasos:
                 etiqueta = (f"cut {abs(v):.1f} m" if v < 0
                             else ("balance" if v == 0 else f"fill {v:.1f} m"))
+                # QColor viene del import de cabecera del modulo. Aqui habia un
+                # `_c(r, g, b)` que no existia en ninguna parte: como todo el
+                # bloque va dentro de un try/except que devuelve None, el
+                # NameError se tragaba en silencio y GF_CutFill se quedaba SIN
+                # simbolizar, con lo que la imagen que recibe el modelo de IA no
+                # llevaba la rampa de corte/relleno. Detectado por ruff (F821).
                 items.append(QgsColorRampShader.ColorRampItem(
-                    v, _c(r, g, b), etiqueta))
+                    v, QColor(r, g, b), etiqueta))
             ramp = QgsColorRampShader()
             try:
                 ramp.setColorRampType(QgsColorRampShader.Type.Interpolated)
