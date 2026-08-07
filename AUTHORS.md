@@ -12,7 +12,7 @@
 
 ## Instituciones
 
-- **Universitat Politècnica de Catalunya (UPC)**
+- **Universidad Politécnica de Cartagena (UPCT)**
 - **IMGA**
 - Equipo de **[opengeorock.org](https://opengeorock.org/)**
 

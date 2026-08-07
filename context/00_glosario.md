@@ -87,6 +87,6 @@ Esta tabla traduce entre los dos mundos.
 | **DD** | Densidad de drenaje |
 | **NR** | Natural Regrade (el método de referencia) |
 | **IMGA** | Instituto de Minería y Geología Aplicada / equipo de opengeorock.org |
-| **UPC** | Universitat Politècnica de Catalunya |
+| **UPCT** | Universidad Politécnica de Cartagena |
 | **CRS / SRC** | Sistema de referencia de coordenadas |
 | **ADR** | Architecture Decision Record |

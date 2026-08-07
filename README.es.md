@@ -143,7 +143,7 @@ Bugosh. Cada ecuación del motor es trazable a una cita en
 
 Desarrollado por **Samuel Sáez López**, con **Emilio Trigueros** — el mismo
 equipo que está detrás de **[opengeorock.org](https://opengeorock.org/)**, en la
-**Universitat Politècnica de Catalunya (UPC)** y en **IMGA**.
+**Universidad Politécnica de Cartagena (UPCT)** y en **IMGA**.
 
 La línea de trabajo del grupo es herramienta abierta y reproducible para minería
 y geología aplicada: poner al alcance de cualquiera con QGIS métodos que hasta
@@ -186,6 +186,5 @@ está abierto.
 ---
 
 <div align="center">
-<sub>© 2026 Samuel Sáez López y colaboradores · AGPL-3.0-or-later ·
-<a href="https://opengeorock.org/">opengeorock.org</a></sub>
+<sub>© 2026 Samuel Sáez López y colaboradores · AGPL-3.0-or-later</sub>
 </div>

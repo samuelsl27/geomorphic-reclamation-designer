@@ -38,7 +38,7 @@ propiedades hidráulicas como **atributos editables**. El usuario puede editar
 cualquier fase a mano y regenerar la geometría desde ahí.
 
 - Versión actual: **1.0.17**
-- Autor: **Samuel Sáez López** — equipo **IMGA / UPC**, mismo equipo de
+- Autor: **Samuel Sáez López** — equipo **IMGA / UPCT**, mismo equipo de
   [opengeorock.org](https://opengeorock.org/)
 - Licencia: **AGPL-3.0-or-later + CLA** (ver `LICENSE`, `CLA.md`)
 
