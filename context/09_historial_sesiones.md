@@ -23,9 +23,13 @@ enviarlo a `plugins.qgis.org`.
   del proyecto QGIS y el del grupo de capas de referencia. Sustituidos por
   descripciones sin georreferencia. Las cotas y las longitudes se quedan: son la
   tabla de referencia y no identifican nada por sí solas.
-- **Rutas de la máquina** (`%USERPROFILE%\…`, `<ruta de trabajo>\…`) → `%APPDATA%` y
-  redacción genérica, en `AGENTS.md`, `docs/BUILD.md`, `docs/DESARROLLO.md` y
-  `context/07`.
+- **Rutas absolutas de la máquina de desarrollo** (perfil de usuario y carpeta
+  de trabajo) → `%APPDATA%` y redacción genérica, en `AGENTS.md`,
+  `docs/BUILD.md`, `docs/DESARROLLO.md` y `context/07`.
+- **Historia de git reescrita** (`git filter-repo`) para purgar de *todos* los
+  commits las coordenadas, los nombres del caso y las rutas absolutas:
+  anonimizar solo el estado actual no sirve de nada si el dato sigue a un
+  `git log -S` de distancia. Se hizo antes del primer push, cuando es gratis.
 - 🔴 **`SECURITY.md` decía lo que no era.** Afirmaba que el complemento habla
   «solo con localhost» y que «no sale ningún dato de tu máquina», pero
   `ai_client.buscar_web()` consulta DuckDuckGo. Es *opt-in* y está desactivada
