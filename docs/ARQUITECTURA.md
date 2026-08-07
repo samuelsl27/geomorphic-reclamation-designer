@@ -121,6 +121,10 @@ propone un cambio que se sale de rango, se ignora y se anota.
 El modelo corre **en local**. Sin servidor, el mismo bucle funciona en modo
 numérico y no sale ningún dato del proyecto de la máquina.
 
+La única salida a Internet del complemento es la **búsqueda web opcional** del
+optimizador (DuckDuckGo), desactivada por defecto: viaja el texto de la consulta
+que redacta el modelo local, no el proyecto. Ver `SECURITY.md`.
+
 ## Compatibilidad QGIS 3.22 ↔ 4.x
 
 | Diferencia | Solución |
