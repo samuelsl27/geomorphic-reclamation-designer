@@ -142,7 +142,7 @@ a citation in [`context/01_metodo_geofluv.md`](context/01_metodo_geofluv.md).
 
 Developed by **Samuel Sáez López**, with **Emilio Trigueros** — the same team
 behind **[opengeorock.org](https://opengeorock.org/)**, working at the
-**Universitat Politècnica de Catalunya (UPC)** and **IMGA**.
+**Universitat Politècnica de Cartagena (UPCT)** and **IMGA**.
 
 The group's line of work is open, reproducible tooling for mining and applied
 geology: making methods that until now lived inside expensive proprietary
@@ -186,5 +186,4 @@ is open today.
 
 <div align="center">
 <sub>© 2026 Samuel Sáez López and contributors · AGPL-3.0-or-later ·
-<a href="https://opengeorock.org/">opengeorock.org</a></sub>
 </div>
