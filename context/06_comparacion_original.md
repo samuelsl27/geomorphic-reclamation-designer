@@ -5,9 +5,10 @@ salida del Natural Regrade original sobre el **mismo terreno y los mismos
 ajustes**. Esta página es la tabla de referencia: si un cambio mueve alguno de
 estos números en la dirección equivocada, es una regresión.
 
-**Caso de prueba**: emplazamiento de referencia interno. Grupo de capas de referencia en QGIS:
-`<grupo de capas de referencia>`. Importadas del DXF original: 17
-polilíneas de canal, 106 de cresta/vaguada y 147 curvas de nivel.
+**Caso de prueba**: emplazamiento de referencia interno (no se publican sus
+datos). El grupo de capas de referencia lleva `origen` en el nombre, que es lo
+que buscan los guiones de comparación. Importadas del DXF de la salida
+original: 17 polilíneas de canal, 106 de cresta/vaguada y 147 curvas de nivel.
 
 ---
 

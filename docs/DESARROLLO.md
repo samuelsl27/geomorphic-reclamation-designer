@@ -12,14 +12,7 @@ una vez entera; después basta con volver a la sección que necesites.
 **Abre la carpeta del repositorio, no la carpeta que la contiene.**
 
 ```bash
-cd <ruta del repositorio>\geomorphic-reclamation-designer
-code .
-```
-
-Si lo clonas desde GitHub (cuando esté publicado):
-
-```bash
-git clone https://github.com/opengeorock/geomorphic-reclamation-designer.git
+git clone https://github.com/samuelsl27/geomorphic-reclamation-designer.git
 cd geomorphic-reclamation-designer
 code .
 ```
@@ -39,25 +32,18 @@ Si abres la carpeta padre, VSCode no aplica la configuración de la subcarpeta,
 el terminal arranca en el sitio equivocado y el asistente no encuentra
 `AGENTS.md`. Se puede trabajar, pero peleando.
 
-### 1.1 bis · Ver también las carpetas de recursos
+### 1.1 bis · Documentación de referencia con copyright
 
-Si quieres tener `Recursos/` y las versiones antiguas a la vista **en la misma
-ventana**, usa un espacio de trabajo de varias raíces en vez de abrir la carpeta
-padre. Hay uno preparado:
+El libro y los manuales del método **no están en el repositorio y no deben
+entrar**: tienen copyright y no son nuestros para redistribuir. Guárdalos
+**fuera** del árbol del repositorio; así git ni los ve, que es la situación
+segura. Si necesitas tenerlos a la vista en la misma ventana de VSCode, usa un
+espacio de trabajo de varias raíces con el repositorio como **primera raíz**
+(así toda la configuración de arriba sigue funcionando) y las carpetas de
+consulta añadidas aparte y excluidas de la búsqueda.
 
-```
-<ruta del repositorio>\IMGA_Geofluv.code-workspace
-```
-
-Ábrelo con doble clic. Pone el repositorio como **primera raíz** (así toda la
-configuración de arriba sigue funcionando), fija el terminal integrado en él y
-añade `Recursos/` y `Versiones_Claude_desktop/` como carpetas de **consulta**,
-excluidas de la búsqueda.
-
-> ⚠️ **No copies nada de `Recursos/` dentro del repositorio.** Los PDF del
-> método tienen copyright y no son nuestros para redistribuir. El `.gitignore`
-> ya excluye `*.pdf` y `Recursos/`, pero mientras esas carpetas estén **fuera**
-> del repositorio, git ni las ve — que es la situación segura.
+El `.gitignore` cubre además `*.pdf`, `*.docx` y las extensiones de datos
+(`*.tif`, `*.dxf`, `*.gpkg`, `*.geofluv.json`…) por si acaso.
 
 ### 1.2 Extensiones de VSCode
 

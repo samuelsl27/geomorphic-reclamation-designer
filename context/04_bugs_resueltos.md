@@ -246,9 +246,9 @@ que muere en la confluencia: es una V que PASA por ella.** Aguas arriba del punt
 de unión hay divisoria por los dos lados del tributario. El código buscaba el
 vértice más próximo a la confluencia y se quedaba con **una sola** de las mitades.
 
-**Medida.** La cadena compartida tenía 305.8 m entre (X1, Y1) y
-(X2, Y2) — exactamente los extremos de las **DOS** crestas que dibuja el
-original (178.3 m y 96.9 m).
+**Medida.** La cadena compartida tenía 305.8 m entre los dos extremos de la V —
+exactamente los extremos de las **DOS** crestas que dibuja el original
+(178.3 m y 96.9 m).
 
 **Corrección.** `ridges._partir_en_confluencias()` parte la cadena en la
 confluencia y genera las dos, cada una anclada ahí en X, Y y Z.

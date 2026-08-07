@@ -97,7 +97,7 @@ utils.reloadPlugin("geomorphic_reclamation_designer")
 
 ### El perfil correcto
 
-En esta máquina conviven QGIS3 y QGIS4, y el activo es **QGIS4**:
+Si conviven QGIS3 y QGIS4, asegúrate de instalar en el perfil activo:
 
 ```
 %APPDATA%\QGIS\QGIS4\profiles\default\python\plugins
