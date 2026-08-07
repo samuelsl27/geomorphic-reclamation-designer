@@ -46,9 +46,12 @@ jobs:
         id: notas
         run: |
           V=$(grep -oP '^version=\K.*' src/geomorphic_reclamation_designer/metadata.txt)
-          awk -v v="[$V]" '
-            $0 ~ "^## " v {found=1; next}
-            found && /^## \[/ {exit}
+          # Comparacion LITERAL con index(), no regex: "## [1.1.0]" como patron
+          # hace que [1.1.0] se lea como clase de caracteres y no case nunca.
+          # Sintoma: las notas salian siempre como "Ver CHANGELOG.md".
+          awk -v tag="## [$V]" '
+            index($0, tag) == 1 {found=1; next}
+            found && index($0, "## [") == 1 {exit}
             found {print}
           ' CHANGELOG.md > NOTAS.md
           if [ ! -s NOTAS.md ]; then
