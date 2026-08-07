@@ -78,6 +78,8 @@ select = [
     "F",    # pyflakes  <- aqui vive F821, que ya ha cazado un bug real
     "W",    # warnings
     "UP",   # pyupgrade
+    "FA",   # future-annotations <- PEP 604 (`float | None`) revienta en 3.9,
+            #                       que es el Python de QGIS 3.22. Ver B-020.
     "B",    # bugbear
     "C4",   # comprehensions
     "SIM",  # simplify

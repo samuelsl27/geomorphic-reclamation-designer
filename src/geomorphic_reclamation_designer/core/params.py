@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # SPDX-FileCopyrightText: 2026 Samuel Saez Lopez y colaboradores
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Parámetros del proyecto GeoFluvQ.
+"""Parámetros del proyecto.
 
 Todos los ajustes globales y por canal del método fluvio-geomórfico.
 Unidades: métricas (m, m/s, mm de lluvia, m/ha para densidad de drenaje).
@@ -9,6 +9,15 @@ El usuario puede trabajar también en pies/acres cambiando 'unidades', pero
 internamente todo se maneja en las unidades del CRS del proyecto (se asume
 CRS proyectado en metros).
 """
+
+# OBLIGATORIO en este módulo: las anotaciones `float | None` de las dataclass
+# son PEP 604, que no existe hasta Python 3.10, y QGIS 3.22 trae **Python 3.9**.
+# Sin esta línea el módulo revienta al importarse con
+# `TypeError: unsupported operand type(s) for |: 'type' and 'NoneType'`, y con
+# él todo el complemento, en el rango de QGIS que declara metadata.txt.
+# Con ella las anotaciones quedan como cadenas y no se evalúan; las dataclass
+# funcionan igual porque no llaman a get_type_hints().
+from __future__ import annotations
 
 from dataclasses import dataclass, asdict
 

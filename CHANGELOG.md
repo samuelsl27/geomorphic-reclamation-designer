@@ -27,6 +27,17 @@ Los códigos `B-0xx` remiten a [`context/04_bugs_resueltos.md`], los `ADR-0xx` a
     se pierde nada.
   - Sin cambios de motor: 84 tests en verde y `ruff` limpio.
 
+### Corregido
+- 🔴 **El complemento no cargaba en QGIS 3.22–3.28** (B-020). `core/params.py`
+  anotaba diez campos de dataclass con `float | None` (PEP 604), sintaxis que
+  **no existe hasta Python 3.10**; QGIS 3.22 trae Python 3.9 y el módulo
+  reventaba al importarse con `TypeError: unsupported operand type(s) for |`,
+  arrastrando todo el complemento. `metadata.txt` declaraba
+  `qgisMinimumVersion=3.22`, así que se prometía un rango en el que no
+  arrancaba. Corregido con `from __future__ import annotations`. Lo detectó la
+  CI en la matriz de Python 3.9. Para que no vuelva, se activa la familia `FA`
+  de `ruff` (FA102), que marca cualquier PEP 604 sin ese import.
+
 ### Corregido (documentación)
 - `SECURITY.md` y `docs/ARQUITECTURA.md` afirmaban que el complemento habla
   **solo** con `localhost` y que «no sale ningún dato de tu máquina». Es

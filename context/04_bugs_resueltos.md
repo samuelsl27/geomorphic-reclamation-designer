@@ -6,6 +6,48 @@
 
 ---
 
+## B-020 · El complemento NO cargaba en QGIS 3.22–3.28 (Python 3.9) 🔴
+
+**Síntoma.** Ninguno *en el PC de desarrollo*, que tiene QGIS 4.2 con Python
+3.12. En QGIS 3.22, 3.26 o 3.28 —que llevan **Python 3.9**— el complemento
+falla al importarse, entero:
+
+```
+TypeError: unsupported operand type(s) for |: 'type' and 'NoneType'
+```
+
+Y `metadata.txt` declara `qgisMinimumVersion=3.22`. Es decir: se prometía un
+rango de compatibilidad en el que el complemento no arrancaba.
+
+**Causa raíz.** `core/params.py` anota diez campos de las dataclass con
+`float | None`, `tuple | None`, `int | None`. Esa sintaxis de unión es
+**PEP 604 y no existe hasta Python 3.10**. En 3.9 la anotación se *evalúa* al
+definir la clase y revienta ahí mismo. No es un fallo de tipado: es un error de
+ejecución en tiempo de importación.
+
+**Cómo apareció.** Lo cazó la **CI de GitHub** en el primer push, en la matriz
+de Python 3.9. Nunca lo habría encontrado una prueba manual: el entorno de
+desarrollo no tiene ningún Python 3.9 y QGIS 4.2 traga la sintaxis sin
+pestañear. Es el argumento entero a favor de tener CI con matriz de versiones.
+
+**Corrección.** `from __future__ import annotations` en la cabecera de
+`params.py`: las anotaciones pasan a ser cadenas y no se evalúan. Las dataclass
+funcionan igual porque no llaman a `get_type_hints()`.
+
+**Para que no vuelva.** Se activa la familia **`FA`** de `ruff` en
+`pyproject.toml`. Con `target-version = "py39"` ya configurado, **FA102** marca
+cualquier PEP 604 que no lleve el `from __future__`. Comprobado quitando la
+línea: salta. Antes no se cazaba porque `FA` no estaba en `select`, aunque el
+`target-version` fuera correcto.
+
+**Lección.** Declarar un rango de compatibilidad en `metadata.txt` no lo
+verifica nadie. Si dices 3.22, algo tiene que **ejecutar** el código en el
+Python de 3.22. Y ojo con el patrón general: *el entorno de desarrollo es el
+más moderno del parque, así que es el que menos bugs de compatibilidad
+encuentra*.
+
+---
+
 ## B-019 · `NameError` silencioso en la rampa de color de GF_CutFill
 
 **Síntoma.** Ninguno visible… y ese es el problema. La capa `GF_CutFill (m)` se
