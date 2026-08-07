@@ -1,0 +1,88 @@
+name: Informe de error / Bug report
+description: Algo no funciona como debería
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por informar. **Lo más útil que puedes aportar es una medida
+        concreta y un caso reproducible.**
+
+        «La cresta queda mal» no se puede depurar. «El extremo bajo queda 17.4 m
+        por encima del cauce, debería estar a ~2 m» sí.
+
+        Antes de abrir el issue, échale un vistazo a
+        [`context/04_bugs_resueltos.md`](../blob/main/context/04_bugs_resueltos.md):
+        puede que ya esté catalogado.
+
+  - type: input
+    id: version
+    attributes:
+      label: Versión del complemento
+      placeholder: "1.0.17"
+    validations: { required: true }
+
+  - type: input
+    id: qgis
+    attributes:
+      label: Versión de QGIS y sistema operativo
+      placeholder: "QGIS 4.2.0 · Windows 11"
+    validations: { required: true }
+
+  - type: textarea
+    id: que-pasa
+    attributes:
+      label: Qué pasa
+      description: Qué esperabas y qué ocurrió en realidad.
+    validations: { required: true }
+
+  - type: textarea
+    id: medida
+    attributes:
+      label: La medida
+      description: |
+        Cotas, longitudes, pendientes, distancias, número de errores del
+        *Check Design*… lo que puedas cuantificar.
+      placeholder: |
+        Cresta fid 182 de GF_Ridges:
+          cota alta 1079.16, cota baja 1047.85, longitud 118 m
+          pendiente máxima vértice a vértice: 220 %
+        Check Design: 5 errores, 71 avisos
+    validations: { required: true }
+
+  - type: textarea
+    id: reproducir
+    attributes:
+      label: Cómo reproducirlo
+      placeholder: |
+        1. Cargar el proyecto adjunto
+        2. Setup → seleccionar límite, canal y DEM
+        3. Output → Draw Design Surface
+        4. Mirar GF_Ridges en la zona oeste
+    validations: { required: true }
+
+  - type: textarea
+    id: adjuntos
+    attributes:
+      label: Adjuntos
+      description: |
+        Captura si es geométrico; el `.geofluv.json` si lo tienes; el registro
+        del panel. Un proyecto mínimo (límite + un par de fondos de valle + un
+        DEM pequeño) que lo reproduzca vale más que todo lo demás.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options:
+        - Setup / entradas
+        - Canales (perfil, planta, hidráulica)
+        - Crestas / subcrestas / vaguadas
+        - Superficie / curvas de nivel / TIN
+        - Corte-relleno / acarreos
+        - Check Design
+        - Optimización con IA
+        - Interfaz / guía
+        - Instalación
+        - No lo sé

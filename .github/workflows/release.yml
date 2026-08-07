@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Etiqueta a publicar (p. ej. v1.0.18)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Tests
+        run: |
+          pip install -r requirements-dev.txt
+          ruff check .
+          pytest -q
+
+      - name: Construir el ZIP
+        run: python scripts/build_zip.py
+
+      - name: La etiqueta coincide con metadata.txt
+        run: |
+          TAG="${GITHUB_REF_NAME:-${{ github.event.inputs.tag }}}"
+          V=$(grep -oP '^version=\K.*' src/geomorphic_reclamation_designer/metadata.txt)
+          if [ "v$V" != "$TAG" ]; then
+            echo "::error::La etiqueta es $TAG pero metadata.txt dice v$V"
+            exit 1
+          fi
+
+      - name: Notas de la version desde el CHANGELOG
+        id: notas
+        run: |
+          V=$(grep -oP '^version=\K.*' src/geomorphic_reclamation_designer/metadata.txt)
+          awk -v v="[$V]" '
+            $0 ~ "^## " v {found=1; next}
+            found && /^## \[/ {exit}
+            found {print}
+          ' CHANGELOG.md > NOTAS.md
+          if [ ! -s NOTAS.md ]; then
+            echo "Ver CHANGELOG.md" > NOTAS.md
+          fi
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          body_path: NOTAS.md
+          draft: false
+          prerelease: false
+          generate_release_notes: true

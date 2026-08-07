@@ -1,0 +1,59 @@
+name: Propuesta / Feature request
+description: Una funcionalidad nueva o una mejora
+title: "[feat] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Antes de escribir código, abre este issue. Si la propuesta sale del
+        método publicado, **necesitamos la cita**: en este proyecto no entra
+        ninguna ecuación ni constante sin fuente
+        (ver [`context/01_metodo_geofluv.md`](../blob/main/context/01_metodo_geofluv.md)).
+
+  - type: textarea
+    id: problema
+    attributes:
+      label: Qué problema resuelve
+      description: El problema real, no la solución. ¿Qué no puedes hacer hoy?
+    validations: { required: true }
+
+  - type: textarea
+    id: propuesta
+    attributes:
+      label: Qué propones
+    validations: { required: true }
+
+  - type: textarea
+    id: fuente
+    attributes:
+      label: Fuente
+      description: |
+        Si es parte del método: capítulo y sección del libro, o el paper.
+        Si es una mejora de usabilidad, puedes dejarlo vacío.
+      placeholder: "Bugosh & Martín Duque (2024), §9.4 — sillas de cresta"
+
+  - type: textarea
+    id: interfaz
+    attributes:
+      label: Si es un ajuste nuevo
+      description: |
+        Nombre (en inglés, como el resto), unidad, rango, valor por defecto, y
+        **qué pasa al subirlo o bajarlo** — hace falta para documentarlo en la
+        guía.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options:
+        - Setup / entradas
+        - Canales
+        - Crestas / laderas
+        - Superficie / curvas
+        - Corte-relleno / acarreos
+        - Check Design
+        - Optimización con IA
+        - Informes
+        - Interfaz / guía
+        - Herramientas de desarrollo

@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Pregunta sobre el método
+    url: https://github.com/opengeorock/geomorphic-reclamation-designer/discussions
+    about: Dudas sobre el método fluvio-geomórfico, calibración o interpretación de resultados.
+  - name: Vulnerabilidad de seguridad
+    url: https://github.com/opengeorock/geomorphic-reclamation-designer/blob/main/SECURITY.md
+    about: No la publiques en un issue. Escribe a samuelimga@gmail.com.
+  - name: opengeorock.org
+    url: https://opengeorock.org/
+    about: El equipo que está detrás de este y otros proyectos abiertos.
