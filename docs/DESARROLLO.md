@@ -7,12 +7,12 @@ una vez entera; después basta con volver a la sección que necesites.
 
 ## 1. Montar el entorno (una sola vez)
 
-### 1.1 Traer el repositorio
+### 1.1 Qué carpeta abrir en VSCode
 
-Si ya tienes la carpeta que te entregué:
+**Abre la carpeta del repositorio, no la carpeta que la contiene.**
 
 ```bash
-cd <ruta de trabajo>\geomorphic-reclamation-designer
+cd <ruta del repositorio>\geomorphic-reclamation-designer
 code .
 ```
 
@@ -23,6 +23,41 @@ git clone https://github.com/opengeorock/geomorphic-reclamation-designer.git
 cd geomorphic-reclamation-designer
 code .
 ```
+
+**Por qué importa.** Casi todo lo que hace cómodo este repositorio se activa
+solo cuando **la raíz del espacio de trabajo es la raíz del repositorio**:
+
+| Fichero | Solo funciona si el repositorio es la raíz |
+|---|---|
+| `.vscode/settings.json` | rutas de Pylance, pytest, estilo |
+| `.vscode/tasks.json` | las tareas de desplegar, construir y testear |
+| `.mcp.json` | el servidor MCP de QGIS |
+| `AGENTS.md` / `CLAUDE.md` | el asistente los carga por estar en la raíz |
+| `.git` | los comandos de git van sobre el repositorio |
+
+Si abres la carpeta padre, VSCode no aplica la configuración de la subcarpeta,
+el terminal arranca en el sitio equivocado y el asistente no encuentra
+`AGENTS.md`. Se puede trabajar, pero peleando.
+
+### 1.1 bis · Ver también las carpetas de recursos
+
+Si quieres tener `Recursos/` y las versiones antiguas a la vista **en la misma
+ventana**, usa un espacio de trabajo de varias raíces en vez de abrir la carpeta
+padre. Hay uno preparado:
+
+```
+<ruta del repositorio>\IMGA_Geofluv.code-workspace
+```
+
+Ábrelo con doble clic. Pone el repositorio como **primera raíz** (así toda la
+configuración de arriba sigue funcionando), fija el terminal integrado en él y
+añade `Recursos/` y `Versiones_Claude_desktop/` como carpetas de **consulta**,
+excluidas de la búsqueda.
+
+> ⚠️ **No copies nada de `Recursos/` dentro del repositorio.** Los PDF del
+> método tienen copyright y no son nuestros para redistribuir. El `.gitignore`
+> ya excluye `*.pdf` y `Recursos/`, pero mientras esas carpetas estén **fuera**
+> del repositorio, git ni las ve — que es la situación segura.
 
 ### 1.2 Extensiones de VSCode
 
@@ -46,20 +81,28 @@ Deberías ver los 84 tests (los que necesitan QGIS se saltan solos).
 
 ### 1.4 Que Pylance entienda `qgis.*`
 
-Abre `.vscode/settings.json` y **ajusta las rutas a tu instalación**. Vienen
-puestas para *QGIS 4.2* en `C:\Program Files\QGIS 4.2`:
-
-```jsonc
-"python.defaultInterpreterPath": "C:\\Program Files\\QGIS 4.2\\bin\\python-qgis.bat",
-"python.analysis.extraPaths": [
-  "./src",
-  "C:\\Program Files\\QGIS 4.2\\apps\\qgis\\python",
-  ...
-]
+```bash
+python scripts/configurar_vscode.py
 ```
 
-Si tu QGIS está en otro sitio, corrígelas. Sin esto, Pylance subraya en rojo
-todos los `from qgis.core import …` — molesto, pero **no impide nada**.
+Busca las instalaciones de QGIS, elige **la más nueva**, te dice cuál ha elegido
+y escribe las rutas correctas en `.vscode/settings.json` (intérprete,
+`apps/qgis/python`, sus `plugins` y el `site-packages` de la versión de Python
+que traiga esa instalación).
+
+Después: `Ctrl+Shift+P → Developer: Reload Window`.
+
+> **En esta máquina hay tres QGIS instalados** — 3.42.3, 3.44.6 y **4.2.0** —,
+> así que comprueba que la que elige es con la que trabajas. Si no:
+>
+> ```bash
+> python scripts/configurar_vscode.py --listar
+> python scripts/configurar_vscode.py --qgis "C:\Program Files\QGIS 3.44.6"
+> ```
+
+Sin esto, Pylance subraya en rojo todos los `from qgis.core import …`. Es
+**cosmético** —no impide ejecutar nada— pero convierte el editor en un árbol de
+Navidad y acabas ignorando también los avisos que sí importan.
 
 ### 1.5 MCP de QGIS
 
