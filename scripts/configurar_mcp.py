@@ -1,24 +1,44 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Detecta el servidor MCP de QGIS instalado y escribe .mcp.json / .vscode/mcp.json.
+"""Comprueba las dos mitades del MCP de QGIS y escribe la configuracion.
 
-    python scripts/configurar_mcp.py             # busca y escribe
-    python scripts/configurar_mcp.py --seco      # solo dice que encontraria
-    python scripts/configurar_mcp.py --ruta C:\\...\\qgis_mcp\\src\\qgis_mcp
+    python scripts/configurar_mcp.py             # comprueba y escribe
+    python scripts/configurar_mcp.py --seco      # solo informa, no escribe
+    python scripts/configurar_mcp.py --version 0.10.0   # fijar a mano
 
-El complemento `qgis_mcp_plugin` vive dentro del perfil de QGIS y abre un socket;
-el SERVIDOR MCP es un proceso aparte que habla con ese socket y que arranca el
-editor. Este guion busca los dos y deja la configuracion coherente.
+El MCP son DOS piezas y la causa mas comun de que "no funcione" es que solo
+este una:
+
+  * el complemento `QGIS MCP` (nkarasiak/qgis-mcp), que vive DENTRO de QGIS y
+    abre un socket en el 9876;
+  * el servidor `qgis-mcp-server`, un proceso FUERA de QGIS que arranca el
+    editor y traduce entre MCP y ese socket.
+
+Las dos tienen numero de version y el complemento avisa si no coinciden, asi
+que este guion lee la version del complemento instalado y fija esa misma
+etiqueta en la configuracion, en vez de apuntar a `main` y quedar a merced de
+lo que se publique manana.
+
+El servidor NO se clona: `uvx` lo descarga y lo cachea desde la etiqueta de
+GitHub, asi que la configuracion no lleva rutas de una maquina concreta y vale
+igual para cualquiera que clone el repositorio.
 """
 
 import argparse
 import json
 import os
+import re
 import shutil
+import socket
+import struct
 import sys
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PUERTO = "9876"
+HOST = "127.0.0.1"
+PUERTO = 9876
+PLANTILLA_ZIP = ("https://github.com/nkarasiak/qgis-mcp"
+                 "/archive/refs/tags/v{ver}.zip")
+CABECERA = struct.Struct(">I")
 
 
 def raiz_qgis():
@@ -31,113 +51,152 @@ def raiz_qgis():
 
 
 def buscar_complemento():
-    """La parte que corre DENTRO de QGIS."""
+    """Devuelve [(etiqueta_perfil, ruta, version)] de la parte que va en QGIS.
+
+    Se recorren los perfiles en orden inverso para que QGIS4 salga antes que
+    QGIS3: el perfil activo de esta maquina es el 4 y instalar en el 3 es
+    editar codigo que nadie ejecuta (ver context/07_entorno_qgis_mcp.md).
+    """
     base = raiz_qgis()
     hallazgos = []
-    if os.path.isdir(base):
-        for mayor in sorted(os.listdir(base), reverse=True):
-            praiz = os.path.join(base, mayor, "profiles")
-            if not os.path.isdir(praiz):
-                continue
-            for perfil in sorted(os.listdir(praiz)):
-                p = os.path.join(praiz, perfil, "python", "plugins",
-                                 "qgis_mcp_plugin")
-                if os.path.isdir(p):
-                    hallazgos.append((f"{mayor}/profiles/{perfil}", p))
+    if not os.path.isdir(base):
+        return hallazgos
+    for mayor in sorted(os.listdir(base), reverse=True):
+        praiz = os.path.join(base, mayor, "profiles")
+        if not os.path.isdir(praiz):
+            continue
+        for perfil in sorted(os.listdir(praiz)):
+            p = os.path.join(praiz, perfil, "python", "plugins", "qgis_mcp_plugin")
+            if os.path.isdir(p):
+                hallazgos.append((f"{mayor}/profiles/{perfil}", p, version_de(p)))
     return hallazgos
 
 
-def buscar_servidor():
-    """La parte que corre FUERA de QGIS: qgis_mcp_server.py."""
-    candidatos = []
-    inicios = [os.path.expanduser("~"), RAIZ, os.path.dirname(RAIZ)]
-    if sys.platform.startswith("win"):
-        inicios += ["C:/", "<ruta de trabajo>", "<ruta de trabajo>"]
-    vistos = set()
-    for inicio in inicios:
-        if not os.path.isdir(inicio):
-            continue
-        for base, dirs, files in os.walk(inicio):
-            # no bajar por sitios donde no va a estar y que tardan una eternidad
-            dirs[:] = [d for d in dirs
-                       if not d.startswith(".")
-                       and d not in ("node_modules", "__pycache__", "Windows",
-                                     "Program Files", "Program Files (x86)",
-                                     "site-packages", "AppData")]
-            if base.count(os.sep) - inicio.count(os.sep) > 5:
-                dirs[:] = []
-                continue
-            if "qgis_mcp_server.py" in files and base not in vistos:
-                vistos.add(base)
-                candidatos.append(base)
-    return candidatos
+def version_de(ruta_complemento):
+    """Lee `version=` de metadata.txt. None si no se puede."""
+    meta = os.path.join(ruta_complemento, "metadata.txt")
+    try:
+        with open(meta, encoding="utf-8") as fh:
+            m = re.search(r"^version=(.+)$", fh.read(), re.MULTILINE)
+        return m.group(1).strip() if m else None
+    except OSError:
+        return None
 
 
-def config(directorio):
-    tiene_uv = shutil.which("uv") is not None
-    if tiene_uv:
-        cmd, args = "uv", ["--directory", directorio.replace("\\", "/"),
-                           "run", "qgis_mcp_server.py"]
-    else:
-        cmd = sys.executable.replace("\\", "/")
-        args = [os.path.join(directorio, "qgis_mcp_server.py").replace("\\", "/")]
-    return {"mcpServers": {"qgis": {
-        "command": cmd, "args": args,
-        "env": {"QGIS_MCP_HOST": "127.0.0.1", "QGIS_MCP_PORT": PUERTO}}}}
+def socket_vivo():
+    """True si el complemento responde `ping` en el socket.
+
+    No basta con que el puerto acepte la conexion: se hace el ping completo
+    (cabecera de 4 bytes big-endian + JSON) porque un puerto ocupado por otra
+    cosa tambien acepta.
+    """
+    try:
+        cuerpo = json.dumps({"type": "ping", "params": {}}).encode("utf-8")
+        with socket.create_connection((HOST, PUERTO), timeout=3.0) as s:
+            s.sendall(CABECERA.pack(len(cuerpo)) + cuerpo)
+            cab = s.recv(4)
+            if len(cab) < 4:
+                return False
+            n = CABECERA.unpack(cab)[0]
+            datos = b""
+            while len(datos) < n:
+                trozo = s.recv(n - len(datos))
+                if not trozo:
+                    return False
+                datos += trozo
+        return json.loads(datos.decode("utf-8")).get("status") == "success"
+    except (OSError, ValueError, json.JSONDecodeError):
+        return False
+
+
+def entrada(version):
+    """La entrada del servidor, comun a los dos formatos de configuracion."""
+    return {
+        "command": "uvx",
+        "args": ["--from", PLANTILLA_ZIP.format(ver=version), "qgis-mcp-server"],
+        "env": {"QGIS_MCP_HOST": HOST, "QGIS_MCP_PORT": str(PUERTO)},
+    }
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--ruta", help="carpeta que contiene qgis_mcp_server.py")
-    ap.add_argument("--seco", action="store_true")
+    ap.add_argument("--version", help="version del servidor (por defecto, la "
+                                      "del complemento instalado)")
+    ap.add_argument("--seco", action="store_true", help="no escribir nada")
     args = ap.parse_args()
 
-    print("Complemento qgis_mcp_plugin (dentro de QGIS):")
+    fallos = []
+
+    print("1. Complemento 'QGIS MCP' (dentro de QGIS)")
     comp = buscar_complemento()
-    if comp:
-        for etiqueta, ruta in comp:
-            print(f"  OK  {etiqueta}\n      {ruta}")
-    else:
-        print("  !!  no encontrado. Instalalo en el perfil de QGIS que uses:")
-        print("      https://github.com/jjsantos01/qgis_mcp")
+    for etiqueta, ruta, ver in comp:
+        print(f"   OK  {etiqueta}  v{ver or '?'}")
+        print(f"       {ruta}")
+    if not comp:
+        print("   !!  no encontrado")
+        print("       QGIS > Complementos > Administrar e instalar > 'QGIS MCP'")
+        fallos.append("complemento")
 
-    print("\nServidor MCP (fuera de QGIS):")
-    if args.ruta:
-        dirs = [args.ruta]
+    print("\n2. uvx (arranca el servidor, fuera de QGIS)")
+    if shutil.which("uvx"):
+        print(f"   OK  {shutil.which('uvx')}")
     else:
-        print("  buscando qgis_mcp_server.py, esto tarda un poco...")
-        dirs = buscar_servidor()
-    if not dirs:
-        print("  !!  no encontrado. Clona el repositorio y vuelve a ejecutar:")
-        print("      git clone https://github.com/jjsantos01/qgis_mcp")
-        print("      python scripts/configurar_mcp.py "
-              "--ruta <...>/qgis_mcp/src/qgis_mcp")
+        print("   !!  no esta en el PATH. Instala uv:")
+        print("       https://docs.astral.sh/uv/getting-started/installation/")
+        fallos.append("uvx")
+
+    print(f"\n3. Socket del complemento ({HOST}:{PUERTO})")
+    if socket_vivo():
+        print("   OK  responde ping")
+    else:
+        print("   --  sin respuesta. Abre QGIS y pulsa 'Start Server' en el")
+        print("       complemento. No hace falta para escribir la configuracion.")
+
+    version = args.version or next((v for _, _, v in comp if v), None)
+    if not version:
+        print("\n!! No se puede fijar la version: ni complemento ni --version.")
         return 1
-    for d in dirs:
-        print(f"  OK  {d}")
-    elegido = dirs[0]
-    if len(dirs) > 1:
-        print(f"\n  (hay varios; uso el primero: {elegido})")
 
-    cfg = config(elegido)
-    texto = json.dumps(cfg, indent=2, ensure_ascii=False) + "\n"
-    print("\nConfiguracion:\n" + texto)
+    print(f"\n4. Version fijada: v{version}", end="")
+    print(" (del complemento instalado)" if not args.version else " (--version)")
 
-    if args.seco:
-        print("(modo seco: no se ha escrito nada)")
-        return 0
+    if len({v for _, _, v in comp if v}) > 1:
+        print("   AVISO: hay perfiles con versiones distintas del complemento.")
+        print("   El servidor solo puede casar con una; revisa cual usas.")
 
-    for destino in (os.path.join(RAIZ, ".mcp.json"),
-                    os.path.join(RAIZ, ".vscode", "mcp.json")):
+    aviso = ("GENERADO por scripts/configurar_mcp.py; no lo edites a mano. La "
+             f"version v{version} debe coincidir con la del complemento 'QGIS "
+             "MCP' instalado en QGIS. Ver docs/MCP_QGIS.md.")
+
+    destinos = {
+        os.path.join(RAIZ, ".mcp.json"): {
+            "$comment": aviso,
+            "mcpServers": {"qgis": entrada(version)},
+        },
+        os.path.join(RAIZ, ".vscode", "mcp.json"): {
+            "$comment": aviso,
+            "servers": {"qgis": dict(type="stdio", **entrada(version))},
+        },
+    }
+
+    print("\n5. Configuracion")
+    for destino, cfg in destinos.items():
+        rel = os.path.relpath(destino, RAIZ)
+        texto = json.dumps(cfg, indent=2, ensure_ascii=False) + "\n"
+        if args.seco:
+            print(f"   (seco) {rel}:\n{texto}")
+            continue
         os.makedirs(os.path.dirname(destino), exist_ok=True)
         with open(destino, "w", encoding="utf-8") as fh:
             fh.write(texto)
-        print(f"  escrito {os.path.relpath(destino, RAIZ)}")
+        print(f"   escrito {rel}")
 
-    print("\nAhora: abre QGIS, activa el complemento qgis_mcp_plugin y pulsa")
-    print("'Start server'. Despues, en el editor, comprueba con la herramienta")
-    print("'ping' del servidor qgis.")
-    return 0
+    if args.seco:
+        print("   (modo seco: no se ha escrito nada)")
+    else:
+        print("\nRecarga la ventana de VSCode para que tome el servidor nuevo.")
+
+    return 1 if fallos else 0
 
 
 if __name__ == "__main__":

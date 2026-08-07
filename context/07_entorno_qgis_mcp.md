@@ -1,14 +1,23 @@
 # Entorno de pruebas: QGIS real vía MCP
 
 Ningún cambio geométrico se da por bueno sin medirlo en QGIS. El PC de
-desarrollo tiene **QGIS 4.2** con el complemento `qgis_mcp_plugin`, que abre un
-socket y permite ejecutar Python **dentro** de QGIS desde el editor.
+desarrollo tiene **QGIS 4.2** con el complemento **QGIS MCP**
+([`nkarasiak/qgis-mcp`](https://github.com/nkarasiak/qgis-mcp)), que abre un
+socket y permite ejecutar Python **dentro** de QGIS desde el editor. Son 118
+herramientas.
 
-Configuración e instalación: `docs/MCP_QGIS.md` y `.mcp.json`.
+Configuración e instalación: `docs/MCP_QGIS.md`, `.mcp.json` y
+`.vscode/mcp.json` — estos dos últimos los **genera**
+`python scripts/configurar_mcp.py`, no los edites a mano.
+
+> **Ojo con el repositorio.** Hasta 2026-08 esto apuntaba a
+> `jjsantos01/qgis_mcp`, que es otro proyecto. Si encuentras por ahí una
+> referencia a `qgis_mcp_server.py` o a una ruta local clonada, está obsoleta:
+> el servidor de ahora es `qgis-mcp-server` y lo descarga `uvx`.
 
 ---
 
-## Las cinco trampas (te van a morder si no las lees)
+## Las trampas (te van a morder si no las lees)
 
 ### 1. El perfil activo es `QGIS4`, no `QGIS3`
 
@@ -25,20 +34,26 @@ from qgis.core import QgsApplication
 print(QgsApplication.qgisSettingsDirPath())
 ```
 
-### 2. `execute_code` devuelve la salida de la llamada ANTERIOR
+### 2. ~~`execute_code` devuelve la salida de la llamada ANTERIOR~~ — RESUELTO
 
-Hay un desfase de un turno en el MCP. Si lees el resultado tal cual, estarás
-mirando lo que imprimiste **antes**.
+**Era** un desfase de un turno con el MCP viejo (`jjsantos01/qgis_mcp`): leías lo
+que habías impreso **antes**. El paliativo era terminar cada llamada con una
+marca distinta (`print("MARCA-7")`) y comprobar que la marca leída era la tuya.
 
-**Truco**: termina cada llamada con una marca distinta y comprueba que la marca
-que lees es la que enviaste.
+**Ya no pasa.** Con `nkarasiak/qgis-mcp` ≥ 0.10.0 la respuesta trae `stdout` y
+`stderr` separados y de su propia llamada:
 
-```python
-...tu código...
-print("MARCA-7")        # cambia el número en cada llamada
+```json
+{"executed": true, "stdout": "MARCA-A\n", "stderr": ""}
 ```
 
-Si lees `MARCA-6`, esa salida es de la llamada anterior: repite.
+Medido el 2026-08-07 con complemento 0.10.0 y servidor v0.10.0: tres llamadas
+seguidas con marcas distintas devolvieron cada una la suya, tanto por el socket
+directo como por la ruta completa cliente MCP → servidor → socket.
+
+Las marcas en los ejemplos de más abajo se conservan porque **no molestan** y
+siguen sirviendo para localizar de un vistazo dónde acaba cada bloque, pero ya
+no son obligatorias.
 
 ### 3. Orden de recarga de módulos
 
@@ -78,7 +93,26 @@ No busques una regresión de rendimiento antes de descartar esto.
 
 El MCP habla con un complemento **dentro** de QGIS. Si `ping` falla con
 *"Could not connect to QGIS"*, no es que el MCP esté mal configurado: es que
-QGIS está cerrado o el complemento `qgis_mcp_plugin` no está activado/arrancado.
+QGIS está cerrado o el complemento **QGIS MCP** no está activado/arrancado.
+
+### 6. El complemento y el servidor tienen que ir a la misma versión
+
+Se actualizan por sitios distintos —el complemento desde el gestor de QGIS, el
+servidor desde el JSON de configuración— así que se separan solos. Con versiones
+distintas puedes tener herramientas que el complemento no conoce, y el fallo se
+manifiesta como un error raro en una llamada concreta, no como "no conecta".
+
+```bash
+python scripts/configurar_mcp.py     # lee la del complemento y fija esa
+```
+
+La configuración fija una **etiqueta** (`.../refs/tags/v0.10.0.zip`), no `main`.
+Apuntar a `main` significa que el servidor se actualiza solo y un día deja de
+casar con el complemento sin que hayas tocado nada.
+
+**Perfiles**: el guion mira todos los perfiles de QGIS y avisa si hay varias
+versiones del complemento. Esta máquina tiene un `QGIS3/profiles/default` con
+un 0.2.1 antiguo; el que cuenta es `QGIS4/profiles/default` (trampa 1).
 
 ---
 

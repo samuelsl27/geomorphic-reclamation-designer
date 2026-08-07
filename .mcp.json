@@ -1,13 +1,12 @@
 {
-  "$comment": "Servidores MCP del proyecto. Ver docs/MCP_QGIS.md. Si la ruta de qgis_mcp no es la tuya, ejecuta: python scripts/configurar_mcp.py",
+  "$comment": "GENERADO por scripts/configurar_mcp.py; no lo edites a mano. La version v0.10.0 debe coincidir con la del complemento 'QGIS MCP' instalado en QGIS. Ver docs/MCP_QGIS.md.",
   "mcpServers": {
     "qgis": {
-      "command": "uv",
+      "command": "uvx",
       "args": [
-        "--directory",
-        "<ruta de trabajo>/qgis_mcp/src/qgis_mcp",
-        "run",
-        "qgis_mcp_server.py"
+        "--from",
+        "https://github.com/nkarasiak/qgis-mcp/archive/refs/tags/v0.10.0.zip",
+        "qgis-mcp-server"
       ],
       "env": {
         "QGIS_MCP_HOST": "127.0.0.1",

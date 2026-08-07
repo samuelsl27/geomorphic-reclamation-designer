@@ -5,6 +5,55 @@ terminar.** Plantilla al final.
 
 ---
 
+## 2026-08-07 · Reparar el MCP de QGIS y el arranque del entorno
+
+**Versión**: 1.0.17 (sin cambios de motor; nada de `src/` tocado)
+
+**Qué se hizo.**
+
+- 🔴 **El MCP llevaba tiempo sin funcionar y no era evidente.** `.mcp.json` y
+  `.vscode/mcp.json` describían `jjsantos01/qgis_mcp` en una ruta local
+  **inexistente**, mientras que el complemento instalado en QGIS ya era
+  **QGIS MCP** de `nkarasiak/qgis-mcp`. Configuración y realidad hablaban de
+  proyectos distintos, así que el editor se quedaba sin herramientas y la única
+  forma seria de validar geometría estaba muerta sin que saltara ningún aviso.
+- Servidor reconfigurado a `uvx --from <etiqueta de GitHub> qgis-mcp-server`:
+  **sin clonar y sin rutas de una máquina concreta**, para que el fichero, que
+  va al repositorio, sirva tal cual a cualquiera que lo clone.
+- **Versión fijada a una etiqueta, no a `main`.** Complemento y servidor se
+  actualizan por sitios distintos y se desincronizan solos.
+  `scripts/configurar_mcp.py` reescrito: lee la versión del complemento
+  instalado, fija esa misma, hace un `ping` real por el socket (no basta con que
+  el puerto acepte: otra cosa puede estar ocupándolo) y avisa si hay perfiles
+  con versiones distintas.
+- **Trampa 2 verificada como resuelta** (ver abajo).
+
+**Medido.** Arrancando el servidor desde el propio `.vscode/mcp.json`:
+118 herramientas, `ping` → `{"pong": true}`, `get_qgis_info` → QGIS
+4.2.0-Belém do Pará, perfil `QGIS4/profiles/default`, proyecto
+`<proyecto de prueba>`.
+
+**Trampa 2 (`execute_code` devolvía la salida de la llamada anterior): muerta.**
+Tres marcas seguidas devolvieron cada una la suya, por el socket directo y por
+la ruta completa cliente MCP → servidor → socket. La respuesta trae ahora
+`stdout` y `stderr` separados. El ritual del `print("MARCA-n")` ya no hace
+falta. Documentado como resuelto —no borrado— en `context/07`.
+
+**Lección.** Una configuración rota no falla ruidosamente: simplemente no
+aparecen las herramientas, y se acaba trabajando «a ojo» sin darse cuenta de que
+se ha perdido el instrumento de medida. Es el mismo patrón que B-019 (el
+`except` mudo) en otra capa: **el fallo silencioso es el caro**.
+
+**Además**: `scripts/configurar_vscode.py` (nuevo) detecta las instalaciones de
+QGIS de la máquina —aquí conviven 3.42.3, 3.44.6 y 4.2.0— y escribe las rutas de
+Pylance, que antes había que poner a mano.
+
+**Pendiente**: recargar la ventana de VSCode para que tome el servidor. Queda un
+`qgis_mcp_plugin` v0.2.1 antiguo en el perfil `QGIS3`, inofensivo pero el guion
+avisa de él cada vez.
+
+---
+
 ## 2026-07 · Preparación del repositorio para desarrollo con IA
 
 **Versión**: 1.0.17 (sin cambios de motor)

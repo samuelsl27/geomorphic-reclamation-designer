@@ -22,12 +22,31 @@ Los códigos `B-0xx` remiten a [`context/04_bugs_resueltos.md`], los `ADR-0xx` a
   `bump_version.py`.
 - **Configuración de MCP de QGIS**, tareas y depuración de VSCode, comandos y
   subagentes de Claude Code.
+- **`scripts/configurar_vscode.py`**: detecta las instalaciones de QGIS de la
+  máquina, elige la más alta y escribe las rutas de Pylance en
+  `.vscode/settings.json` (intérprete, `apps/qgis/python`, sus `plugins` y el
+  `site-packages` correspondiente). Antes había que editarlas a mano.
+- **`scripts/configurar_mcp.py`** comprueba las dos mitades del MCP —
+  complemento y servidor—, hace un `ping` real por el socket y **fija la versión
+  del servidor a la del complemento instalado**. Se actualizan por sitios
+  distintos, así que se desincronizan solos, y el síntoma no es «no conecta»
+  sino un error raro en una llamada suelta.
 - **GitHub Actions**: CI (ruff + pytest en 3.9–3.12) y publicación automática de
   la release con el ZIP al etiquetar.
 - Licencia **AGPL-3.0-or-later**, **CLA**, `NOTICE`, `CONTRIBUTING.md`,
   `SECURITY.md`, `CODE_OF_CONDUCT.md`, `AUTHORS.md`.
 
 ### Corregido
+- **La configuración del MCP de QGIS apuntaba a un proyecto que no era el
+  instalado.** `.mcp.json` y `.vscode/mcp.json` describían
+  `jjsantos01/qgis_mcp` en una ruta local inexistente, mientras que el
+  complemento dentro de QGIS ya era **QGIS MCP** (`nkarasiak/qgis-mcp`): la
+  mitad buena instalada y la configuración hablando de otro programa, así que
+  el editor se quedaba sin herramientas. Ahora el servidor se arranca con
+  `uvx` desde una **etiqueta fija** de GitHub — sin clonar y sin rutas de una
+  máquina concreta, de modo que el fichero sirve tal cual a quien clone el
+  repositorio. Medido: 118 herramientas, `ping` y `get_qgis_info` correctos
+  contra QGIS 4.2.0 arrancando el servidor desde el propio `.vscode/mcp.json`.
 - **B-019 · `NameError` silencioso en la rampa de color de `GF_CutFill`.**
   `ai_context._simbolizar_cutfill()` llamaba a `_c(r, g, b)`, una función que no
   existe; debía ser `QColor`. Como el bloque va dentro de un `try/except` mudo,

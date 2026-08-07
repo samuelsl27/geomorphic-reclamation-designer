@@ -13,52 +13,60 @@ opinar — y así es como se cuelan las regresiones.
 ## Las dos piezas
 
 ```
-   VSCode / Claude Code                     QGIS 4.2
+   VSCode / Claude Code                     QGIS 3.28 – 4.x
    ┌───────────────────┐   stdio   ┌──────────────────┐  socket  ┌──────────┐
-   │  asistente        │◄─────────►│ qgis_mcp_server  │◄────────►│ complemento
-   │                   │   MCP     │  (proceso suelto)│  :9876   │ qgis_mcp_plugin
+   │  asistente        │◄─────────►│ qgis-mcp-server  │◄────────►│ complemento
+   │                   │   MCP     │  (proceso suelto)│  :9876   │ QGIS MCP
    └───────────────────┘           └──────────────────┘          └──────────┘
 ```
 
-1. **`qgis_mcp_plugin`** — complemento de QGIS. Vive en tu perfil y abre un
-   socket. **QGIS tiene que estar abierto y el complemento arrancado.**
-2. **`qgis_mcp_server.py`** — proceso independiente que arranca el editor y que
-   traduce entre MCP y ese socket.
+1. **Complemento `QGIS MCP`** — vive en tu perfil de QGIS y abre el socket.
+   **QGIS tiene que estar abierto y el servidor arrancado** (*Start Server*).
+2. **`qgis-mcp-server`** — proceso independiente que arranca el editor y que
+   traduce entre MCP y ese socket. No se clona: `uvx` lo descarga y lo cachea.
 
-Proyecto de referencia: <https://github.com/jjsantos01/qgis_mcp>
+Proyecto de referencia: <https://github.com/nkarasiak/qgis-mcp>
+
+> **Las dos piezas llevan número de versión y tienen que coincidir.** El
+> complemento se actualiza desde el gestor de QGIS y el servidor desde el JSON
+> de configuración; es fácil que se separen. `scripts/configurar_mcp.py` lee la
+> versión del complemento instalado y fija esa misma etiqueta, precisamente para
+> que no pase.
 
 ---
+
+## Requisitos
+
+- **QGIS 3.28 → 4.x** (aquí se usa 4.2).
+- [**`uv`**](https://docs.astral.sh/uv/getting-started/installation/), que trae
+  `uvx`. El servidor pide **Python ≥ 3.12**, pero corre FUERA de QGIS: da igual
+  que QGIS traiga el 3.9.
 
 ## Configuración automática
 
 ```bash
-python scripts/configurar_mcp.py
+python scripts/configurar_mcp.py            # comprueba y escribe
+python scripts/configurar_mcp.py --seco     # solo informa
 ```
 
-Busca las dos piezas y escribe `.mcp.json` (Claude Code) y `.vscode/mcp.json`
-(VSCode / Copilot). Si no encuentra el servidor:
-
-```bash
-git clone https://github.com/jjsantos01/qgis_mcp
-python scripts/configurar_mcp.py --ruta C:\ruta\a\qgis_mcp\src\qgis_mcp
-```
-
-Para ver qué haría sin escribir nada: `--seco`.
+Comprueba las dos piezas, lee la versión del complemento instalado y escribe
+`.mcp.json` (Claude Code) y `.vscode/mcp.json` (VSCode / Copilot) fijados a esa
+misma versión. **No edites esos dos ficheros a mano**: regenéralos con el guion.
 
 ## Configuración a mano
 
-`.mcp.json` en la raíz del repositorio:
+`.vscode/mcp.json` para VSCode (clave `servers`, con `type`):
 
 ```json
 {
-  "mcpServers": {
+  "servers": {
     "qgis": {
-      "command": "uv",
+      "type": "stdio",
+      "command": "uvx",
       "args": [
-        "--directory",
-        "C:/ruta/a/qgis_mcp/src/qgis_mcp",
-        "run",
-        "qgis_mcp_server.py"
+        "--from",
+        "https://github.com/nkarasiak/qgis-mcp/archive/refs/tags/v0.10.0.zip",
+        "qgis-mcp-server"
       ],
       "env": { "QGIS_MCP_HOST": "127.0.0.1", "QGIS_MCP_PORT": "9876" }
     }
@@ -66,31 +74,30 @@ Para ver qué haría sin escribir nada: `--seco`.
 }
 ```
 
-Sin [`uv`](https://docs.astral.sh/uv/), usa el Python del entorno:
+`.mcp.json` para Claude Code es lo mismo con la clave `mcpServers` y sin `type`.
 
-```json
-{
-  "mcpServers": {
-    "qgis": {
-      "command": "python",
-      "args": ["C:/ruta/a/qgis_mcp/src/qgis_mcp/qgis_mcp_server.py"]
-    }
-  }
-}
-```
+Apuntar a `.../heads/main.zip` en vez de a una etiqueta también funciona, pero
+entonces el servidor se actualiza solo y acaba desincronizado del complemento.
+**Fija la etiqueta.**
 
 ---
 
 ## Arrancar
 
-1. Abre **QGIS 4.2**.
-2. *Complementos → Administrar e instalar* → activa **QGIS MCP**.
-3. Ábrelo y pulsa **Start server** (puerto 9876).
+1. Abre **QGIS**.
+2. *Complementos → Administrar e instalar* → busca **QGIS MCP** e instálalo.
+3. Reinicia QGIS, abre el complemento y pulsa **Start Server** (puerto 9876).
 4. Abre el proyecto de trabajo con el diseño cargado.
-5. En el editor, comprueba con la herramienta `ping` del servidor `qgis`.
+5. Recarga la ventana de VSCode y comprueba con la herramienta `ping` del
+   servidor `qgis`.
 
 Si `ping` dice *«Could not connect to QGIS»*, no es la configuración: es que QGIS
 está cerrado o el servidor no está arrancado.
+
+`execute_code` pide confirmación al editor antes de ejecutar (*elicitation*).
+Es a propósito: ejecuta Python arbitrario dentro de QGIS. Se puede desactivar
+con `QGIS_MCP_AUTO_CONFIRM=1`, pero **no lo hagas** salvo en una sesión
+desatendida y controlada.
 
 ---
 
@@ -103,10 +110,11 @@ Resumen:
 | # | Trampa | Qué hacer |
 |---|---|---|
 | 1 | El perfil activo es **QGIS4**, no QGIS3 | comprobar con `QgsApplication.qgisSettingsDirPath()` |
-| 2 | `execute_code` devuelve la salida de la llamada **anterior** | terminar cada llamada con `print("MARCA-n")` y comprobar que lees la tuya |
+| 2 | ~~`execute_code` devuelve la salida de la llamada **anterior**~~ | **resuelto** en el complemento ≥ 0.10.0: devuelve `stdout`/`stderr` de SU llamada |
 | 3 | Recargar módulos en mal orden deja `GlobalSettings` viejo | recargar `params` primero, o reiniciar QGIS |
 | 4 | Rásteres finos cargados ralentizan el pipeline | mirar las capas antes de culpar al código |
 | 5 | QGIS cerrado | abrirlo y arrancar el servidor |
+| 6 | Complemento y servidor con versiones distintas | `python scripts/configurar_mcp.py` |
 
 ---
 

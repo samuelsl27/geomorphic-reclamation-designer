@@ -320,9 +320,11 @@ panel (`gui/dock.py`, constante `VERSION`) — ese también se actualiza solo.
 
 ## 8. QGIS de verdad, vía MCP
 
-El PC de desarrollo tiene **QGIS 4.2** con el complemento `qgis_mcp_plugin`, que
-abre un socket y permite ejecutar código dentro de QGIS desde el editor.
-`.mcp.json` en la raíz lo configura. Ver `docs/MCP_QGIS.md` para arrancarlo.
+El PC de desarrollo tiene **QGIS 4.2** con el complemento **QGIS MCP**
+([`nkarasiak/qgis-mcp`](https://github.com/nkarasiak/qgis-mcp)), que abre un
+socket y permite ejecutar código dentro de QGIS desde el editor. `.mcp.json`
+(Claude Code) y `.vscode/mcp.json` (VSCode) lo configuran, y los **genera**
+`python scripts/configurar_mcp.py`. Ver `docs/MCP_QGIS.md` para arrancarlo.
 
 Con eso puedes: listar capas, ejecutar Python dentro de QGIS, medir geometrías,
 recargar el complemento y hacer capturas del lienzo. **Es la única forma seria
@@ -334,9 +336,11 @@ de validar un cambio geométrico.**
    `%APPDATA%\QGIS\QGIS4\profiles\default\python\plugins`
    Instalar en `QGIS3` significa editar código que nadie ejecuta.
 
-2. **`execute_code` devuelve la salida de la llamada ANTERIOR.** Hay un desfase
-   de un turno. Truco: termina cada llamada con un `print("MARCA-7")` distinto y
-   comprueba que la marca que lees es la que enviaste.
+2. **El complemento y el servidor tienen que ir a la misma versión.** Se
+   actualizan por sitios distintos y se separan solos; la configuración fija una
+   etiqueta (`v0.10.0`), no `main`. `python scripts/configurar_mcp.py` lo cuadra.
+   *(El viejo desfase de un turno de `execute_code`, que obligaba a rematar cada
+   llamada con un `print("MARCA-n")`, está resuelto desde 0.10.0.)*
 
 3. **Orden de recarga de módulos.** Recargar ordenando por longitud de nombre
    recarga `project.py` antes que `params.py` y `GlobalSettings` se queda viejo →
