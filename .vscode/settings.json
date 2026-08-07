@@ -1,0 +1,77 @@
+{
+  "// Interprete": "Apunta al Python de QGIS para que Pylance resuelva qgis.* y PyQt.",
+  "python.defaultInterpreterPath": "C:\\Program Files\\QGIS 4.2\\bin\\python-qgis.bat",
+  "python.analysis.extraPaths": [
+    "./src",
+    "C:\\Program Files\\QGIS 4.2\\apps\\qgis\\python",
+    "C:\\Program Files\\QGIS 4.2\\apps\\qgis\\python\\plugins",
+    "C:\\Program Files\\QGIS 4.2\\apps\\Python312\\Lib\\site-packages"
+  ],
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.autoImportCompletions": true,
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportMissingImports": "warning",
+    "reportMissingModuleSource": "none",
+    "reportAttributeAccessIssue": "none"
+  },
+
+  "// Tests": "pytest desde la raiz; los que necesitan QGIS se saltan solos.",
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestArgs": ["tests"],
+
+  "// Estilo": "Lineas de 88, espacios, LF. Coincide con pyproject.toml.",
+  "editor.rulers": [88],
+  "editor.tabSize": 4,
+  "editor.insertSpaces": true,
+  "editor.trimAutoWhitespace": true,
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.eol": "\n",
+  "files.encoding": "utf8",
+
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": false,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports.ruff": "explicit"
+    }
+  },
+  "[markdown]": {
+    "editor.wordWrap": "on",
+    "editor.quickSuggestions": { "other": true, "comments": false, "strings": false }
+  },
+  "[json]": { "editor.defaultFormatter": "vscode.json-language-features" },
+
+  "// Ruido": "Lo generado no ensucia el explorador ni la busqueda.",
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    "**/.pytest_cache": true,
+    "**/.ruff_cache": true,
+    "**/.mypy_cache": true
+  },
+  "search.exclude": {
+    "**/dist": true,
+    "**/.venv": true,
+    "**/__pycache__": true,
+    "src/geomorphic_reclamation_designer/help/guide.html": true
+  },
+  "files.watcherExclude": {
+    "**/dist/**": true,
+    "**/.venv/**": true,
+    "**/__pycache__/**": true
+  },
+
+  "// Guia generada": "guide.html se genera desde scripts/guia_datos.py. No editar.",
+  "files.readonlyInclude": {
+    "src/geomorphic_reclamation_designer/help/guide.html": true
+  },
+
+  "// Terminal": "El shell integrado arranca en la raiz del repositorio.",
+  "terminal.integrated.cwd": "${workspaceFolder}",
+
+  "// Agentes de IA": "AGENTS.md es el contrato; CLAUDE.md apunta a el.",
+  "github.copilot.chat.codeGeneration.useInstructionFiles": true,
+  "chat.mcp.discovery.enabled": true
+}

@@ -1,0 +1,91 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Instalar en QGIS (deploy)",
+      "type": "shell",
+      "command": "python scripts/deploy_local.py",
+      "problemMatcher": [],
+      "group": { "kind": "build", "isDefault": true },
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    },
+    {
+      "label": "Instalar en QGIS y vigilar (watch)",
+      "type": "shell",
+      "command": "python scripts/deploy_local.py --watch",
+      "problemMatcher": [],
+      "isBackground": true,
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "Generar ZIP instalable",
+      "type": "shell",
+      "command": "python scripts/build_zip.py --guia",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "clear": true }
+    },
+    {
+      "label": "Regenerar la guia (help/guide.html)",
+      "type": "shell",
+      "command": "python scripts/genera_guia.py",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always" }
+    },
+    {
+      "label": "Tests",
+      "type": "shell",
+      "command": "pytest -q",
+      "problemMatcher": [],
+      "group": { "kind": "test", "isDefault": true },
+      "presentation": { "reveal": "always", "clear": true }
+    },
+    {
+      "label": "Tests del libro (ecuaciones)",
+      "type": "shell",
+      "command": "pytest tests/test_libro.py -v",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "clear": true }
+    },
+    {
+      "label": "Lint (ruff)",
+      "type": "shell",
+      "command": "ruff check .",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "clear": true }
+    },
+    {
+      "label": "Subir version",
+      "type": "shell",
+      "command": "python scripts/bump_version.py ${input:version}",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "clear": true }
+    },
+    {
+      "label": "Configurar MCP de QGIS",
+      "type": "shell",
+      "command": "python scripts/configurar_mcp.py",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "clear": true }
+    },
+    {
+      "label": "TODO: publicar version",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Regenerar la guia (help/guide.html)",
+        "Lint (ruff)",
+        "Tests",
+        "Generar ZIP instalable"
+      ],
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "version",
+      "type": "pickString",
+      "description": "Que version",
+      "options": ["patch", "minor", "major"],
+      "default": "patch"
+    }
+  ]
+}

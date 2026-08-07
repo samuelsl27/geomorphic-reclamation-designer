@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Read(//**)",
+      "Edit(src/**)",
+      "Edit(tests/**)",
+      "Edit(scripts/**)",
+      "Edit(docs/**)",
+      "Edit(context/**)",
+      "Edit(*.md)",
+      "Write(src/**)",
+      "Write(tests/**)",
+      "Write(docs/**)",
+      "Write(context/**)",
+      "Bash(python scripts/*)",
+      "Bash(pytest:*)",
+      "Bash(ruff:*)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git tag:*)",
+      "Bash(git show:*)",
+      "Bash(ls:*)"
+    ],
+    "ask": [
+      "Bash(git push:*)",
+      "Bash(git reset:*)",
+      "Bash(git checkout:*)",
+      "Bash(rm:*)",
+      "Edit(LICENSE)",
+      "Edit(CLA.md)",
+      "Edit(NOTICE)",
+      "Edit(AGENTS.md)"
+    ],
+    "deny": [
+      "Edit(src/geomorphic_reclamation_designer/help/guide.html)",
+      "Write(src/geomorphic_reclamation_designer/help/guide.html)",
+      "Read(./.env)",
+      "Read(./**/*.key)",
+      "Read(./**/*.pem)"
+    ]
+  },
+  "env": {
+    "PYTHONPATH": "src"
+  }
+}
