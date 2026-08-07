@@ -183,18 +183,24 @@ def crestas(disenos, sub, g_lim, dem, lm):
     from geomorphic_reclamation_designer.core import ridges
     from geomorphic_reclamation_designer.core.params import GlobalSettings
     glob = GlobalSettings()
-    n = ridges.generar_crestas(disenos, sub, g_lim, glob, dem, lm)
+    # generar_crestas devuelve (n_crestas, crestas_3d): las 3D las consume
+    # después generar_subcrestas, aquí solo interesa el recuento.
+    n, crestas_3d = ridges.generar_crestas(disenos, sub, g_lim, glob, dem, lm)
     assert n >= 3, n
+    assert len(crestas_3d) == n, (len(crestas_3d), n)
     g = next(lm.obtener_capa("GRD_Ridges").getFeatures()).geometry()
     assert g.constGet().is3D()
-    return glob
+    return glob, crestas_3d
 
 @paso("Subcrestas y vaguadas")
-def subcrestas(disenos, g_lim, glob, lm):
+def subcrestas(disenos, g_lim, glob, lm, dem, crestas_3d):
     from geomorphic_reclamation_designer.core import ridges
-    ns, nv = ridges.generar_subcrestas(disenos, g_lim, glob, lm)
+    # Misma llamada que hace el panel (dock._preview): con DEM y crestas 3D,
+    # que es lo que permite que las laderas empalmen con la divisoria.
+    ns, nv, avisos = ridges.generar_subcrestas(disenos, g_lim, glob, lm,
+                                               dem=dem, crestas=crestas_3d)
     assert ns > 4 and nv > 2, (ns, nv)
-    print(f"      {ns} subcrestas, {nv} vaguadas")
+    print(f"      {ns} subcrestas, {nv} vaguadas, {len(avisos)} avisos")
 
 @paso("GRD_DesignSurface (TIN)")
 def superficie(lm, g_lim, dem, disenos, glob):
@@ -214,8 +220,10 @@ def curvas(ruta, lm, glob):
     from geomorphic_reclamation_designer.core import surface
     n = surface.generar_contornos(ruta, lm, glob)
     assert n > 20, n
+    # El campo se llama 'is_index' desde que los nombres de capa y de campo
+    # pasaron a inglés (ADR-015); el test seguía pidiendo 'maestra'.
     maestras = sum(1 for f in lm.obtener_capa("GRD_Contours").getFeatures()
-                   if f["maestra"])
+                   if f["is_index"])
     assert maestras > 0
     print(f"      {n} curvas ({maestras} maestras)")
 
@@ -237,14 +245,18 @@ def centr(cf, lm, glob):
     reg, plan = surface.centroides(cf, 500.0, lm)
     assert reg, "sin regiones"
     txt = surface.informe_centroides(reg, plan, cf, glob)
-    assert "Plan de movimiento" in txt
+    # Los informes están en inglés desde ADR-015; el test seguía en español.
+    assert "Cut & Fill Centroid Report" in txt
+    assert "Earth Movement Report" in txt
+    # Y con el prefijo nuevo de capa (ADR-016).
+    assert "GRD_HaulRegions" in txt and "GRD_HaulRoutes" in txt
     print(f"      {len(reg)} regiones, {len(plan)} movimientos")
 
 @paso("Informes de canal y resumen")
 def informes(disenos, glob, g_lim):
     from geomorphic_reclamation_designer.gui.report_dialog import informe_canal, informe_resumen
     t1 = informe_canal(disenos["arroyo"])
-    assert "estación" in t1 and "bankfull" in t1
+    assert "Report on Channel 'arroyo'" in t1 and "bankfull" in t1
     from geomorphic_reclamation_designer.core import setup_tools as st
     area = g_lim.area() / 10000.0
     dd = st.densidad_drenaje(sum(d.L_valle for d in disenos.values()), area)
@@ -285,8 +297,8 @@ fid_lim, fids = entradas(lm)
 g_lim = validaciones(lm, dem, fid_lim, fids)
 p, disenos = construir(lm, dem, fid_lim, fids)
 sub = subcuencas(disenos, g_lim, lm)
-glob = crestas(disenos, sub, g_lim, dem, lm)
-subcrestas(disenos, g_lim, glob, lm)
+glob, crestas_3d = crestas(disenos, sub, g_lim, dem, lm)
+subcrestas(disenos, g_lim, glob, lm, dem, crestas_3d)
 capa_dis, ruta_sup = superficie(lm, g_lim, dem, disenos, glob)
 curvas(ruta_sup, lm, glob)
 cf = cortefill(capa_dis, ruta_sup, dem, g_lim, glob, lm)

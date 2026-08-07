@@ -18,10 +18,20 @@ try:
     iface = MagicMock()
     iface.mainWindow.return_value = None
     dock = GeoFluvDock(iface)
-    assert dock.tabs.count() == 4
-    # estado inicial: flujo secuencial bloqueado
-    assert not dock.btn_canal.isEnabled() and not dock.btn_generar.isEnabled()
-    print("  ✔ Dock (4 pestañas, botones secuenciales)"); ok += 1
+    # Setup · Channels · Output · DWG · AI Optimization. Eran 4 hasta que se
+    # añadió la pestaña de optimización; el test se quedó atrás.
+    rotulos = [dock.tabs.tabText(i) for i in range(dock.tabs.count())]
+    assert rotulos == ["Setup", "Channels", "Output", "DWG",
+                       "AI Optimization"], rotulos
+    # ningún rótulo puede llevar la marca ajena (ADR-015 / ADR-016)
+    assert not any("geofluv" in r.lower() for r in rotulos), rotulos
+    # Estado inicial: flujo secuencial bloqueado. Sin límite no se puede elegir
+    # canal principal; sin canal principal no hay Preview ni superficie.
+    # (El antiguo btn_generar ya no existe: son btn_prev y btn_draw.)
+    assert not dock.btn_canal.isEnabled(), "btn_canal sin límite"
+    assert not dock.btn_prev.isEnabled(), "btn_prev sin canal principal"
+    assert not dock.btn_draw.isEnabled(), "btn_draw sin canal principal"
+    print("  ✔ Dock (%d pestañas, botones secuenciales)" % len(rotulos)); ok += 1
 
     from geomorphic_reclamation_designer.gui.settings_dialog import SettingsDialog
     from geomorphic_reclamation_designer.core.params import GlobalSettings, ChannelSettings
