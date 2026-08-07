@@ -8,7 +8,7 @@
   crestas principales, las subcrestas y las vaguadas, más puntos del límite
   con la cota del terreno original (para que el diseño empalme con el
   entorno). Si el usuario edita cualquiera de esas capas, basta volver a
-  ejecutar la interpolación ('Dibujar curvas de nivel GeoFluv') para
+  ejecutar la interpolación ('Dibujar curvas de nivel de diseno') para
   regenerar la superficie: mismo flujo que el DWG tab del original.
 - CURVAS DE NIVEL: gdal:contour sobre el ráster de diseño, con marcado de
   curvas maestras.

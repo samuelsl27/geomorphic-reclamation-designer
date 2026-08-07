@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # SPDX-FileCopyrightText: 2026 Samuel Saez Lopez y colaboradores
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""'Natural Regrade Global Settings' dialog — mirrors the original layout:
-GeoFluv Inputs + Drawing Settings groups, with OK / Cancel / Load / Save As /
+"""'Global Settings' dialog — mirrors the original layout:
+Design Inputs + Drawing Settings groups, with OK / Cancel / Load / Save As /
 Help buttons. Storm depths are shown in cm (as in the original) but stored
 internally in mm."""
 
@@ -26,11 +26,11 @@ def _spin(minv, maxv, val, dec=2, suf=""):
 
 
 class SettingsDialog(QDialog):
-    """Natural Regrade Global Settings."""
+    """Global Settings."""
 
     def __init__(self, settings, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Natural Regrade Global Settings")
+        self.setWindowTitle("Global Settings")
         self.s = settings
         self._loaded = False   # True si se cargó un archivo de settings
         outer = QVBoxLayout(self)
@@ -39,8 +39,8 @@ class SettingsDialog(QDialog):
         outer.addWidget(scroll)
         lay = QVBoxLayout(cont)
 
-        # ================= GeoFluv Inputs =================
-        g1 = QGroupBox("GeoFluv Inputs")
+        # ================= Design Inputs =================
+        g1 = QGroupBox("Design Inputs")
         f1 = QFormLayout(g1)
 
         self.sp_cresta = _spin(1, 1000, self.s.max_dist_cresta_cabecera, 1, "m")
@@ -98,7 +98,7 @@ class SettingsDialog(QDialog):
         f1.addRow("Target drainage density (m/ha):", self.sp_dd)
         self.sp_ddv = _spin(0, 100, self.s.dd_varianza_pct, 2, "%")
         f1.addRow("Target drainage density variance (%):", self.sp_ddv)
-        self.chk_crestas = QCheckBox("Force ridges to be lower than GeoFluv boundary")
+        self.chk_crestas = QCheckBox("Force ridges to be lower than the design boundary")
         self.chk_crestas.setChecked(self.s.forzar_crestas_bajo_limite)
         f1.addRow(self.chk_crestas)
         self.sp_ang = _spin(0, 60, self.s.angulo_subcresta_deg, 2, "deg")
@@ -176,7 +176,7 @@ class SettingsDialog(QDialog):
         lay.addWidget(g2)
 
         # ================= GeoFluvQ additional settings =================
-        g3 = QGroupBox("GeoFluvQ additional settings (not in the original)")
+        g3 = QGroupBox("Additional settings (not in the original)")
         f3 = QFormLayout(g3)
         self.sp_sinA = _spin(1.0, 1.2, self.s.sinuosidad_canal_A, 3)
         f3.addRow("'A' channel sinuosity (<1.2):", self.sp_sinA)
@@ -253,7 +253,7 @@ class SettingsDialog(QDialog):
     # ---------- Load / Save As (settings file, like the original) ----------
     def _save_as(self):
         ruta, _ = QFileDialog.getSaveFileName(
-            self, "Save Settings As", "", "GeoFluv settings (*.geofluv-settings.json)")
+            self, "Save Settings As", "", "Design settings (*.geofluv-settings.json)")
         if not ruta:
             return
         if not ruta.endswith(".geofluv-settings.json"):
@@ -265,7 +265,7 @@ class SettingsDialog(QDialog):
 
     def _load(self):
         ruta, _ = QFileDialog.getOpenFileName(
-            self, "Load Settings", "", "GeoFluv settings (*.geofluv-settings.json)")
+            self, "Load Settings", "", "Design settings (*.geofluv-settings.json)")
         if not ruta:
             return
         try:
@@ -284,8 +284,9 @@ class SettingsDialog(QDialog):
     def _help(self):
         QMessageBox.information(
             self, "Help — Global Settings",
-            "These settings hold the essential local variables of the GeoFluv "
-            "method, measured at stable reference sites with earth materials "
+            "These settings hold the essential local variables of the "
+            "fluvial-geomorphic method, measured at stable reference sites "
+            "with earth materials "
             "similar to the project area:\n\n"
             "· Ridgeline-to-channel-head distance, 'A' channel reach, target "
             "drainage density (± variance) — measured in the field.\n"

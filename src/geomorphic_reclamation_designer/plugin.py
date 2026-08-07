@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 # SPDX-FileCopyrightText: 2026 Samuel Saez Lopez y colaboradores
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""GeoFluvQ plugin entry point.
+"""Punto de entrada del complemento.
 
-Adds the 'Natural Regrade' top menu (same commands as the original module's
-pulldown menu) plus a toolbar button that toggles the GeoFluv dockable dialog.
+Añade el menú 'Geomorphic Reclamation' y un botón de barra que muestra u oculta
+el panel acoplable. El orden de los comandos sigue la secuencia de trabajo del
+método publicado.
 """
 
 import os
@@ -14,7 +15,7 @@ from qgis.PyQt.QtGui import QIcon
 
 from .core.compat import QAction
 
-MENU_TITLE = "Natural &Regrade"
+MENU_TITLE = "Geomorphic &Reclamation"
 
 
 class GeoFluvQPlugin:
@@ -57,28 +58,29 @@ class GeoFluvQPlugin:
     # ---------- QGIS hooks ----------
     def initGui(self):
         icono = QIcon(os.path.join(os.path.dirname(__file__), "icon.png"))
-        self.action = QAction(icono, "Design GeoFluv Regrade", self.iface.mainWindow())
+        self.action = QAction(icono, "Geomorphic Reclamation Designer",
+                              self.iface.mainWindow())
         self.action.setCheckable(True)
         self.action.triggered.connect(self.toggle_dock)
         self.iface.addToolBarIcon(self.action)
 
-        # --- 'Natural Regrade' menu (same order as the original pulldown) ---
-        self._menu_add("Design GeoFluv Regrade", lambda: self.toggle_dock(True))
-        self._menu_add("Draw GeoFluv Contours",
+        # --- menú 'Geomorphic Reclamation' (orden de la secuencia de trabajo) ---
+        self._menu_add("Design Regrade", lambda: self.toggle_dock(True))
+        self._menu_add("Draw Design Contours",
                        lambda: self._dock_cmd("_recontornear"))
-        self._menu_add("3D GeoFluv Contour Viewer",
+        self._menu_add("3D Contour Viewer",
                        lambda: self._ensure_dock()._viewer_3d(False))
-        self._menu_add("3D GeoFluv Surface Viewer",
+        self._menu_add("3D Surface Viewer",
                        lambda: self._ensure_dock()._viewer_3d(True))
-        self._menu_add("Calculate GeoFluv Volume",
+        self._menu_add("Calculate Design Volume",
                        lambda: self._dock_cmd("_corte_relleno"))
         self._menu_add("Cut/Fill Centroids",
                        lambda: self._dock_cmd("_centroides"))
-        self._menu_add("GeoFluv Channel Cross-Section Report",
+        self._menu_add("Channel Cross-Section Report",
                        lambda: self._dock_cmd("_ver_informe"))
         self._menu_add("Project Inspector Definitions",
                        lambda: self._dock_cmd("_def_inspector"))
-        self._menu_add("GeoFluv Project Inspector",
+        self._menu_add("Project Inspector",
                        lambda: self._ensure_dock().btn_inspector.setChecked(True))
         self._menu_add("View Longitudinal Profile",
                        lambda: self._dock_cmd("_ver_perfil"))

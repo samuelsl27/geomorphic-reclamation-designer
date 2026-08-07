@@ -274,7 +274,7 @@ def buscar_web(consulta, n=5, timeout=15.0):
     try:
         url = "https://duckduckgo.com/html/?q=" + urllib.parse.quote(consulta)
         req = urllib.request.Request(url, headers={
-            "User-Agent": "Mozilla/5.0 (QGIS GeoFluvQ plugin)"})
+            "User-Agent": "Mozilla/5.0 (QGIS Geomorphic Reclamation Designer plugin)"})
         with urllib.request.urlopen(req, timeout=timeout) as r:
             html = r.read().decode("utf-8", "replace")
     except Exception:

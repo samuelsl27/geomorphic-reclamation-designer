@@ -611,7 +611,7 @@ class AITab(QWidget):
                                 "Select at least one goal in section 2.")
             return
         self.carpeta = carpeta_optimizacion(
-            d.proyecto.nombre or "GeoFluv", getattr(d, "ruta_proyecto", None))
+            d.proyecto.nombre or "Design", getattr(d, "ruta_proyecto", None))
         self.btn_carpeta.setEnabled(True)
         cliente = None
         i = self.cb_srv.currentIndex()

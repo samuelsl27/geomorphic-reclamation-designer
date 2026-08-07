@@ -56,7 +56,7 @@ workflow is re-entrant at every phase, which is the whole point.
 | 📐 **Method-faithful** | Every equation traceable to the published literature. `tests/test_libro.py` verifies each one against its citation |
 | ✅ **Design checker** | 22 built-in checks (closed sinks, crossing breaklines, tractive force, drainage density, slope limits…) with a filterable, clickable error log |
 | ♻️ **Re-entrant** | Edit any phase by hand and regenerate. The project stores *references* to geometries, not copies |
-| 🤖 **Optional local AI** | Optimise the design against cut/fill, haul distance or dozer-pushability with a model running on **your own machine** (Ollama / LM Studio). Nothing leaves your computer |
+| 🤖 **Optional local AI** | Optimise the design against cut/fill, haul distance or dozer-pushability with a model running on **your own machine** (Ollama / LM Studio). No cloud service: your design never leaves your computer. The only outbound connection is an **opt-in, off-by-default** web search for reference values — see [`SECURITY.md`](SECURITY.md) |
 | 🌍 **Bilingual** | Full EN/ES interface guide. Setting names stay in English in both so they match the literature |
 | 🧩 **QGIS 3.22 → 4.x** | Qt5 and Qt6, single codebase |
 
@@ -72,7 +72,7 @@ Plugins → All →* search for *Geomorphic Reclamation Designer*.
    `python scripts/build_zip.py`.
 2. *Plugins → Manage and Install Plugins → Install from ZIP.*
 3. Enable **Geomorphic Reclamation Designer**. A toolbar button and a
-   *Natural Regrade* menu appear.
+   *Geomorphic Reclamation* menu appear.
 
 **Requirements**: QGIS ≥ 3.22 (including 4.x), a **projected CRS in metres**
 (e.g. EPSG:25830), and a DEM of the starting terrain. No pip dependencies.

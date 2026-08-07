@@ -102,8 +102,8 @@ if(document.readyState==='loading'){
 """
 
 TITULOS = {
- "general": ("GeoFluvQ — overview, method and project files",
-             "GeoFluvQ — visión general, metodología y ficheros de proyecto",
+ "general": ("Overview, method and project files",
+             "Visión general, metodología y ficheros de proyecto",
              "What the plugin does, how a design is built and how projects and layers are stored.",
              "Qué hace el complemento, cómo se construye un diseño y cómo se guardan proyectos y capas."),
  "setup":   ("Setup tab and Global Settings",
@@ -144,10 +144,10 @@ partes = []
 partes.append('<!DOCTYPE html><html lang="es" data-idioma="es">'
               '<head><meta charset="utf-8">'
               '<meta name="viewport" content="width=device-width,initial-scale=1">'
-              '<title>GeoFluvQ — Guide / Guía</title>'
+              '<title>Geomorphic Reclamation Designer — Guide / Guía</title>'
               f'<style>{CSS}</style></head><body>')
 partes.append('<header><div class="fila"><div>'
-              '<h1>GeoFluvQ — Natural Regrade</h1>'
+              '<h1>Geomorphic Reclamation Designer</h1>'
               f'<div class="ver">Parameter guide · Guía de parámetros · v{VER}</div></div>'
               '<div class="idioma">'
               '<button type="button" data-idioma="en" '

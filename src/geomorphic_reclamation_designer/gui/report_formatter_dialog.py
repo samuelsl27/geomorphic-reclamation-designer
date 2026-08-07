@@ -230,7 +230,7 @@ class ReportFormatterDialog(QDialog):
                                     "Add at least one field to the Used list.")
             return
         dlg = QDialog(self)
-        dlg.setWindowTitle("GeoFluv Report")
+        dlg.setWindowTitle("Design Report")
         v = QVBoxLayout(dlg)
         t = QTableWidget(len(filas), len(campos))
         t.setHorizontalHeaderLabels(campos)
@@ -274,12 +274,12 @@ class ReportFormatterDialog(QDialog):
         th = "".join(f"<th>{c}</th>" for c in campos)
         trs = "".join("<tr>" + "".join(f"<td>{v}</td>" for v in fila) + "</tr>"
                       for fila in filas)
-        html = (f"<html><head><meta charset='utf-8'><title>GeoFluv Report</title>"
+        html = (f"<html><head><meta charset='utf-8'><title>Design Report</title>"
                 f"<style>body{{font-family:sans-serif;font-size:12px}}"
                 f"table{{border-collapse:collapse}}"
                 f"td,th{{border:1px solid #999;padding:3px 7px}}"
                 f"th{{background:#e8e8e8}}</style></head><body>"
-                f"<h2>GeoFluv Report</h2><table><tr>{th}</tr>{trs}</table>"
+                f"<h2>Design Report</h2><table><tr>{th}</tr>{trs}</table>"
                 f"</body></html>")
         with open(ruta, "w", encoding="utf-8") as fh:
             fh.write(html)

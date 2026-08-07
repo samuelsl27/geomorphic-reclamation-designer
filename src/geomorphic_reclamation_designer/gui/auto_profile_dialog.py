@@ -7,7 +7,7 @@ Equivalente al 'Auto Longitudinal Profile': aplica una curva vertical cóncava
 (pendientes de cabeza y pie especificadas) a las polilíneas 3D seleccionadas
 en la capa activa (crestas, subcrestas, vaguadas...), opcionalmente dejando
 una longitud convexa en cabeza para alojar material sobrante ('joroba').
-Tras editar, vuelve a ejecutar 'Dibujar curvas de nivel GeoFluv' para
+Tras editar, vuelve a ejecutar 'Dibujar curvas de nivel de diseno' para
 regenerar la superficie con las líneas modificadas.
 """
 

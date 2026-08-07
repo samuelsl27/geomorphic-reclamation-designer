@@ -61,7 +61,7 @@ def validar_limite(geom):
     if geom is None or geom.isEmpty():
         return False, 0.0, "Empty geometry."
     if tipo_geom(geom) != 2:  # polígono
-        return False, 0.0, "The GeoFluv boundary must be a closed polygon."
+        return False, 0.0, "The design boundary must be a closed polygon."
     if not geom.isGeosValid():
         geom = geom.makeValid()
         if not geom.isGeosValid():
@@ -101,7 +101,7 @@ def validar_canal_principal(geom_canal, geom_limite, tol=1.0):
     dentro0 = borde.contains(QgsGeometry.fromPointXY(QgsPointXY(pts[0])))
     dentro1 = borde.contains(QgsGeometry.fromPointXY(QgsPointXY(pts[-1])))
     if not (cruza or d0 <= tol or d1 <= tol or (not dentro0) or (not dentro1)):
-        return False, "The main channel must cross the GeoFluv boundary at the base level."
+        return False, "The main channel must cross the design boundary at the base level."
     return True, "Canal principal aceptado."
 
 
@@ -194,7 +194,7 @@ def validar_tributario(geom_trib, geom_limite, geoms_existentes, max_dist_conexi
         geom_limite.asPolygon()[0] if not geom_limite.isMultipart() else geom_limite.asMultiPolygon()[0][0]
     )
     if geom_trib.crosses(geom_limite) and not geom_limite.contains(geom_trib):
-        return False, "The tributary cannot cross the GeoFluv boundary.", None, None
+        return False, "The tributary cannot cross the design boundary.", None, None
 
     g0 = QgsGeometry.fromPointXY(QgsPointXY(pts[0]))
     g1 = QgsGeometry.fromPointXY(QgsPointXY(pts[-1]))

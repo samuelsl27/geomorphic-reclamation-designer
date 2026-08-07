@@ -1,22 +1,26 @@
 # -*- coding: utf-8 -*-
-"""Contenido de la guía bilingüe de GeoFluvQ (neutro, sin caso de estudio)."""
+"""Contenido de la guía bilingüe del complemento (neutro, sin caso de estudio)."""
 
 # (nombre del ajuste tal cual aparece en la interfaz, inglés, español)
 GENERAL = [
- ("__what", """<b>What GeoFluvQ does.</b> It designs a reclaimed landform the way a mature
+ ("__what", """<b>What this plugin does.</b> It designs a reclaimed landform the way a mature
 natural catchment is built: a drainage network of channels with concave
 longitudinal profiles, meanders sized by the flow they carry, ridges and swales
 on the hillslopes, and the surface that ties all of it together. The result is a
 landform that sheds water the way the surrounding terrain does, so it needs no
-permanent structures to stay stable. This is the fluvial-geomorphic (GeoFluv /
-Natural Regrade) approach.""",
- """<b>Qué hace GeoFluvQ.</b> Diseña una restauración construida como se construye
+permanent structures to stay stable. This is the fluvial-geomorphic
+(Natural Regrade / GeoFluv-type) approach, as published by Bugosh &amp; Martín
+Duque (2024). This plugin is an independent implementation of that published
+method and is not affiliated with, endorsed by or derived from its software.""",
+ """<b>Qué hace el complemento.</b> Diseña una restauración construida como se construye
 una cuenca natural madura: una red de drenaje con canales de perfil longitudinal
 cóncavo, meandros dimensionados por el caudal que llevan, crestas y vaguadas en
 las laderas, y la superficie que enlaza todo. El resultado evacua el agua como
 lo hace el terreno del entorno, así que no necesita estructuras permanentes para
-mantenerse estable. Es el método fluvio-geomórfico (GeoFluv / Natural
-Regrade)."""),
+mantenerse estable. Es el método fluvio-geomórfico (tipo Natural Regrade /
+GeoFluv) publicado por Bugosh y Martín Duque (2024). Este complemento es una
+implementación independiente de ese método publicado y no está afiliado,
+respaldado ni derivado de su programa."""),
  ("__method", """<b>The design sequence.</b> Everything hangs off three inputs: a boundary
 polygon (where you may reshape), one or more valley-bottom polylines (where the
 water will run) and a DEM of the existing ground (what you start from). From
@@ -56,17 +60,17 @@ y entidades de entrada, no las coordenadas. Es a propósito: puedes editar
 después las polilíneas de entrada y regenerar, y el proyecto sigue apuntando a
 ellas. Guarda el fichero junto al proyecto de QGIS para que las rutas relativas
 sean cortas."""),
- ("Settings...", """Opens the <i>Natural Regrade Global Settings</i> dialog (documented in the
+ ("Settings...", """Opens the <i>Global Settings</i> dialog (documented in the
 Setup tab of this guide). <b>Load / Save As</b> inside that dialog store the
 settings in a separate <code>.geofluv-settings.json</code>, so a calibrated set
 of values can be reused across projects with similar material and climate.""",
- """Abre el diálogo <i>Natural Regrade Global Settings</i> (documentado en la
+ """Abre el diálogo <i>Global Settings</i> (documentado en la
 pestaña Setup de esta guía). <b>Load / Save As</b> dentro de ese diálogo guardan
 los ajustes en un <code>.geofluv-settings.json</code> aparte, de modo que un
 juego de valores ya calibrado se puede reutilizar en proyectos con material y
 clima parecidos."""),
  ("__layers", """<b>Layer organisation.</b> Everything lands in the layer panel under
-<code>GeoFluv &lt;project&gt;</code>, split into <code>01 Inputs</code> (boundary,
+<code>Geomorphic Reclamation &lt;project&gt;</code>, split into <code>01 Inputs</code> (boundary,
 valley bottoms), <code>02 Design</code> (channels, banks, cross-sections,
 ridges, sub-ridges, swales), <code>03 Output</code> (design surface, contours,
 sub-watersheds) and <code>04 Analysis</code> (cut/fill raster, centroids, haul
@@ -74,20 +78,20 @@ regions and routes). Layer names all start with <code>GF_</code> and the
 attribute fields follow the report nomenclature, so they can be styled, joined
 and exported like any other QGIS data.""",
  """<b>Organización de las capas.</b> Todo aparece en el panel de capas bajo
-<code>GeoFluv &lt;proyecto&gt;</code>, repartido en <code>01 Inputs</code>
+<code>Geomorphic Reclamation &lt;proyecto&gt;</code>, repartido en <code>01 Inputs</code>
 (límite, fondos de valle), <code>02 Design</code> (canales, bordes, secciones,
 crestas, subcrestas, vaguadas), <code>03 Output</code> (superficie de diseño,
 curvas, subcuencas) y <code>04 Analysis</code> (ráster de corte/relleno,
 centroides, regiones y rutas de acarreo). Todos los nombres empiezan por
 <code>GF_</code> y los campos siguen la nomenclatura de los informes, así que se
 pueden simbolizar, unir y exportar como cualquier dato de QGIS."""),
- ("__storage", """<b>Where the layers live.</b> When you press <i>Create GeoFluv Layers</i> you
+ ("__storage", """<b>Where the layers live.</b> When you press <i>Create Design Layers</i> you
 choose the storage: <b>virtual (memory)</b> is the fastest but is lost when QGIS
 closes; <b>a folder you choose</b> writes each layer as a GeoPackage; <b>the
 project folder</b> creates a new dated sub-folder next to the saved
 <code>.qgz</code> so each run keeps its own complete layer set. Use memory while
 exploring and a folder once the design matters.""",
- """<b>Dónde se guardan las capas.</b> Al pulsar <i>Create GeoFluv Layers</i>
+ """<b>Dónde se guardan las capas.</b> Al pulsar <i>Create Design Layers</i>
 eliges el almacenamiento: <b>virtual (memoria)</b> es el más rápido pero se
 pierde al cerrar QGIS; <b>una carpeta que elijas</b> escribe cada capa como
 GeoPackage; <b>la carpeta del proyecto</b> crea una subcarpeta nueva con fecha y
@@ -112,7 +116,7 @@ SETUP = [
 the order you need them.""",
  """La pestaña Setup reúne las tres cosas sin las que el diseño no puede empezar,
 en el orden en que las necesitas."""),
- ("Create GeoFluv Layers", """Builds the group tree and the two empty input layers
+ ("Create Design Layers", """Builds the group tree and the two empty input layers
 (<code>GF_Boundary</code>, <code>GF_ValleyBottoms</code>) so you can draw into
 them, and asks where the layers should be stored. You can skip it entirely and
 point the plugin at your own polygon and line layers instead — the selectors
@@ -122,7 +126,7 @@ accept any layer of the right geometry type.""",
 ellas, y pregunta dónde guardar las capas. Puedes saltártelo por completo y
 apuntar el complemento a tus propias capas de polígono y de línea: los
 selectores aceptan cualquier capa del tipo de geometría correcto."""),
- ("GeoFluv Boundary", """Pick the polygon that delimits what may be reshaped. Everything is measured
+ ("Design Boundary", """Pick the polygon that delimits what may be reshaped. Everything is measured
 inside it: the sub-watershed areas, the drainage density, the cut and fill
 volumes, and the design surface is clipped to it. Its edge is also the boundary
 condition of the design: ridges and hillslope lines that reach it tie into the
@@ -180,11 +184,11 @@ se miden el corte y el relleno. Su resolución fija la precisión de los
 volúmenes: un DEM grueso da volúmenes suaves pero aproximados. Sin DEM el
 complemento puede trazar la red, pero las cotas hay que introducirlas a mano y
 no hay balance de tierras."""),
- ("__gs", """<hr><h3>Natural Regrade Global Settings  <span class='sub'>(Settings... button)</span></h3>
+ ("__gs", """<hr><h3>Global Settings  <span class='sub'>(Settings... button)</span></h3>
 These are the local variables of the method: they describe the material, the
 climate and the geometry of a stable landform at this particular site. They are
 the values you should calibrate against a natural reference area nearby.""",
- """<hr><h3>Natural Regrade Global Settings  <span class='sub'>(botón Settings...)</span></h3>
+ """<hr><h3>Global Settings  <span class='sub'>(botón Settings...)</span></h3>
 Son las variables locales del método: describen el material, el clima y la
 geometría de una forma estable en este sitio concreto. Son los valores que
 conviene calibrar contra un área natural de referencia cercana."""),
@@ -315,7 +319,7 @@ check strict. It changes only the warning, never the geometry.""",
  """La tolerancia de ese semáforo. Una varianza <b>más amplia</b> acepta más
 desviación del objetivo antes de marcar un canal; <b>más estrecha</b> hace la
 comprobación estricta. Cambia solo el aviso, nunca la geometría."""),
- ("Force ridges to be lower than GeoFluv boundary", """When on, no designed ridge is allowed to rise above the existing ground at the
+ ("Force ridges to be lower than the design boundary", """When on, no designed ridge is allowed to rise above the existing ground at the
 boundary. Use it when the reclaimed landform must stay hidden behind the
 surrounding relief, or when the boundary elevation is a hard constraint (a haul
 road, a property line). When off, ridges take the elevation the hillslope
@@ -677,11 +681,11 @@ where the rational method loses validity.""",
 tormentas. Úsalo cuando tengas un estudio hidrológico en regla, un registro
 aforado o una fórmula regional en la que confíes más que en el método racional:
 normalmente en cuencas grandes, donde el método racional pierde validez."""),
- ("Additional watershed area (ha)", """Catchment that drains into this channel from <i>outside</i> the GeoFluv
+ ("Additional watershed area (ha)", """Catchment that drains into this channel from <i>outside</i> the design
 boundary — an upstream slope, a road, an undisturbed hillside. Ignoring it is a
 classic way to undersize a channel. Its own runoff coefficient is set separately
 because that land usually has a different cover from the reclaimed area.""",
- """Cuenca que desagua en este canal desde <i>fuera</i> del límite GeoFluv: una
+ """Cuenca que desagua en este canal desde <i>fuera</i> del límite de diseño: una
 ladera aguas arriba, una pista, una vertiente sin alterar. Ignorarla es una forma
 clásica de infradimensionar un canal. Su coeficiente de escorrentía se fija
 aparte porque ese terreno suele tener una cubierta distinta de la del área
@@ -764,7 +768,7 @@ triángulos largos entre vértices lejanos son los que producen terrazas
 artificiales y facetas planas. Un intervalo <b>menor</b> los elimina a costa de
 más triángulos; uno <b>mayor</b> es más rápido pero deja la superficie más
 grosera entre vértices."""),
- ("Clip surface to the GeoFluv Boundary", """Sets everything outside the boundary to no-data, which is what you want: there
+ ("Clip surface to the Design Boundary", """Sets everything outside the boundary to no-data, which is what you want: there
 is no design out there, and leaving interpolated values beyond the perimeter
 falsifies both the map and the volumes.""",
  """Pone todo lo que queda fuera del límite como sin datos, que es lo correcto:
@@ -836,7 +840,7 @@ DWG = [
 been generated.""",
  """La pestaña DWG es la caja de herramientas de análisis y edición: trabaja sobre
 lo ya generado."""),
- ("Edit GeoFluv inputs / Edit design surface in drawing", """Two working modes. In <b>inputs</b> mode you change boundary, valley bottoms and
+ ("Edit design inputs / Edit design surface in drawing", """Two working modes. In <b>inputs</b> mode you change boundary, valley bottoms and
 settings, and regenerating rebuilds everything. In <b>surface</b> mode you edit
 the generated lines directly — dragging vertices, editing profiles — and the other
 tabs are locked to remind you that regenerating from the inputs would throw those
@@ -846,17 +850,17 @@ valle y los ajustes, y al regenerar se reconstruye todo. En modo <b>surface</b>
 editas directamente las líneas generadas —arrastrando vértices, editando
 perfiles— y las otras pestañas se bloquean para recordarte que regenerar desde
 las entradas se llevaría por delante esas ediciones manuales."""),
- ("Draw GeoFluv Contours", """Re-interpolates the surface and redraws the contours, reopening the triangulate
+ ("Draw Design Contours", """Re-interpolates the surface and redraws the contours, reopening the triangulate
 and contour options. Use it after editing design lines by hand.""",
  """Vuelve a interpolar la superficie y redibuja las curvas, reabriendo las opciones
 de triangulación y curvado. Úsalo tras editar líneas de diseño a mano."""),
- ("3D GeoFluv Contour Viewer / 3D Surface Viewer", """Opens the QGIS 3D view on the contours or on the surface. The fastest way to
+ ("3D Contour Viewer / 3D Surface Viewer", """Opens the QGIS 3D view on the contours or on the surface. The fastest way to
 catch a defect the plan view hides: a reversed drainage, a closed hollow, a ridge
 that does not reach the boundary.""",
  """Abre la vista 3D de QGIS sobre las curvas o sobre la superficie. La forma más
 rápida de detectar un defecto que la planta esconde: un drenaje invertido, una
 depresión cerrada, una cresta que no llega al límite."""),
- ("Calculate GeoFluv Volume", """Reports cut, fill and net volume inside the boundary, in place and corrected for
+ ("Calculate Design Volume", """Reports cut, fill and net volume inside the boundary, in place and corrected for
 swell and shrink, and produces the <code>GF_CutFill</code> raster clipped to the
 perimeter: negative is cut, positive is fill.""",
  """Informa del corte, el relleno y el neto dentro del límite, en banco y corregidos
@@ -953,7 +957,7 @@ un cambio de ajustes."""),
 comparison surface of a later phase.""",
  """Exporta la superficie de diseño para llevarla a otro programa o usarla como
 superficie de comparación de una fase posterior."""),
- ("GeoFluv Project Inspector", """A panel that follows the cursor and reports the design at that point in
+ ("Project Inspector", """A panel that follows the cursor and reports the design at that point in
 continuous form: channel, station, elevation, gradient, section dimensions,
 flows and shear. The quickest way to interrogate the design without opening a
 single attribute table.""",
@@ -1184,13 +1188,13 @@ aciertos, así que moldea la búsqueda y no solo el veredicto."""),
 speed-versus-precision dial: a <b>coarse</b> step makes each iteration fast, so
 you can afford many, at the price of approximate volumes; a <b>fine</b> step is
 precise but can make a long run impractical. Search coarse, then verify the
-winning design at full resolution with <i>Calculate GeoFluv Volume</i>.""",
+winning design at full resolution with <i>Calculate Design Volume</i>.""",
  """La malla con la que se integran los volúmenes durante la búsqueda. Es el mando
 de velocidad frente a precisión: un paso <b>grueso</b> hace cada iteración rápida,
 así que puedes permitirte muchas, a cambio de volúmenes aproximados; un paso
 <b>fino</b> es preciso pero puede hacer impracticable una ejecución larga. Busca
 en grueso y verifica después el diseño ganador a resolución completa con
-<i>Calculate GeoFluv Volume</i>."""),
+<i>Calculate Design Volume</i>."""),
  ("__log", """<b>Progress log.</b> Every iteration reports what the model proposes, its
 reasoning, the effect it expects, the mesh and area used, the number of earthwork
 regions and the measured result, and whether the change was accepted. It also

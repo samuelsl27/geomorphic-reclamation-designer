@@ -605,7 +605,7 @@ class ContextoIA:
             ext, ["GF_Boundary", "GF_Swales", "GF_SubRidges", "GF_Ridges",
                   "GF_Channels"],
             os.path.join(self.carpeta, "images", f"plan_{it:02d}.png"),
-            "GeoFluv design — blue: channels · red: divide ridges · "
+            "Design — blue: channels · red: divide ridges · "
             "yellow: sub-ridges · dotted: swales"))
         # MAPA DE CALOR del corte/relleno: se re-simboliza el ráster con una
         # rampa divergente y sus rangos numéricos ANTES de renderizar, para que
@@ -622,7 +622,7 @@ class ContextoIA:
             ["_DEM_", "GF_Boundary", "GF_Channels"],
             os.path.join(self.carpeta, "images", f"terrain_{it:02d}.png"),
             "ORIGINAL GROUND (hillshade + elevation) before any reclamation, "
-            "with the GeoFluv boundary in blue. The view is deliberately wider "
+            "with the design boundary in blue. The view is deliberately wider "
             "than the project area so you can see what the design has to tie "
             "into: where the ground falls away, where it rises, and where the "
             "outlet has to discharge."))

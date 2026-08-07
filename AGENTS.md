@@ -124,7 +124,7 @@ geomorphic-reclamation-designer/
 ├── src/geomorphic_reclamation_designer/        ← EL COMPLEMENTO (esto es lo que se empaqueta)
 │   ├── __init__.py            ← classFactory de QGIS
 │   ├── metadata.txt           ← metadatos del complemento (versión aquí)
-│   ├── plugin.py              ← menú 'Natural Regrade' + botón de barra
+│   ├── plugin.py              ← menú 'Geomorphic Reclamation' + botón de barra
 │   ├── icon.png
 │   ├── core/                  ← el motor (sin Qt salvo lo imprescindible)
 │   ├── gui/                   ← diálogos y panel acoplable
@@ -246,9 +246,10 @@ los valores del programa original sobre el mismo terreno.
   la API de QGIS/Qt y la biblioteca estándar. `numpy` solo si ya está garantizado
   por QGIS. **Nada de pip install en el complemento.**
 - **Idioma**: identificadores y comentarios en **español**; los nombres de los
-  ajustes y de las capas, en **inglés**, para que coincidan exactamente con la
-  interfaz del programa original (`GF_Ridges`, `Maximum distance from ridgeline
-  to swale head`…). No traduzcas esos.
+  ajustes y de las capas, en **inglés**, para que coincidan con la interfaz del
+  programa original (`GF_Ridges`, `Maximum distance from ridgeline to swale
+  head`…). No traduzcas esos. **Excepción (ADR-015)**: donde el rótulo original
+  llevaba la marca, va sin ella — *Design Boundary*, no *GeoFluv Boundary*.
 - **Docstrings que explican el PORQUÉ**, no el qué. El estilo de la casa es
   contar la razón física o el bug que motivó el código:
   ```python
@@ -332,9 +333,10 @@ de validar un cambio geométrico.**
 
 ### Trampas conocidas (te van a morder)
 
-1. **El perfil activo es `QGIS4`, no `QGIS3`.** Ruta del complemento:
+1. **Comprueba cuál es el perfil activo** (aquí es `QGIS4`, no `QGIS3`). Ruta
+   del complemento:
    `%APPDATA%\QGIS\QGIS4\profiles\default\python\plugins`
-   Instalar en `QGIS3` significa editar código que nadie ejecuta.
+   Instalar en el perfil equivocado significa editar código que nadie ejecuta.
 
 2. **El complemento y el servidor tienen que ir a la misma versión.** Se
    actualizan por sitios distintos y se separan solos; la configuración fija una
@@ -416,8 +418,16 @@ afiliado ni respaldado por ellos. En texto público (README, metadata, interfaz,
 mensajes) usa siempre la forma *"método fluvio-geomórfico (tipo Natural
 Regrade)"* citando la fuente, y **nunca** presentes el complemento como
 "GeoFluv" a secas ni como compatible u oficial. Los identificadores internos
-históricos (`GeoFluvBuilder`, `GF_`, `.geofluv.json`) se conservan por
-compatibilidad técnica y no son de cara al público.
+históricos (`GeoFluvBuilder`, `GF_`, `.geofluv.json`, la clave de QSettings) se
+conservan por compatibilidad técnica y no son de cara al público.
+
+**Esto ya se incumplió una vez y costó una revisión entera**: hasta ADR-015 el
+menú se llamaba *Natural Regrade* y media interfaz decía *GeoFluv*. Antes de
+añadir un rótulo, un título de ventana, un mensaje o un texto de guía,
+comprueba que no mete la marca. Los comentarios y docstrings que **citan** el
+método o miden contra la salida del original sí pueden nombrarla: citar la
+fuente con atribución es obligatorio (regla de oro nº 1), presentarse como el
+producto no.
 
 Toda contribución entra bajo **AGPL-3.0-or-later** y requiere firmar el
 `CLA.md`, que otorga a Samuel Sáez López los derechos necesarios para

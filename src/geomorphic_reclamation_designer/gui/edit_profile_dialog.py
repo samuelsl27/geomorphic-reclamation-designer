@@ -7,7 +7,7 @@ Interactive profile editor, like the original: the profile of the selected 3D
 polyline is shown; double-clicking raises/lowers the profile to the clicked
 elevation at that chainage, blending the change over 'Blend %' of the line
 length on each side. OK writes the new Z values back to the feature's
-vertices (editing must then be followed by 'Draw GeoFluv Contours' to rebuild
+vertices (editing must then be followed by 'Draw Design Contours' to rebuild
 the surface)."""
 
 import math

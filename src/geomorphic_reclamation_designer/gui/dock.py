@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 # SPDX-FileCopyrightText: 2026 Samuel Saez Lopez y colaboradores
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Main GeoFluvQ dockable dialog — mirrors the Carlson GeoFluv panel:
+"""Panel acoplable principal. La disposición sigue el orden de trabajo descrito
+para el método publicado:
 
     [File...]  [Settings...]
     Setup | Channels | Output | DWG
@@ -73,7 +74,7 @@ class FileDialogGF(QDialog):
 
 class PickLayerDialog(QDialog):
     """Choose which layer to pick the boundary / valley bottoms from: the
-    GeoFluv layers by default, but any user layer can be selected instead
+    design layers by default, but any user layer can be selected instead
     (this is QGIS: inputs may live in any polygon/line layer)."""
 
     def __init__(self, titulo, filtro, defecto, parent=None):
@@ -135,7 +136,7 @@ class DrawSurfaceDialog(QDialog):
         v = QVBoxLayout(self)
         v.addWidget(QLabel(
             "Draws the draft design surface using as inputs the 2D valley\n"
-            "bottom polylines, the GeoFluv Boundary, the Pre-Disturbed\n"
+            "bottom polylines, the Design Boundary, the Pre-Disturbed\n"
             "Surface, and the various settings.  Press OK to continue."))
         f = QFormLayout()
         f.addRow("Channel Layer:", QLabel("GF_Channels"))
@@ -162,14 +163,14 @@ class DrawSurfaceDialog(QDialog):
 
 
 class LayerStorageDialog(QDialog):
-    """'Create GeoFluv Layers' — dónde se guardan las capas del diseño."""
+    """'Create Design Layers' — dónde se guardan las capas del diseño."""
 
     def __init__(self, glob, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Create GeoFluv Layers")
+        self.setWindowTitle("Create Design Layers")
         self.carpeta = ""
         v = QVBoxLayout(self)
-        v.addWidget(QLabel("Where should the GeoFluv layers be stored?"))
+        v.addWidget(QLabel("Where should the design layers be stored?"))
         g = QGroupBox("Layer storage")
         vg = QVBoxLayout(g)
         self.rb_mem = QRadioButton(
@@ -199,7 +200,7 @@ class LayerStorageDialog(QDialog):
         v.addWidget(bb)
 
     def _browse(self):
-        d = QFileDialog.getExistingDirectory(self, "Folder for the GeoFluv layers")
+        d = QFileDialog.getExistingDirectory(self, "Folder for the design layers")
         if d:
             self.ed_ruta.setText(d)
             self.rb_ruta.setChecked(True)
@@ -252,7 +253,7 @@ class TriangulateContourDialog(QDialog):
         self.sp_dens.setSuffix(" m")
         f1.addRow("    Densify interval:", self.sp_dens)
 
-        self.chk_clip = QCheckBox("Clip surface to the GeoFluv Boundary "
+        self.chk_clip = QCheckBox("Clip surface to the Design Boundary "
                                   "(no data outside)")
         self.chk_clip.setChecked(bool(getattr(glob, "recortar_superficie", True)))
         f1.addRow(self.chk_clip)
@@ -349,11 +350,11 @@ class TriangulateContourDialog(QDialog):
 
 
 class SummaryOptionsDialog(QDialog):
-    """'Natural Regrade Dwg Summary Report' options."""
+    """'Design Summary Report' options."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Natural Regrade Summary Report")
+        self.setWindowTitle("Design Summary Report")
         v = QVBoxLayout(self)
         self.chk_fmt = QCheckBox("Use report formatter.")
         self.chk_rosgen = QCheckBox("Show Rosgen example channels.")
@@ -397,7 +398,7 @@ class InspectorDefsDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Project Inspector Definitions")
         v = QVBoxLayout(self)
-        v.addWidget(QLabel("Data groups shown by the GeoFluv Project Inspector:"))
+        v.addWidget(QLabel("Data groups shown by the Project Inspector:"))
         self.chks = {}
         for clave, texto in self.GRUPOS:
             c = QCheckBox(texto); c.setChecked(clave in activos)
@@ -415,7 +416,7 @@ class InspectorDefsDialog(QDialog):
 # ============================================================ main dock
 class GeoFluvDock(QDockWidget):
     def __init__(self, iface, parent=None):
-        super().__init__("GeoFluv", parent)
+        super().__init__("Geomorphic Reclamation Designer", parent)
         self.iface = iface
         self.proyecto = GeoFluvProject()
         self.ruta_proyecto = None
@@ -449,7 +450,7 @@ class GeoFluvDock(QDockWidget):
         lay.setSpacing(4)
 
         # --- header ---
-        lb_t = QLabel(f"GeoFluvQ  ver.{VERSION}")
+        lb_t = QLabel(f"Geomorphic Reclamation Designer  ver.{VERSION}")
         lb_t.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         lay.addWidget(lb_t)
         self.lb_proyecto = QLabel("<not yet saved>")
@@ -539,16 +540,16 @@ class GeoFluvDock(QDockWidget):
     def _tab_setup(self):
         w = QWidget(); v = QVBoxLayout(w)
 
-        self.btn_capas = QPushButton("Create GeoFluv Layers")
+        self.btn_capas = QPushButton("Create Design Layers")
         self.btn_capas.setToolTip(
-            "Creates the GeoFluv layer tree (01 Inputs ... 04 Analysis) with "
+            "Creates the design layer tree (01 Inputs ... 04 Analysis) with "
             "GF_Boundary and GF_ValleyBottoms ready to draw on. Optional: you "
             "can also pick the boundary/valley bottoms from any of your own "
             "layers.")
         self.btn_capas.clicked.connect(self._crear_arbol)
         v.addWidget(self.btn_capas)
 
-        self.btn_limite = QPushButton("GeoFluv Boundary")
+        self.btn_limite = QPushButton("Design Boundary")
         self.btn_limite.clicked.connect(self._sel_limite)
         v.addWidget(self.btn_limite)
         f0 = QFormLayout()
@@ -647,7 +648,7 @@ class GeoFluvDock(QDockWidget):
         for b in (self.btn_prev, self.btn_releer, self.btn_draw):
             v.addWidget(b)
 
-        v.addWidget(QLabel("Data for GeoFluv work area:"))
+        v.addWidget(QLabel("Data for design work area:"))
         fg = QFormLayout()
         self.lb_o_lval = _etiqueta_valor(); self.lb_o_area = _etiqueta_valor()
         self.lb_o_dd = _etiqueta_valor()
@@ -685,17 +686,17 @@ class GeoFluvDock(QDockWidget):
         w = QWidget(); v = QVBoxLayout(w)
         g = QGroupBox("Editing Mode")
         gv = QVBoxLayout(g)
-        self.rb_inputs = QRadioButton("Edit GeoFluv inputs.")
+        self.rb_inputs = QRadioButton("Edit design inputs.")
         self.rb_surface = QRadioButton("Edit design surface in drawing.")
         self.rb_inputs.setChecked(True)
         gv.addWidget(self.rb_inputs); gv.addWidget(self.rb_surface)
         v.addWidget(g)
         self.rb_inputs.toggled.connect(self._modo_edicion)
 
-        self.btn_contours = QPushButton("Draw GeoFluv Contours")
-        self.btn_v3d_c = QPushButton("3D GeoFluv Contour Viewer")
-        self.btn_v3d_s = QPushButton("3D GeoFluv Surface Viewer")
-        self.btn_vol = QPushButton("Calculate GeoFluv Volume")
+        self.btn_contours = QPushButton("Draw Design Contours")
+        self.btn_v3d_c = QPushButton("3D Contour Viewer")
+        self.btn_v3d_s = QPushButton("3D Surface Viewer")
+        self.btn_vol = QPushButton("Calculate Design Volume")
         self.btn_haul = QPushButton("Mass Haul")
         self.btn_xsec = QPushButton("Channel Cross-Section Report")
         self.btn_tractiva = QPushButton("Highlight Tractive Force Zones")
@@ -712,7 +713,7 @@ class GeoFluvDock(QDockWidget):
         self.btn_auto_prof = QPushButton("Auto Longitudinal Profile")
         self.btn_save_tin = QPushButton("Save Design Surface TIN")
         self.btn_sum2 = QPushButton("Summary Report...")
-        self.btn_inspector = QPushButton("GeoFluv Project Inspector")
+        self.btn_inspector = QPushButton("Project Inspector")
         self.btn_inspector.setCheckable(True)
         for b in (self.btn_contours, self.btn_v3d_c, self.btn_v3d_s, self.btn_vol,
                   self.btn_haul, self.btn_xsec, self.btn_tractiva,
@@ -767,14 +768,14 @@ class GeoFluvDock(QDockWidget):
     # ---------- editing mode ----------
     def _modo_edicion(self, inputs_on):
         """'Edit design surface in drawing' locks the other tabs; going back
-        to 'Edit GeoFluv inputs' unlocks them (surface edits will be replaced
+        to 'Edit design inputs' unlocks them (surface edits will be replaced
         when the design is regenerated)."""
         for i in range(3):     # Setup, Channels, Output
             self.tabs.setTabEnabled(i, inputs_on)
         if inputs_on:
             self._actualizar_estado_botones()
             if getattr(self, "ruta_superficie", None):
-                self._msg("Editing GeoFluv inputs again: regenerating the design "
+                self._msg("Editing design inputs again: regenerating the design "
                           "will replace manual edits of the design surface.", 1)
 
     # ---------- inspector ----------
@@ -844,7 +845,7 @@ class GeoFluvDock(QDockWidget):
 
     # ==================== logic ====================
     def _msg(self, txt, nivel=0):
-        self.iface.messageBar().pushMessage("GeoFluvQ", txt,
+        self.iface.messageBar().pushMessage("Geomorphic Reclamation", txt,
                                             level=nivel_msg(nivel), duration=6)
 
     def _help(self):
@@ -868,9 +869,9 @@ class GeoFluvDock(QDockWidget):
             QDesktopServices.openUrl(url)
             return
         QMessageBox.information(
-            self, "GeoFluvQ Help",
+            self, "Geomorphic Reclamation Designer — Help",
             "Work sequence (left-to-right, top-to-bottom):\n\n"
-            "1. Setup: select the GeoFluv Boundary polygon, the Main Channel "
+            "1. Setup: select the Design Boundary polygon, the Main Channel "
             "valley bottom polyline and the Surface for Elevations (DEM).\n"
             "2. Channels: Add tributary valley bottoms, set Current Channel "
             "Settings, watch the drainage density traffic-light.\n"
@@ -895,7 +896,7 @@ class GeoFluvDock(QDockWidget):
             self.diseno = {}
             self._refrescar_canales()
         elif dlg.opcion == "open":
-            ruta, _ = QFileDialog.getOpenFileName(self, "Open GeoFluv Project", "",
+            ruta, _ = QFileDialog.getOpenFileName(self, "Open Project", "",
                                                   "GeoFluv project (*.geofluv.json)")
             if ruta:
                 self.proyecto = GeoFluvProject.cargar(ruta)
@@ -910,7 +911,7 @@ class GeoFluvDock(QDockWidget):
                 self._refrescar_canales()
                 self._releer_valles()
         elif dlg.opcion == "save":
-            ruta, _ = QFileDialog.getSaveFileName(self, "Save GeoFluv Project As", "",
+            ruta, _ = QFileDialog.getSaveFileName(self, "Save Project As", "",
                                                   "GeoFluv project (*.geofluv.json)")
             if ruta:
                 self.ruta_proyecto = ruta
@@ -944,7 +945,7 @@ class GeoFluvDock(QDockWidget):
         self._msg(f"Click the feature on layer '{capa.name()}'.")
 
     def _crear_arbol(self):
-        """Create GeoFluv Layers: builds the group tree and the default input
+        """Create Design Layers: builds the group tree and the default input
         layers. The user can draw there or use their own layers instead."""
         from ..core.layer_manager import carpeta_unica_proyecto
         s = self.proyecto.settings
@@ -964,19 +965,19 @@ class GeoFluvDock(QDockWidget):
         self.lm.obtener_capa("GF_Boundary")
         self.lm.obtener_capa("GF_ValleyBottoms")
         destino = "virtual (memory)" if modo == "memory" else carpeta
-        self._msg(f"GeoFluv layer tree created — storage: {destino}. "
+        self._msg(f"Design layer tree created — storage: {destino}. "
                   "Draw the boundary in GF_Boundary and the valley bottoms in "
                   "GF_ValleyBottoms (or use your own layers when selecting).", 3)
         self._actualizar_estado_botones()
 
     def _sel_limite(self):
-        dlg = PickLayerDialog("GeoFluv Boundary", filtro_capas_poligono(),
+        dlg = PickLayerDialog("Design Boundary", filtro_capas_poligono(),
                               self.proyecto.capa_limite, self)
         if not dlg.exec():
             return
         capa = dlg.cb.currentLayer()
         if capa is None:
-            self._msg("No polygon layer available. Use 'Create GeoFluv Layers' "
+            self._msg("No polygon layer available. Use 'Create Design Layers' "
                       "and draw the boundary in GF_Boundary.", 1)
             return
         if capa.featureCount() == 0:
@@ -993,7 +994,7 @@ class GeoFluvDock(QDockWidget):
             return
         self.proyecto.fid_limite = feat.id()
         self.lb_area.setText(f"{area_ha:,.2f}")
-        self._msg("New GeoFluv boundary has been accepted.", 3)
+        self._msg("New design boundary has been accepted.", 3)
         self.iface.mapCanvas().unsetMapTool(self._map_tool)
         self._recalcular_dd()
         self._actualizar_estado_botones()
@@ -1021,7 +1022,7 @@ class GeoFluvDock(QDockWidget):
     def _canal_elegido(self, feat):
         gl = self._geom_limite()
         if gl is None:
-            self._msg("Select the GeoFluv Boundary first.", 1)
+            self._msg("Select the Design Boundary first.", 1)
             return
         ok, msg = st.validar_canal_principal(feat.geometry(), gl)
         if not ok:
@@ -1106,7 +1107,7 @@ class GeoFluvDock(QDockWidget):
         from ..core import structures
         gl = self._geom_limite()
         if gl is None:
-            self._msg("No GeoFluv boundary.", 1)
+            self._msg("No design boundary.", 1)
             return
         if not self.diseno:
             self._generar_diseno()
@@ -1447,7 +1448,7 @@ class GeoFluvDock(QDockWidget):
         area_ha = gl.area() / 10000.0 if gl else 0.0
         ltot = sum(d.L_valle for d in self.diseno.values())
         dd = st.densidad_drenaje(ltot, area_ha)
-        ReportDialog("GeoFluv Summary Report",
+        ReportDialog("Design Summary Report",
                      informe_resumen(self.diseno, self.proyecto.settings, area_ha,
                                      dd, rosgen=dlg.chk_rosgen.isChecked()),
                      self).exec()
@@ -1461,7 +1462,7 @@ class GeoFluvDock(QDockWidget):
                 return
         gl = self._geom_limite()
         if gl is None:
-            self._msg("No GeoFluv boundary.", 1)
+            self._msg("No design boundary.", 1)
             return
         dlg = DrawSurfaceDialog(self.proyecto.settings, self)
         if not dlg.exec():
@@ -1517,7 +1518,7 @@ class GeoFluvDock(QDockWidget):
     def _recontornear(self):
         gl = self._geom_limite()
         if gl is None:
-            self._msg("No GeoFluv boundary.", 1)
+            self._msg("No design boundary.", 1)
             return
         dlg = TriangulateContourDialog(self.proyecto.settings, self)
         if not dlg.exec():
@@ -1613,15 +1614,15 @@ class GeoFluvDock(QDockWidget):
                   3 if cf["ok"] else 1)
 
     def _informe_volumen(self, cf):
-        """'Calculate GeoFluv Volume': cifras de corte y relleno dentro del
+        """'Calculate Design Volume': cifras de corte y relleno dentro del
         límite GeoFluv + ráster GF_CutFill con las zonas."""
         from .report_dialog import ReportDialog
         s = self.proyecto.settings
         neto = cf["corte_ajustado_m3"] - cf["relleno_ajustado_m3"]
         area = cf["bb"] and None
         ln = [
-            "GeoFluv Volume  (design surface − original surface, inside the "
-            "GeoFluv Boundary only)",
+            "Design Volume  (design surface − original surface, inside the "
+            "Design Boundary only)",
             "=" * 78, "",
             f"  CUT   (excavation, design below original) : "
             f"{cf['corte_m3']:>16,.0f} m³",
@@ -1645,7 +1646,7 @@ class GeoFluvDock(QDockWidget):
             "  Raster 'GF_CutFill (m)' added to 04 Analysis: negative = cut, "
             "positive = fill (clipped to the boundary).",
         ]
-        ReportDialog("Calculate GeoFluv Volume", "\n".join(ln), self).exec()
+        ReportDialog("Calculate Design Volume", "\n".join(ln), self).exec()
 
     def _centroides(self):
         """Cut & Fill Centroids + haul plan (Mass Haul)."""
@@ -1680,7 +1681,7 @@ class GeoFluvDock(QDockWidget):
             return
         n = aplicar_auto_perfil(capa, dlg.sp_cab.value(), dlg.sp_pie.value(),
                                 dlg.sp_convexo.value() if dlg.chk_convexo.isChecked() else 0.0)
-        self._msg(f"{n} profiles updated. Run 'Draw GeoFluv Contours' to "
+        self._msg(f"{n} profiles updated. Run 'Draw Design Contours' to "
                   "rebuild the surface.", 3)
 
     def _edit_profile(self):
@@ -1705,13 +1706,13 @@ class GeoFluvDock(QDockWidget):
         dlg = EditProfileDialog(f"{capa.name()} fid {feat.id()}", verts, self)
         if dlg.exec():
             dlg.aplicar_a_capa(capa, feat.id())
-            self._msg("Profile applied. Run 'Draw GeoFluv Contours' to rebuild "
+            self._msg("Profile applied. Run 'Draw Design Contours' to rebuild "
                       "the surface.", 3)
 
     def _viewer_3d(self, superficie):
         capas = "GF_DesignSurface (raster)" if superficie else "GF_Contours"
         QMessageBox.information(
-            self, "3D GeoFluv Viewer",
+            self, "3D Viewer",
             f"QGIS includes a native 3D viewer.\n\n"
             f"1. Menu View > 3D Map Views > New 3D Map View.\n"
             f"2. In the 3D configuration set Terrain = GF_DesignSurface "

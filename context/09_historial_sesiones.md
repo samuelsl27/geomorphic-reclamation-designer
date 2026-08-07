@@ -5,6 +5,55 @@ terminar.** Plantilla al final.
 
 ---
 
+## 2026-08-07 · Revisión previa a la publicación en GitHub
+
+**Versión**: 1.0.17 (sin cambios de motor; solo rótulos y documentación)
+
+**Qué se hizo.** Revisión completa del repositorio antes de hacerlo público y de
+enviarlo a `plugins.qgis.org`.
+
+- 🔴 **La marca ajena seguía entera en la interfaz** (→ ADR-015). ADR-014 había
+  renombrado el paquete y el repositorio, pero nadie había mirado lo que ve el
+  usuario: menú `Natural &Regrade`, seis comandos *GeoFluv …*, panel `GeoFluvQ
+  ver.X`, grupo de capas `GeoFluv <proyecto>`, guía *GeoFluvQ — Natural
+  Regrade*. Justo lo que el §12 prohíbe y lo que revisa el repositorio oficial
+  de QGIS. 119 líneas en 20 ficheros + guía regenerada.
+- **Datos del caso de trabajo fuera de `context/` y del CHANGELOG**: había
+  **coordenadas UTM reales** del emplazamiento (B-007, en dos sitios), el nombre
+  del proyecto QGIS y el del grupo de capas de referencia. Sustituidos por
+  descripciones sin georreferencia. Las cotas y las longitudes se quedan: son la
+  tabla de referencia y no identifican nada por sí solas.
+- **Rutas de la máquina** (`%USERPROFILE%\…`, `<ruta de trabajo>\…`) → `%APPDATA%` y
+  redacción genérica, en `AGENTS.md`, `docs/BUILD.md`, `docs/DESARROLLO.md` y
+  `context/07`.
+- 🔴 **`SECURITY.md` decía lo que no era.** Afirmaba que el complemento habla
+  «solo con localhost» y que «no sale ningún dato de tu máquina», pero
+  `ai_client.buscar_web()` consulta DuckDuckGo. Es *opt-in* y está desactivada
+  por defecto, así que el fallo era de documentación, no de código — pero en un
+  documento de seguridad eso es exactamente lo que no puede fallar. Corregido
+  también en `docs/ARQUITECTURA.md` y en los dos README.
+- URLs del repositorio → `github.com/samuelsl27/…` (cuenta personal; no existe
+  la organización `opengeorock` en GitHub). Los enlaces a `opengeorock.org` y la
+  autoría del equipo se mantienen.
+- `.gitignore`: `*.pdf` y `*.docx` globales, no solo bajo `docs/metodo/`.
+
+**Medido.** `ruff check .` limpio y **84 tests en verde** después del
+renombrado: ningún test dependía de los rótulos. El zip se construye y verifica.
+
+**Comprobado y limpio.** Historia de git (un solo autor, ningún fichero de datos
+ha existido nunca en el árbol), `.gitignore`, `build_zip.py`, workflows de
+GitHub sin secretos, `.claude/settings.local.json` correctamente ignorado.
+
+**Lección.** Un renombrado «por marca» que solo toca el nombre del paquete deja
+el riesgo intacto: lo que se juzga es lo que se ve. Cuando una decisión sea de
+naming, la lista de sitios a revisar es *menú, botones, títulos de ventana,
+mensajes, informes, guía y nombres de grupo de capas*, no `metadata.txt`.
+
+**Pendiente**: decidir si la primera publicación sale con `experimental=True`
+(ahora sí lo está) y escribir `scripts/comparar_original.py` (P-12).
+
+---
+
 ## 2026-08-07 · Reparar el MCP de QGIS y el arranque del entorno
 
 **Versión**: 1.0.17 (sin cambios de motor; nada de `src/` tocado)
@@ -30,8 +79,8 @@ terminar.** Plantilla al final.
 
 **Medido.** Arrancando el servidor desde el propio `.vscode/mcp.json`:
 118 herramientas, `ping` → `{"pong": true}`, `get_qgis_info` → QGIS
-4.2.0-Belém do Pará, perfil `QGIS4/profiles/default`, proyecto
-`<proyecto de prueba>`.
+4.2.0-Belém do Pará, perfil `QGIS4/profiles/default`, con el proyecto de
+prueba cargado.
 
 **Trampa 2 (`execute_code` devolvía la salida de la llamada anterior): muerta.**
 Tres marcas seguidas devolvieron cada una la suya, por el socket directo y por

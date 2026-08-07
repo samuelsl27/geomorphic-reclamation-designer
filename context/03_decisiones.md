@@ -6,6 +6,73 @@ la sustituyó.
 
 ---
 
+## ADR-015 · La marca sale también de la INTERFAZ, no solo del nombre
+
+**Fecha**: 2026-08-07 · **Estado**: aceptada · **Completa a** ADR-014
+
+**Contexto.** ADR-014 renombró el paquete, el repositorio y el nombre público,
+pero **no tocó el texto que ve el usuario**. Al revisar el repositorio antes de
+publicarlo se encontró que la interfaz seguía presentando el complemento como el
+producto original: el menú de QGIS se llamaba `Natural &Regrade`, seis comandos
+eran *Design GeoFluv Regrade*, *Draw GeoFluv Contours*, *Calculate GeoFluv
+Volume*…, el panel se titulaba `GeoFluvQ ver.X`, el grupo de capas `GeoFluv
+<proyecto>` y la guía *GeoFluvQ — Natural Regrade*.
+
+Es decir: el propio §12 de `AGENTS.md` («nunca presentes el complemento como
+GeoFluv a secas… tampoco en la interfaz») se estaba incumpliendo en el sitio más
+visible de todos. Y es justo lo que revisa el repositorio oficial de
+complementos de QGIS antes de aprobar una publicación.
+
+**Decisión.** Todo texto que el usuario ve va **sin la marca**:
+
+| Antes | Ahora |
+|---|---|
+| menú `Natural &Regrade` | `Geomorphic &Reclamation` |
+| `Design GeoFluv Regrade` | `Design Regrade` |
+| `Draw GeoFluv Contours` | `Draw Design Contours` |
+| `Calculate GeoFluv Volume` | `Calculate Design Volume` |
+| `Create GeoFluv Layers` | `Create Design Layers` |
+| `GeoFluv Boundary` | `Design Boundary` |
+| `GeoFluv Project Inspector` | `Project Inspector` |
+| `Natural Regrade Global Settings` | `Global Settings` |
+| panel `GeoFluvQ ver.X` | `Geomorphic Reclamation Designer ver.X` |
+| grupo de capas `GeoFluv <proyecto>` | `Geomorphic Reclamation <proyecto>` |
+
+**Qué NO se toca** (compatibilidad técnica, ADR-014): prefijo `GF_`, extensión
+`.geofluv.json` y `.geofluv-settings.json`, la clave de QSettings
+`GeoFluvQ/report_formats`, y las clases `GeoFluvBuilder`, `GeoFluvProject`,
+`GeoFluvDock`, `GeoFluvQPlugin`.
+
+**Qué tampoco se toca**: los **comentarios y docstrings** que citan el método o
+miden contra la salida del programa original. Citar la fuente con atribución es
+legítimo y además es la trazabilidad del motor (regla de oro nº 1). Lo que no
+vale es *presentarse* como ese producto.
+
+**La única mención de la marca en texto de usuario** es ahora la cita atribuida
+de la portada de la guía: *«método fluvio-geomórfico (tipo Natural Regrade /
+GeoFluv) publicado por Bugosh y Martín Duque (2024)… implementación
+independiente, no afiliada ni derivada de su programa»*. Esa es la forma
+prescrita por §12 y debe conservarse.
+
+**Consecuencias.**
+- El usuario que venga del programa original ve otros rótulos. Se ha conservado
+  **el mismo orden y la misma estructura** de menú y panel para que siga
+  reconociendo la secuencia de trabajo.
+- El grupo de capas cambia de nombre: un proyecto anterior abrirá y creará el
+  grupo nuevo. Las capas `GF_*` y el `.geofluv.json` siguen intactos, así que no
+  se pierde nada, pero conviene avisarlo en el changelog.
+- 84 tests siguen en verde y `ruff` limpio: ningún test dependía de los rótulos.
+
+**Alternativas descartadas.**
+- *Dejarlo como estaba*: es el riesgo que ADR-014 quiso evitar, y reaparece
+  entero en el punto más visible.
+- *Cambiar solo el panel y la guía*: el menú es lo primero que ve el revisor de
+  plugins.qgis.org y lo que aparece en las capturas.
+- *Renombrar también `GF_` y las clases*: rompería proyectos existentes sin
+  ganar nada; §12 ya los clasifica como internos.
+
+---
+
 ## ADR-014 · Nombre público «Geomorphic Reclamation Designer»
 
 **Fecha**: 2026-07 · **Estado**: aceptada

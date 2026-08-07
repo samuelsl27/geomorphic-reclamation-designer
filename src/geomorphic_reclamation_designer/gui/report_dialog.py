@@ -16,7 +16,7 @@ from qgis.PyQt.QtWidgets import (
 def informe_canal(d):
     """Detailed by-station report of a ChannelDesign (Cross-Section Report)."""
     ln = []
-    ln.append(f"GeoFluvQ Report on Channel '{d.nombre}'")
+    ln.append(f"Report on Channel '{d.nombre}'")
     ln.append("=" * 64)
     ln.append(f"Receiving channel:         {d.padre or '(main channel)'}"
               + (f"   {d.lado} bank" if d.lado else ""))
@@ -73,9 +73,9 @@ def informe_canal(d):
 def informe_resumen(disenos, glob, area_total_ha, dd_global, rosgen=True):
     """Summary report of all channels (Summary Report)."""
     ln = []
-    ln.append("GeoFluvQ Summary Report")
+    ln.append("Design Summary Report")
     ln.append("=" * 72)
-    ln.append(f"Total area within GeoFluv boundary:  {area_total_ha:,.2f} ha")
+    ln.append(f"Total area within design boundary:  {area_total_ha:,.2f} ha")
     ln.append(f"Overall drainage density:            {dd_global:,.1f} m/ha "
               f"(target {glob.dd_objetivo:,.0f} ± {glob.dd_varianza_pct:,.0f} %)")
     ln.append(f"Design storms:                       {glob.p_2a_1h_mm/10:g} cm (2-yr,1-hr) / "

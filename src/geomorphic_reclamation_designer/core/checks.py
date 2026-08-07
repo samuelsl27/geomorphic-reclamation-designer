@@ -498,7 +498,7 @@ def laderas_que_no_vierten(lm, disenos, margen_pct=1.0):
 
 
 def crestas_sobre_el_limite(lm, g_lim, dem, glob, tol=0.05):
-    """'Force ridges to be lower than GeoFluv boundary'.
+    """'Force ridges to be lower than the design boundary'.
 
     Cuando el ajuste está activo, ningún punto de una cresta principal puede
     quedar por encima de la cota del límite donde la cresta lo corta: el
@@ -532,11 +532,11 @@ def crestas_sobre_el_limite(lm, g_lim, dem, glob, tol=0.05):
             if alto[0] > z_lim + tol:
                 salida.append(Hallazgo(
                     "C23", "warning", G_LADERA,
-                    "Ridge above the GeoFluv boundary elevation",
+                    "Ridge above the design boundary elevation",
                     f"'{nombre}' fid {f.id()} reaches {alto[0]:.2f} m while "
                     f"the boundary at its foot is at {z_lim:.2f} m "
                     f"({alto[0] - z_lim:.2f} m higher). "
-                    "'Force ridges to be lower than GeoFluv boundary' is on.",
+                    "'Force ridges to be lower than the design boundary' is on.",
                     capa=nombre, fid=f.id(), x=alto[1], y=alto[2],
                     valor=alto[0], limite=z_lim,
                     sugerencia="Lower the ridge profile, or turn the setting "

@@ -57,7 +57,7 @@ justamente de lo que se trata.
 | 📐 **Fiel al método** | Cada ecuación es trazable a la literatura. `tests/test_libro.py` verifica cada una contra su cita |
 | ✅ **Comprobador de diseño** | 22 comprobaciones (hoyos cerrados, líneas de rotura que se cruzan, tensión tractiva, densidad de drenaje, pendientes…) con un registro de errores filtrable y enlazado a las entidades |
 | ♻️ **Re-entrante** | Edita cualquier fase a mano y regenera. El proyecto guarda **referencias** a las geometrías, no copias |
-| 🤖 **IA local opcional** | Optimiza el diseño contra corte/relleno, distancia de acarreo o «empujabilidad» con bulldozer, usando un modelo que corre **en tu máquina** (Ollama / LM Studio). No sale nada de tu ordenador |
+| 🤖 **IA local opcional** | Optimiza el diseño contra corte/relleno, distancia de acarreo o «empujabilidad» con bulldozer, usando un modelo que corre **en tu máquina** (Ollama / LM Studio). Sin servicios en la nube: tu diseño no sale del ordenador. La única conexión saliente es una búsqueda web **opcional y desactivada por defecto** para valores de referencia — ver [`SECURITY.md`](SECURITY.md) |
 | 🌍 **Bilingüe** | Guía completa EN/ES. Los nombres de los ajustes quedan en inglés en los dos idiomas para que coincidan con la literatura |
 | 🧩 **QGIS 3.22 → 4.x** | Qt5 y Qt6, un solo código |
 
@@ -73,7 +73,7 @@ Designer*.
    [Releases](../../releases), o constrúyelo con `python scripts/build_zip.py`.
 2. *Complementos → Administrar e instalar complementos → Instalar a partir de ZIP.*
 3. Activa **Geomorphic Reclamation Designer**. Aparecen un botón en la barra
-   de herramientas y un menú *Natural Regrade*.
+   de herramientas y un menú *Geomorphic Reclamation*.
 
 **Requisitos**: QGIS ≥ 3.22 (incluido 4.x), un **SRC proyectado en metros**
 (p. ej. EPSG:25830) y un DEM del terreno de partida. Sin dependencias pip.

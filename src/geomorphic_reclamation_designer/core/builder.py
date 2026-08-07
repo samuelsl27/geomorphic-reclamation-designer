@@ -267,7 +267,7 @@ class GeoFluvBuilder:
         planta propuesto por la optimización)."""
         g_lim = g_lim_forzado if g_lim_forzado is not None else self._geom_limite()
         if g_lim is None:
-            raise RuntimeError("No accepted GeoFluv boundary.")
+            raise RuntimeError("No accepted design boundary.")
         if not self.p.canales or self.p.canales[0].fid_fondo_valle is None:
             raise RuntimeError("No accepted main channel.")
 

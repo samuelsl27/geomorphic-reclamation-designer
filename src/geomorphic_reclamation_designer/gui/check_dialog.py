@@ -35,7 +35,7 @@ class CheckDialog(QDialog):
 
     def __init__(self, hallazgos, iface, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("GeoFluv Design Check")
+        self.setWindowTitle("Design Check")
         self.iface = iface
         self.todos = list(hallazgos)
         self.filas = []

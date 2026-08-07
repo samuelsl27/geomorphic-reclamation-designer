@@ -8,6 +8,33 @@ Los códigos `B-0xx` remiten a [`context/04_bugs_resueltos.md`], los `ADR-0xx` a
 
 ## [No publicado]
 
+### Cambiado
+- **La marca ajena sale de toda la interfaz** (ADR-015). Completa el renombrado
+  de ADR-014, que solo había tocado el nombre del paquete y del repositorio:
+  - menú de QGIS: *Natural Regrade* → **Geomorphic Reclamation**;
+  - comandos: *Design GeoFluv Regrade* → **Design Regrade**, *Draw GeoFluv
+    Contours* → **Draw Design Contours**, *Calculate GeoFluv Volume* →
+    **Calculate Design Volume**, *Create GeoFluv Layers* → **Create Design
+    Layers**, *GeoFluv Boundary* → **Design Boundary**, *GeoFluv Project
+    Inspector* → **Project Inspector**, *Natural Regrade Global Settings* →
+    **Global Settings**;
+  - panel: *GeoFluvQ ver.X* → **Geomorphic Reclamation Designer ver.X**;
+  - guía bilingüe regenerada; la marca solo aparece ya en la cita atribuida de
+    la fuente.
+  - ⚠️ **El grupo de capas pasa de `GeoFluv <proyecto>` a `Geomorphic
+    Reclamation <proyecto>`.** Un proyecto anterior creará el grupo nuevo al
+    abrirse; las capas `GF_*` y el fichero `.geofluv.json` **no cambian** y no
+    se pierde nada.
+  - Sin cambios de motor: 84 tests en verde y `ruff` limpio.
+
+### Corregido (documentación)
+- `SECURITY.md` y `docs/ARQUITECTURA.md` afirmaban que el complemento habla
+  **solo** con `localhost` y que «no sale ningún dato de tu máquina». Es
+  inexacto: la búsqueda web opcional del optimizador hace una consulta HTTPS a
+  DuckDuckGo. Ahora se documenta qué viaja exactamente (el texto de la consulta
+  que redacta el modelo local, truncado a 200 caracteres), que está
+  **desactivada por defecto** y cómo dejarla desactivada.
+
 ### Añadido
 - **Repositorio de desarrollo completo** para trabajar desde VSCode con
   asistentes de IA: `src/` · `scripts/` · `tests/` · `docs/` · `context/` ·
@@ -183,7 +210,7 @@ Los códigos `B-0xx` remiten a [`context/04_bugs_resueltos.md`], los `ADR-0xx` a
   dos cuencas **no muere en la confluencia: es una V que PASA por ella** (aguas
   arriba hay divisoria por los dos lados del tributario, así que salen **DOS**
   crestas). El código se quedaba con una de las mitades. La cadena compartida
-  medía 305.8 m entre (X1, Y1) y (X2, Y2) — los extremos
+  medía 305.8 m entre los dos extremos de la V — los extremos
   exactos de las dos crestas del original (178.3 m y 96.9 m). De ahí venían las
   cotas incoherentes y el cono de triangulación en la unión de cauces. ADR-003.
 
@@ -316,11 +343,11 @@ Construcción del complemento por partes:
   curvas con maestras; balance corte/relleno con semáforo; centroides de regiones
   conexas con plan de acarreo optimizado; perfil longitudinal automático.
 
-[No publicado]: https://github.com/opengeorock/geomorphic-reclamation-designer/compare/v1.0.17...HEAD
-[1.0.17]: https://github.com/opengeorock/geomorphic-reclamation-designer/releases/tag/v1.0.17
-[1.0.16]: https://github.com/opengeorock/geomorphic-reclamation-designer/releases/tag/v1.0.16
-[1.0.14]: https://github.com/opengeorock/geomorphic-reclamation-designer/releases/tag/v1.0.14
-[1.0.13]: https://github.com/opengeorock/geomorphic-reclamation-designer/releases/tag/v1.0.13
-[1.0.12]: https://github.com/opengeorock/geomorphic-reclamation-designer/releases/tag/v1.0.12
-[1.0.11]: https://github.com/opengeorock/geomorphic-reclamation-designer/releases/tag/v1.0.11
-[1.0.10]: https://github.com/opengeorock/geomorphic-reclamation-designer/releases/tag/v1.0.10
+[No publicado]: https://github.com/samuelsl27/geomorphic-reclamation-designer/compare/v1.0.17...HEAD
+[1.0.17]: https://github.com/samuelsl27/geomorphic-reclamation-designer/releases/tag/v1.0.17
+[1.0.16]: https://github.com/samuelsl27/geomorphic-reclamation-designer/releases/tag/v1.0.16
+[1.0.14]: https://github.com/samuelsl27/geomorphic-reclamation-designer/releases/tag/v1.0.14
+[1.0.13]: https://github.com/samuelsl27/geomorphic-reclamation-designer/releases/tag/v1.0.13
+[1.0.12]: https://github.com/samuelsl27/geomorphic-reclamation-designer/releases/tag/v1.0.12
+[1.0.11]: https://github.com/samuelsl27/geomorphic-reclamation-designer/releases/tag/v1.0.11
+[1.0.10]: https://github.com/samuelsl27/geomorphic-reclamation-designer/releases/tag/v1.0.10

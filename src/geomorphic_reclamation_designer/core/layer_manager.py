@@ -35,7 +35,7 @@ from qgis.core import (
 )
 from .compat import CAMPO_STR, CAMPO_DOUBLE, CAMPO_INT, CAMPO_BOOL
 
-GRUPO_RAIZ = "GeoFluv"
+GRUPO_RAIZ = "Geomorphic Reclamation"
 SUBGRUPOS = ["01 Inputs", "02 Design", "03 Output", "04 Analysis"]
 
 # Definición de capas: nombre -> (tipo geometría, subgrupo, campos)
@@ -124,7 +124,7 @@ DEF_CAPAS = {
 }
 
 
-def carpeta_unica_proyecto(nombre_proyecto="GeoFluv"):
+def carpeta_unica_proyecto(nombre_proyecto="Design"):
     """Carpeta única para las capas: junto al .qgz guardado, con el nombre del
     proyecto QGIS + fecha y hora (así cada generación queda separada)."""
     import os
@@ -135,7 +135,7 @@ def carpeta_unica_proyecto(nombre_proyecto="GeoFluv"):
         nombre = os.path.splitext(os.path.basename(ruta_qgz))[0]
     else:
         base = os.path.expanduser("~")
-        nombre = nombre_proyecto or "GeoFluv"
+        nombre = nombre_proyecto or "Design"
     sello = datetime.now().strftime("%Y%m%d_%H%M%S")
     destino = os.path.join(base, f"{nombre}_{sello}")
     os.makedirs(destino, exist_ok=True)

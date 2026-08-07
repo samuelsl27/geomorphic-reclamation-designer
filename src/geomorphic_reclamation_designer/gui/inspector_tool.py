@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # SPDX-FileCopyrightText: 2026 Samuel Saez Lopez y colaboradores
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""GeoFluv Project Inspector — equivalent to the original 'GeoFluv Channel
+"""Project Inspector — equivalent to the original 'GeoFluv Channel
 Inspector'. With the tool active, moving the cursor over the map finds the
 nearest designed channel, projects the cursor on its centerline and shows the
 CONTINUOUS hydraulic information at that station in a floating panel (not just
@@ -32,7 +32,7 @@ class InspectorPanel(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("GeoFluv Project Inspector")
+        self.setWindowTitle("Project Inspector")
         self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowStaysOnTopHint
                             if hasattr(Qt, "WindowType")
                             else self.windowFlags() | Qt.WindowStaysOnTopHint)

@@ -14,13 +14,14 @@
 ### Desde un ZIP
 
 1. Descarga `geomorphic_reclamation_designer_vX.Y.Z.zip` de
-   [Releases](https://github.com/opengeorock/geomorphic-reclamation-designer/releases).
+   [Releases](https://github.com/samuelsl27/geomorphic-reclamation-designer/releases).
 2. *Complementos → Administrar e instalar complementos → **Instalar a partir de
    ZIP***.
 3. Elige el fichero → *Instalar complemento*.
 4. En *Instalados*, activa **Geomorphic Reclamation Designer**.
 
-Aparecen un botón en la barra de herramientas y un menú **Natural Regrade**.
+Aparecen un botón en la barra de herramientas y un menú
+**Geomorphic Reclamation**.
 
 > El complemento está marcado como **experimental**. Si no lo ves en la lista:
 > *Configuración → Mostrar también complementos experimentales*.
@@ -33,7 +34,7 @@ Cuando esté publicado: *Complementos → Administrar e instalar → Todos →* 
 ### Desde el código fuente (desarrollo)
 
 ```bash
-git clone https://github.com/opengeorock/geomorphic-reclamation-designer.git
+git clone https://github.com/samuelsl27/geomorphic-reclamation-designer.git
 cd geomorphic-reclamation-designer
 python scripts/deploy_local.py
 ```
@@ -93,4 +94,4 @@ El botón **Help** abre la guía bilingüe con los 97 ajustes documentados.
 | Las capas guardadas salen vacías | Bug B-006, corregido en 1.0.11. Actualiza |
 | La superficie tarda muchísimo | La resolución se calcula sola, pero un límite enorme con canales muy estrechos da rásteres gigantes. Mira el aviso del registro |
 
-Más ayuda: [Issues](https://github.com/opengeorock/geomorphic-reclamation-designer/issues).
+Más ayuda: [Issues](https://github.com/samuelsl27/geomorphic-reclamation-designer/issues).

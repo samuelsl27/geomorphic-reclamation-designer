@@ -15,7 +15,7 @@ from dataclasses import dataclass, asdict
 
 @dataclass
 class GlobalSettings:
-    """Equivalente a 'Natural Regrade Global Settings'."""
+    """Equivalente a 'Global Settings'."""
     # Dibujo / snapping
     max_dist_conexion_canales: float = 3.0        # m, separación máx. para reconocer conexión de polilíneas
     tol_cota_cabecera_m: float = 0.5              # tolerancia de cota en cabecera (aviso)
@@ -83,7 +83,7 @@ class GlobalSettings:
     long_max_lado_tin_m: float = 50.0             # 'maximum triangle mesh line length'
     pend_max_linea_pct: float = 300.0             # pico de cota entre dos vértices contiguos
     ang_max_valle_ladera_deg: float = 60.0        # valle trazado a media ladera en vez de ladera abajo
-    # --- almacenamiento de capas (Create GeoFluv Layers) ---
+    # --- almacenamiento de capas (Create Design Layers) ---
     modo_almacenamiento: str = "memory"           # 'memory' | 'ruta' | 'proyecto'
     carpeta_capas: str = ""                       # carpeta destino cuando no es memoria
 

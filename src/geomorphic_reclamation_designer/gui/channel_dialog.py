@@ -141,8 +141,8 @@ class ChannelSettingsDialog(QDialog):
         self.chk_rand.setChecked(self.c.factores_aleatorios)
         f1.addRow(self.chk_rand)
 
-        # --- GeoFluvQ extras ---
-        f1.addRow(QLabel("<i>GeoFluvQ additional settings:</i>"))
+        # --- Additional settings ---
+        f1.addRow(QLabel("<i>Additional settings:</i>"))
         self.sp_n = _spin(0.010, 0.200, self.c.n_manning, 3)
         f1.addRow("Manning's n (hydraulic verification):", self.sp_n)
         self.chk_d50 = QCheckBox("Override global D50 for this channel")
@@ -256,7 +256,7 @@ class ChannelSettingsDialog(QDialog):
             "Watershed: the Rational Runoff Method (Qpk = C·i·A) computes the "
             "bankfull (2-yr, 1-hr) and flood-prone (50-yr, 6-hr) discharges "
             "with the watershed area accumulating downstream. Additional "
-            "watershed area lets run-on water from outside the GeoFluv "
+            "watershed area lets run-on water from outside the design "
             "boundary enter this channel at its head or evenly along it.")
 
     # ---------- aplicar ----------
