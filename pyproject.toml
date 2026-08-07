@@ -27,9 +27,9 @@ dependencies = []
 
 [project.urls]
 Homepage = "https://opengeorock.org/"
-Repository = "https://github.com/opengeorock/geomorphic-reclamation-designer"
-Issues = "https://github.com/opengeorock/geomorphic-reclamation-designer/issues"
-Changelog = "https://github.com/opengeorock/geomorphic-reclamation-designer/blob/main/CHANGELOG.md"
+Repository = "https://github.com/samuelsl27/geomorphic-reclamation-designer"
+Issues = "https://github.com/samuelsl27/geomorphic-reclamation-designer/issues"
+Changelog = "https://github.com/samuelsl27/geomorphic-reclamation-designer/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.6"]

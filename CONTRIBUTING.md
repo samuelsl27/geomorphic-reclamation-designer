@@ -49,7 +49,7 @@ guía.
 ## Preparar el entorno
 
 ```bash
-git clone https://github.com/opengeorock/geomorphic-reclamation-designer.git
+git clone https://github.com/samuelsl27/geomorphic-reclamation-designer.git
 cd geomorphic-reclamation-designer
 
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
