@@ -1,0 +1,97 @@
+Geomorphic Reclamation Designer
+Copyright (C) 2026 Samuel Sáez López and contributors
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+--------------------------------------------------------------------------------
+AUTHORSHIP
+--------------------------------------------------------------------------------
+
+Author and copyright holder:  Samuel Sáez López <samuelimga@gmail.com>
+With:                         Emilio Trigueros
+Institutions:                 Universitat Politècnica de Catalunya (UPC), IMGA
+Team:                         https://opengeorock.org/
+
+--------------------------------------------------------------------------------
+TRADEMARKS
+--------------------------------------------------------------------------------
+
+GeoFluv(TM) and Natural Regrade(R) are trademarks of their respective owners
+(N. Bugosh / Carlson Software).
+
+This software is an INDEPENDENT, OPEN-SOURCE IMPLEMENTATION of the published
+fluvial-geomorphic landform design method. It is:
+
+  - NOT a derivative work of any Carlson Software product;
+  - NOT affiliated with, sponsored by or endorsed by Carlson Software or
+    N. Bugosh;
+  - NOT compatible with, nor a replacement for, their software;
+  - NOT authorised to use their trademarks other than for the nominative,
+    descriptive citation of the scientific method it implements.
+
+Historical internal identifiers in the source code (the "GF_" layer prefix, the
+".geofluv.json" project extension, class names such as GeoFluvBuilder) are
+retained solely for backwards compatibility with projects created by earlier
+versions of this software. They are not public-facing product names.
+
+--------------------------------------------------------------------------------
+NAME
+--------------------------------------------------------------------------------
+
+The name "Geomorphic Reclamation Designer" uses "geomorphic reclamation", the
+standard descriptive term for this discipline in the peer-reviewed literature.
+
+It resembles the title of "Geomorphic Reclamation Design" (Bugosh & Martin Duque,
+2024), which is this project's primary scientific reference. To be explicit:
+
+  - this software is NOT the official companion software of that book;
+  - it is NOT authored, reviewed or endorsed by its authors;
+  - the book is cited here as a SOURCE, in the same way any scientific work is
+    cited by an independent implementation of the methods it describes.
+
+Any errors in this implementation are the responsibility of this project's
+authors, not of the authors of the works cited below.
+
+--------------------------------------------------------------------------------
+SCIENTIFIC REFERENCES
+--------------------------------------------------------------------------------
+
+The method implemented here is described in the published literature. The
+equations used by the engine are traceable, one by one, to the citations listed
+in context/01_metodo_geofluv.md and verified by tests/test_libro.py.
+
+  Bugosh, N. & Martin Duque, J.F. (2024). Geomorphic Reclamation Design.
+  Williams, G.P. (1986). River meanders and channel size.
+      Journal of Hydrology 88, 147-164.
+  Rosgen, D. (1996). Applied River Morphology.
+  Dunne, T. & Leopold, L.B. (1978). Water in Environmental Planning.
+  Martin Duque, J.F. et al. (2017). Geomorphic reclamation for reestablishment
+      of landform stability at a watershed scale in mined sites: El Machorro
+      Mine, Spain. Ecological Engineering.
+  Bugosh, N. & Epp, E. (2019). Evaluating sediment production from native and
+      fluvial geomorphic-reclamation watersheds at La Plata Mine.
+      Catena 174, 383-398.
+
+--------------------------------------------------------------------------------
+THIRD-PARTY COMPONENTS
+--------------------------------------------------------------------------------
+
+This plugin has NO bundled third-party code and NO pip dependencies. It uses
+only the Python standard library and the APIs provided by its host application:
+
+  QGIS   - GNU General Public License v2.0 or later - https://qgis.org
+  Qt     - GNU Lesser General Public License v3     - https://qt.io
+  GDAL   - MIT / X11 style                          - https://gdal.org
+
+These are supplied by the user's QGIS installation and are not redistributed
+with this software.
