@@ -1,0 +1,35 @@
+# Normalizar finales de linea: LF en el repositorio, nativo en el disco.
+* text=auto eol=lf
+
+*.py    text eol=lf
+*.md    text eol=lf
+*.txt   text eol=lf
+*.json  text eol=lf
+*.toml  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.html  text eol=lf
+*.cfg   text eol=lf
+
+# Guiones de Windows: CRLF
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.ps1   text eol=crlf
+
+# Binarios
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.zip   binary
+*.tif   binary
+*.gpkg  binary
+
+# Generado: no cuenta para las estadisticas de lenguaje ni ensucia los diff.
+src/geomorphic_reclamation_designer/help/guide.html linguist-generated=true -diff
+
+# Documentacion: que GitHub la cuente como tal.
+docs/**    linguist-documentation
+context/** linguist-documentation

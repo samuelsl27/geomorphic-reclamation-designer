@@ -1,0 +1,114 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# --- Entornos virtuales ---
+.venv/
+venv/
+ENV/
+env/
+.python-version
+
+# --- Tests y calidad ---
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.tox/
+.nox/
+
+# --- Salidas del proyecto ---
+dist/
+*.zip
+!docs/**/*.zip
+
+# --- QGIS ---
+*.qgs~
+*.qgz~
+*.qgd
+*.gpkg-shm
+*.gpkg-wal
+.qgis2/
+*.qml.bak
+
+# --- Datos de trabajo (nunca en el repositorio) ---
+data/
+datos/
+*.tif
+*.tiff
+*.img
+*.asc
+*.dem
+*.dxf
+*.dwg
+*.gpkg
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+*.sbn
+*.sbx
+*.geofluv.json
+*_optimization_*/
+
+# --- Documentacion de referencia con copyright (NO subir) ---
+docs/metodo/*.pdf
+docs/metodo/*.docx
+Recursos/
+
+# --- Editores ---
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/mcp.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Agentes de IA ---
+.claude/settings.local.json
+.claude/local/
+.aider*
+.cursor/
+.continue/
+.codex/
+CLAUDE.local.md
+
+# --- Modelos y cachés de IA local ---
+*.gguf
+*.safetensors
+
+# --- Temporales ---
+tmp/
+temp/
+*.log
+*.bak
+*.orig
+*.rej
