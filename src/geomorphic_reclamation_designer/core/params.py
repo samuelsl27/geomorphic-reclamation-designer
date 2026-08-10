@@ -67,6 +67,12 @@ class GlobalSettings:
     intervalo_curvas: float = 1.0                 # m
     intervalo_curvas_maestras: float = 5.0        # m
     intervalo_estaciones: float = 10.0            # m, para informes de sección transversal
+    # 'm_fMaxDistOnRidges' del fichero .geo del original: separación máxima
+    # entre vértices de una cresta. En el Ej_2 vale 6.1 m y el espaciado medido
+    # en su salida es exactamente ese. Las nuestras iban de 0.7 a 9.5 m dentro
+    # de una misma línea, con más de la mitad de los tramos por debajo de 3 m:
+    # vértices de sobra que no añaden forma y sí ensucian la triangulación.
+    max_dist_vertices_cresta: float = 6.1         # m
     # --- 'Triangulate and Contour From TIN' (ventana de Draw Design Surface) ---
     resolucion_dem: float = 1.0                   # m, tamaño de celda de GRD_DesignSurface
     naturalidad: int = 3                          # 0-10, pasadas del filtro de redondeo

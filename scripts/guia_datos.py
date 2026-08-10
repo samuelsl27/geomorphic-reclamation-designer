@@ -486,6 +486,18 @@ short critical reach.""",
 <b>más densas</b> dan un registro hidráulico más fino y mejores mapas de fuerza
 tractiva, pero una capa más pesada y informes más lentos; estaciones <b>más
 espaciadas</b> pueden pasar por alto un tramo crítico corto."""),
+ ("Maximum distance between ridge vertices (m)", """How far apart the vertices of a watershed divide may sit. The divide is
+resampled to this step, on its own trace, before its elevation is computed.
+<b>Closer</b> vertices follow a winding divide more faithfully but add
+breaklines that carry no shape and make the triangulation noisier; <b>wider</b>
+ones are cleaner but cut the corners of a tight bend. The reference value is
+6.1 m.""",
+ """A qué distancia pueden quedar los vértices de una divisoria de cuenca. La
+divisoria se remuestrea a este paso, sobre su propia traza, antes de calcularle
+la cota. Vértices <b>más juntos</b> siguen con más fidelidad una divisoria
+sinuosa, pero añaden líneas de rotura que no aportan forma y ensucian la
+triangulación; <b>más separados</b> quedan más limpios pero recortan las curvas
+cerradas. El valor de referencia es 6.1 m."""),
 ]
 
 CHANNELS = [

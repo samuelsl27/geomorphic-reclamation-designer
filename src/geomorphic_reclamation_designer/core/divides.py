@@ -226,6 +226,66 @@ def _limpiar_vertices(pts, tol=0.30):
     return salida
 
 
+TOL_TRAZA_CRESTA = 0.5     # m que se le permite recortar a una curva cerrada al
+                           # remuestrear. Un orden de magnitud por debajo de la
+                           # holgura con que la divisoria se para del cauce.
+
+
+def remuestrear(pts, paso, tol=TOL_TRAZA_CRESTA):
+    """Vértices a un paso uniforme sobre la MISMA traza, con los dos extremos.
+
+    'm_fMaxDistOnRidges' del original, que en el Ej_2 vale 6.1 m. No es solo
+    una densificación: el espaciado medido en su salida da p50 = 6.1, p90 =
+    12.2, p99 = 24.4 y máx = 30.5, todos múltiplos exactos de 6.1, o sea que
+    sus vértices están sobre una retícula de ese paso. Los nuestros iban de 0.7
+    a 9.5 m dentro de una misma línea.
+
+    Los puntos se toman SOBRE la polilínea, así que la traza no se desplaza; lo
+    único que cambia es que entre muestra y muestra se sustituye el arco por su
+    cuerda. En las divisorias del Ej_2 eso son 2.5 cm de mediana, pero en una
+    curva cerrada llegaba a 1.8 m, y el ajuste dice distancia MÁXIMA entre
+    vértices, no licencia para comerse la forma: los vértices originales que se
+    desviarían más de `tol` se conservan."""
+    if paso <= 0 or len(pts) < 3:
+        return list(pts)
+    s = _estaciones([(p[0], p[1]) for p in pts])
+    L = s[-1]
+    if paso >= L:
+        return list(pts)
+
+    def _en(si):
+        i = bisect.bisect_left(s, si)
+        if i <= 0:
+            return 0.0, tuple(pts[0])
+        if i >= len(s):
+            return L, tuple(pts[-1])
+        t = (si - s[i - 1]) / max(s[i] - s[i - 1], 1e-9)
+        return si, tuple(a + t * (b - a) for a, b in zip(pts[i - 1], pts[i]))
+
+    # es una distancia MAXIMA, así que se sube al entero siguiente: repartir en
+    # partes iguales deja el paso entre `paso`/2 y `paso`, nunca por encima, y
+    # sin el muñón que dejaría caminar a paso fijo desde un extremo
+    n = max(2, int(math.ceil(L / paso - 1e-9)))
+    muestras = dict(_en(L * k / n) for k in range(n + 1))
+    if tol > 0:
+        marcas = sorted(muestras)
+        for si, p in zip(s, pts):
+            j = bisect.bisect_left(marcas, si)
+            a = marcas[max(0, j - 1)]
+            b = marcas[min(j, len(marcas) - 1)]
+            if _dist_a_segmento(p, muestras[a], muestras[b]) > tol:
+                muestras[si] = tuple(p)
+    return [muestras[k] for k in sorted(muestras)]
+
+
+def _dist_a_segmento(p, a, b):
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    den = dx * dx + dy * dy
+    t = 0.0 if den < 1e-12 else max(0.0, min(1.0, ((p[0] - a[0]) * dx
+                                                   + (p[1] - a[1]) * dy) / den))
+    return math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy))
+
+
 def _proyectar(pts, x, y):
     """(distancia, estación, z interpolada) del punto más próximo de la
     polilínea. La estación es la que hace falta para colocar el punto de
@@ -457,12 +517,29 @@ def recortar_contra_corredor(pts, corredor, long_min=0.0, paso=PASO_SONDEO):
 
 
 # ================================ 2. COTA DERIVADA DE LAS LADERAS
-def puntos_de_control(dens, cabeceras, tol=TOL_LLEGADA):
+SEPARACION_CONTROL = 6.1   # m, por debajo de esto dos cabeceras son el MISMO
+                           # punto de llegada. Es el paso de vértices de la
+                           # divisoria: por debajo de él, no tiene con qué
+                           # distinguirlas. Quien la llama pasa el suyo.
+
+
+def puntos_de_control(dens, cabeceras, tol=TOL_LLEGADA,
+                      separacion=SEPARACION_CONTROL):
     """[(estación, cota)] que las crestas de ladera imponen a la divisoria.
 
     Solo las SUBCRESTAS aportan cota: son las que suben hasta la divisoria. Una
     vaguada muere por debajo, entre dos subcrestas, así que no levanta la
-    divisoria — luego se comprueba que no sobresalga de ella."""
+    divisoria — luego se comprueba que no sobresalga de ella.
+
+    Dos cabeceras separadas menos de `separacion` metros se funden en una, y se
+    queda la más alta. La divisoria no tiene resolución para distinguirlas: sus
+    vértices están a 2-3 m, así que ambas caen sobre el mismo o sobre vértices
+    contiguos, y obligar al perfil a pasar por las dos escribe un escalón donde
+    debería haber una pendiente. Antes ni siquiera era determinista: las dos
+    aterrizaban en el mismo índice y `_restaurar_control` dejaba la que llegara
+    la última. La que se descarta no se pierde —el pase de encaje vuelve a
+    pegar su cabecera a la cota que la divisoria tenga al final—; es justo la
+    tolerancia que el original se permite."""
     ctrl = {}
     for (x, y, z) in cabeceras:
         d, s, _ = _proyectar(dens, x, y)
@@ -471,7 +548,19 @@ def puntos_de_control(dens, cabeceras, tol=TOL_LLEGADA):
         k = round(s, 2)
         if k not in ctrl or z > ctrl[k]:
             ctrl[k] = z
-    return sorted(ctrl.items())
+    fundidos, s0 = [], None
+    for s, z in sorted(ctrl.items()):
+        # la ventana se mide contra el ARRANQUE del grupo, no contra el último
+        # que entró: si no, una hilera de cabeceras separadas 4.9 m se iría
+        # encadenando y acabaría fundiendo cincuenta metros de divisoria en un
+        # solo punto de control
+        if fundidos and s - s0 < separacion:
+            if z > fundidos[-1][1]:
+                fundidos[-1] = (s, z)
+        else:
+            fundidos.append((s, z))
+            s0 = s
+    return fundidos
 
 
 DECAIMIENTO = 40.0     # m sobre los que se apaga la corrección de un espolón
@@ -600,22 +689,35 @@ def _restaurar_control(zs, s, control):
 
 
 def _monotonizar(zs, fijos=None):
-    """Fuerza que el perfil no cambie de sentido.
+    """Suprime los cambios de sentido ESPURIOS, tramo a tramo entre puntos fijos.
 
-    Se decide el sentido por los extremos (una divisoria entre dos cauces que
-    confluyen sube desde la confluencia hacia la cabecera) y se recorta lo que
-    lo contradiga. Los índices `fijos` —donde muere un espolón— no se mueven:
-    ahí manda el empalme."""
+    El sentido NO se decide con los dos extremos de la divisoria entera. Una
+    divisoria puede tener una loma legítima —sube desde una confluencia, corona
+    y baja a otra—, y con un único sentido global el perfil se convierte en un
+    trinquete: los puntos de control, que son intocables, quedan encaramados y
+    todo lo que viene detrás se aplana contra ellos hasta que el extremo
+    anclado obliga a soltar el desnivel de golpe. Ver B-036.
+
+    Lo que sí es espurio es que el perfil se salga del intervalo que marcan los
+    dos puntos fijos que lo encierran. Entre cabecera y cabecera se impone la
+    monotonía en el sentido que ellas dos determinan, y nada más."""
     if len(zs) < 3:
         return list(zs)
     fijos = fijos or set()
-    sube = zs[-1] >= zs[0]
     salida = list(zs)
-    for i in range(1, len(salida)):
-        if i in fijos:
+    nodos = sorted({0, len(zs) - 1} | {i for i in fijos if 0 <= i < len(zs)})
+    for a, b in zip(nodos, nodos[1:]):
+        if b - a < 2:
             continue
-        if (sube and salida[i] < salida[i - 1]) or (not sube and salida[i] > salida[i - 1]):
-            salida[i] = salida[i - 1]
+        sube = salida[b] >= salida[a]
+        lo, hi = min(salida[a], salida[b]), max(salida[a], salida[b])
+        for i in range(a + 1, b):
+            if i in fijos:
+                continue
+            z = min(max(salida[i], lo), hi)
+            if (sube and z < salida[i - 1]) or (not sube and z > salida[i - 1]):
+                z = salida[i - 1]
+            salida[i] = z
     return salida
 
 
@@ -868,8 +970,12 @@ def ajustar_divisorias(lm, disenos, glob, dem=None, g_lim=None, log=None):
         pts = _limpiar_vertices(_pts3(f))
         if len(pts) < 3:
             continue
+        # el paso de vértices se fija ANTES de calcular la cota, para que los
+        # puntos de control y el perfil se resuelvan ya sobre la traza final
+        paso_v = float(getattr(glob, "max_dist_vertices_cresta", 6.1))
+        pts = remuestrear(pts, paso_v)
         dens = [(x, y) for x, y, _ in pts]
-        ctrl = list(puntos_de_control(dens, cabeceras))
+        ctrl = list(puntos_de_control(dens, cabeceras, separacion=paso_v))
         s = _estaciones(dens)
         L = s[-1]
         # --- cotas de los dos extremos ---

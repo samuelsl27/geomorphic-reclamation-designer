@@ -61,6 +61,8 @@ GLOBALES = {
     "m_fFillShrink": ("factor_compactacion", 1.0),
     "m_fHeadElevTole": ("tol_cota_cabecera_m", 1.0),
     "m_fHeadSlopePertTole": ("tol_pendiente_cabecera_pct", 1.0),
+    # solo esta en el .geo, no en el .ggs
+    "m_fMaxDistOnRidges": ("max_dist_vertices_cresta", 1.0),
 }
 
 # Estos dos van acompanados de un booleano y el original DEJA BASURA en el

@@ -192,6 +192,9 @@ class SettingsDialog(QDialog):
         f3.addRow("Index contour interval (m):", self.sp_cm)
         self.sp_est = _spin(1, 200, self.s.intervalo_estaciones, 1, "m")
         f3.addRow("Cross-section station interval (m):", self.sp_est)
+        self.sp_vcresta = _spin(0.5, 50, self.s.max_dist_vertices_cresta, 1, "m")
+        f3.addRow("Maximum distance between ridge vertices (m):",
+                  self.sp_vcresta)
         lay.addWidget(g3)
         lay.addStretch()
 
@@ -251,6 +254,7 @@ class SettingsDialog(QDialog):
         s.intervalo_curvas = self.sp_ci.value()
         s.intervalo_curvas_maestras = self.sp_cm.value()
         s.intervalo_estaciones = self.sp_est.value()
+        s.max_dist_vertices_cresta = self.sp_vcresta.value()
 
     # ---------- Load / Save As (settings file, like the original) ----------
     def _save_as(self):

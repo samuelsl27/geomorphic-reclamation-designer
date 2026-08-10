@@ -56,6 +56,28 @@ def test_puntos_de_control_se_queda_con_la_cabecera_mas_alta():
     assert ctrl == [(10.0, 110.0), (50.0, 125.0)]
 
 
+def test_dos_cabeceras_pegadas_se_funden_en_la_mas_alta():
+    """B-036. La divisoria tiene los vertices a 2-3 m: dos cabeceras separadas
+    metro y medio caen sobre el mismo vertice o sobre vecinos, y obligarla a
+    pasar por las dos escribe un escalon donde deberia haber pendiente."""
+    dens = [(0.0, 0.0), (100.0, 0.0)]
+    cab = [(50.0, 0.0, 120.0), (51.5, 0.0, 126.0), (80.0, 0.0, 130.0)]
+    ctrl = dv.puntos_de_control(dens, cab, tol=12.0)
+    assert ctrl == [(51.5, 126.0), (80.0, 130.0)]
+
+
+def test_las_cabeceras_no_se_funden_en_cadena():
+    """Una hilera separada algo menos que la ventana no puede irse encadenando
+    hasta fundir media divisoria en un solo punto: la ventana se mide contra el
+    arranque del grupo."""
+    dens = [(0.0, 0.0), (100.0, 0.0)]
+    cab = [(x, 0.0, 100.0 + x) for x in (10.0, 14.0, 18.0, 22.0, 26.0)]
+    ctrl = dv.puntos_de_control(dens, cab, tol=12.0, separacion=5.0)
+    # tres grupos (10-14, 18-22, 26) y no uno solo; de cada grupo se queda la
+    # mas alta, EN SU PROPIA ESTACION, que es donde tiene que caer
+    assert ctrl == [(14.0, 114.0), (22.0, 122.0), (26.0, 126.0)]
+
+
 # --------------------------------------------------------------- perfil
 def _dens_recta(n=21, paso=5.0):
     return [(i * paso, 0.0) for i in range(n)]
@@ -160,6 +182,41 @@ def test_un_control_inalcanzable_se_recorta_sin_dejar_pico():
     i = min(range(len(s)), key=lambda k: abs(s[k] - 50.0))
     assert zs[i] > base[i]           # la cabecera si levanta la divisoria...
     assert zs[i] < 1200.0            # ...pero no hasta lo imposible
+
+
+def test_una_loma_con_el_extremo_anclado_abajo_no_deja_meseta_ni_acantilado():
+    """B-036, el caso real: divisoria fid=52 del Ej_2.
+
+    Arranca a 289 con cuatro cabeceras pegadas, sube a 297 en el centro y su
+    otro extremo esta anclado a 276 contra el cauce. Como 276 < 289, la
+    monotonia global la declaraba DESCENDENTE: aplanaba los primeros 48 m en
+    una meseta de 28 vertices exactamente a 289.31, dejaba el perfil encaramado
+    a 297 detras del control y soltaba los 21 m que faltaban en cuatro
+    segmentos al 100 % clavado."""
+    dens = [(2.8 * i, 0.0) for i in range(42)]          # 114.8 m
+    s = dv._estaciones(dens)
+    L = s[-1]
+    base = [289.31 + (276.0 - 289.31) * (si / L) for si in s]
+    ctrl = [(4.7, 289.31), (62.7, 297.09)]
+    zs = dv.perfil_desde_control(dens, base, ctrl, s_max=0.33,
+                                 z_top=276.0, z_bot=289.31)
+
+    pend = [abs(zs[i + 1] - zs[i]) / (s[i + 1] - s[i]) for i in range(len(zs) - 1)]
+    assert max(pend) < dv.MAX_PENDIENTE_FILO - 1e-6, \
+        "el filo vuelve a apoyarse en el cortafuegos: %.3f" % max(pend)
+
+    i = min(range(len(s)), key=lambda k: abs(s[k] - 62.7))
+    assert zs[i] > zs[0] and zs[i] > zs[-1], "la loma tiene que sobrevivir"
+
+    # Detras de la corona no puede quedar ni un tramo llano: ahi es donde el
+    # trinquete dejaba la meseta. Delante si puede haberlo, porque el anclaje
+    # (289.31) y la primera cabecera (289.31) piden la MISMA cota y entre dos
+    # cotas iguales lo llano es lo correcto.
+    llano = mayor = 1
+    for k in range(i + 1, len(zs)):
+        llano = llano + 1 if abs(zs[k] - zs[k - 1]) <= 0.01 else 1
+        mayor = max(mayor, llano)
+    assert mayor <= 2, "meseta de %d vertices detras de la corona" % mayor
 
 
 def test_anclaje_del_extremo_en_el_limite():
@@ -283,6 +340,61 @@ def test_la_z_se_interpola_en_el_corte():
 def test_monotonizar_respeta_el_sentido():
     assert dv._monotonizar([1.0, 3.0, 2.0, 5.0]) == [1.0, 3.0, 3.0, 5.0]
     assert dv._monotonizar([5.0, 3.0, 4.0, 1.0]) == [5.0, 3.0, 3.0, 1.0]
+
+
+def test_monotonizar_no_aplasta_una_loma_LEGITIMA():
+    """B-036. Una divisoria puede subir desde una confluencia, coronar y bajar a
+    otra. Con el sentido decidido por los dos extremos, el punto de control de
+    la corona —que es intocable— se convertia en un trinquete: todo lo que venia
+    detras se aplanaba contra el hasta que el extremo anclado obligaba a soltar
+    el desnivel de golpe."""
+    zs = [10.0, 12.0, 20.0, 18.0, 16.0, 14.0, 5.0]
+    out = dv._monotonizar(zs, fijos={2})       # la corona es punto de control
+    assert out[2] == 20.0                      # el control no se mueve
+    assert out == sorted(out[:3]) + sorted(out[2:], reverse=True)[1:]
+    # y sobre todo: NADA de mesetas detras de la corona
+    assert len({round(z, 6) for z in out[3:]}) == len(out[3:])
+
+
+def test_monotonizar_no_deja_que_el_perfil_se_salga_entre_dos_fijos():
+    """Entre dos puntos fijos el perfil no puede salirse del intervalo que ellos
+    marcan: ahi es donde estaban los dientes."""
+    out = dv._monotonizar([0.0, 50.0, -50.0, 10.0], fijos=set())
+    assert min(out) >= 0.0 and max(out) <= 10.0
+
+
+def test_remuestrear_respeta_la_traza_y_los_extremos():
+    """'m_fMaxDistOnRidges' del original (6.1 m en el Ej_2). Los puntos se toman
+    SOBRE la polilinea, asi que la traza no se desplaza."""
+    pts = [(0.7 * i, 0.0, 100.0 + 0.7 * i) for i in range(30)]   # 20.3 m a 0.7
+    out = dv.remuestrear(pts, 6.1)
+    assert out[0] == pts[0] and out[-1] == pts[-1]
+    s = dv._estaciones([(p[0], p[1]) for p in out])
+    paso = [s[i + 1] - s[i] for i in range(len(s) - 1)]
+    assert max(paso) <= 6.1 + 1e-6, paso
+    assert all(abs(p[1]) < 1e-9 for p in out)          # sigue sobre la recta
+    for x, _y, z in out:                               # y la cota se interpola
+        assert abs(z - (100.0 + x)) < 1e-6
+
+
+def test_remuestrear_conserva_una_curva_cerrada():
+    """El ajuste es una distancia MAXIMA entre vertices, no licencia para
+    comerse la forma. En el Ej_2 el remuestreo ciego recortaba 1.8 m de una
+    curva cerrada."""
+    # horquilla: sube 10 m, gira 180 grados y baja
+    pts = ([(0.0, y, 100.0) for y in range(0, 11)]
+           + [(4.0, y, 100.0) for y in range(10, -1, -1)])
+    out = dv.remuestrear(pts, 6.1)
+    for p in pts:
+        d = min(dv._dist_a_segmento(p, out[i], out[i + 1])
+                for i in range(len(out) - 1))
+        assert d <= dv.TOL_TRAZA_CRESTA + 1e-9, "se recorta %.2f m" % d
+
+
+def test_remuestrear_no_toca_una_linea_ya_corta():
+    pts = [(0.0, 0.0, 10.0), (2.0, 0.0, 11.0), (4.0, 0.0, 12.0)]
+    assert dv.remuestrear(pts, 6.1) == pts
+    assert dv.remuestrear(pts, 0.0) == pts
 
 
 def test_limitar_pendiente():
