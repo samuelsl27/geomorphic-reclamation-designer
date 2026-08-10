@@ -6,6 +6,225 @@
 
 ---
 
+> **Los cinco siguientes (B-022 … B-027) salen del SEGUNDO ejemplo de
+> referencia** (Rom_Pla, 6 canales, 35.6 ha). El primero (Potoya, 2 canales) no
+> los destapaba: hacen falta confluencias múltiples, tributarios cortos y
+> empinados, y un tramo con el cauce por encima del perímetro. Lección
+> transversal: **un solo caso de prueba valida un solo escenario**, por bien
+> que salga.
+
+## B-022 · Los parámetros de los tributarios estaban tecleados en orden invertido
+
+**No es un bug del código**, pero se documenta porque costó media sesión y
+volverá a pasar.
+
+**Síntoma.** El Ej_2 salía con geometrías que no se parecían al original y no
+había forma de saber cuánto era motor y cuánto dato.
+
+**Causa raíz.** En `GRD_Rom_Pla_File.grd.json` los parámetros de R1↔R4 y R2↔R3
+estaban cruzados: `main R4` llevaba la pendiente de cabecera (−12 %) y la
+velocidad (1.40 m/s) de `main R1`, y así los cuatro. La **correspondencia de
+canales sí era correcta** —las cotas de cabecera coinciden con menos de 0.1 m
+(main 338.64/338.65, R2 323.46/323.46, R1 303.06/303.06, L1 320.00/320.00)—,
+solo estaban mal los valores.
+
+**Cómo se encontró.** Aparecieron los ficheros NATIVOS del programa original en
+`Ej_2_Rom_Pla/GeoFluv_origen/`: `Ej_2_GeoFluv_File.geo` (proyecto completo, con
+un bloque `BEGIN CHANNEL` por canal) y `GeoFluv_Ej2_Settings.ggs` (ajustes
+globales). Estaban ahí desde el principio, sin usar.
+
+**Corrección.** `scripts/leer_geo.py`, que los lee y compara o fusiona ajuste a
+ajuste. Los ajustes globales del `.ggs` coincidían en las 22 claves; el `.geo`
+destapó **15 diferencias de canal**, todas corregidas.
+
+**Lección.** Cuando un ejemplo de referencia traiga el proyecto nativo del
+programa original, **léelo antes de medir geometría**. Comparar geometrías sin
+haber comparado los datos de entrada es medir dos cosas a la vez.
+
+---
+
+## B-027 · El extremo que muere en la divisoria se SUPONÍA, no se medía 🔴
+
+**Síntoma.** Líneas de ladera invertidas y sellados que subían el pie en vez de
+la cabecera.
+
+**Causa raíz.** `topology._lejos_del_cauce(pts)` era literalmente
+`return pts[-1]`, con el comentario «arranca siempre en el cauce». Deja de ser
+cierto en cuanto `divides` **parte** una línea contra el corredor o la
+**invierte**, y no lo es **nunca** para las líneas de encuentro
+(`channel = "junction"`), que van de alto a bajo. Cuando falla,
+`sellar_contra_divisorias` sube el **pie** a la cota de la divisoria y después
+fuerza monotonía ascendente: la línea entera queda del revés.
+
+**Corrección.** `topology._extremo_hacia_divisoria(pts, idx, divisorias)`, que
+lo **mide**: de los dos extremos, el que se proyecta más cerca de la red de
+divisorias. Se usa en los tres sitios que tenían la suposición. Tampoco por
+cota (regla de oro nº 3): por construcción las divisorias están lejos del cauce
+—las recorta `Corredor`— así que el pie no puede ganar esa comparación.
+
+**Lección.** Un comentario que dice «siempre» sobre una invariante que otro
+módulo puede romper es una suposición disfrazada de documentación.
+
+---
+
+## B-026 · Mesetas al bajar un extremo de línea 🔴
+
+**Síntoma.** Líneas de ladera con un tramo completamente plano seguido de una
+rampa. Medido en el Ej_2: la subcresta fid 65 (main R3 idx 15) subía
+284.8 → 303.2 m en siete vértices y después se quedaba **48 m completamente
+planos** a 303.2. **10 de las 218** líneas de relieve tenían esa firma, con
+mesetas de hasta **27 vértices**; el original no pasa de **2**.
+
+**Causa raíz.** `divides.ajustar_extremo` repartía la corrección sobre una
+longitud FIJA (`mezcla`). Los vértices que quedaban fuera conservaban su cota
+vieja y, cuando esa cota contradecía el nuevo extremo, el recorte de monotonía
+—que es correcto y hay que conservarlo, ver B-018— los arrastraba a todos a la
+misma cota. La meseta no la produce la monotonía: la produce **mezclar poco**.
+
+**Corrección.** La mezcla se alarga. La corrección vale `dz·w(d)` con `w` el
+smoothstep `3u²−2u³`, cuya pendiente máxima es `1.5/m`; para que no invierta el
+sentido de la línea hace falta
+
+```
+|dz| · 1.5/m ≤ gradiente     ⇒     m ≥ 1.5 · |dz| / gradiente
+```
+
+Es una cota (supone gradiente uniforme), así que `ajustar_extremo` comprueba el
+resultado y vuelve a alargar si se ha quedado corta. Converge en dos o tres
+vueltas.
+
+**Medida.**
+
+```
+antes: 284.8 … 302.9 303.2 303.2 303.2 303.2 303.2 303.2 303.2
+ahora: 284.8 … 300.7 301.2 301.4 301.5 301.5 301.6 301.9 302.4 303.2
+```
+
+**De paso.** `topology._sellar_extremo` hacía el mismo reparto con su propia
+copia del código. Ahora delega en `divides.ajustar_extremo`: con el duplicado,
+esta corrección se habría añadido a una de las dos y no a la otra.
+
+---
+
+## B-025 · Muro vertical al empalmar una subcresta con su divisoria 🔴
+
+**Síntoma.** Subcrestas que terminan en la cota correcta… con un salto vertical
+en el último segmento. Medido en el Ej_2: la subcresta fid 57 (main R3 idx 7)
+subía de **300.7 a 336.0 m en 3.69 m** de recorrido, un **955 %**. El original
+no pasa de **65.7 %** en ninguna de sus 244 líneas de cresta. **12 subcrestas y
+3 vaguadas** del Ej_2 pasaban del 100 %.
+
+**Causa raíz.** `topology.empalmar_en_divisorias` elegía la divisoria más
+próxima **en planta** (`_mejor_proyeccion`) y metía toda la diferencia de cota
+en la cola, sin mirar qué pendiente salía y sin repartir nada. Y
+`_densificar3` con `n = max(1, int(d // 4))` no densifica por debajo de 4 m, así
+que los 35.3 m de desnivel caían en **un solo segmento**.
+
+Es la regla de oro nº 5 («toda corrección de extremos se mezcla, no se pega»)
+incumplida en un sitio nuevo, once meses después de B-009.
+
+**Corrección.** Se comprueba la pendiente del tramo que se añade contra
+`MAX_PENDIENTE_EMPALME` (100 %, el mismo valor que `divides.MAX_PENDIENTE_FILO`).
+Si no pasa, se prueban las divisorias siguientes (`_proyecciones` devuelve la
+lista ordenada, no solo la mejor); si ninguna vale, **no se empalma** y queda
+constancia en el registro. Un hueco en planta lo resuelve el TIN; un muro de
+35 m, no. La cota la arregla después `divides`, que baja la divisoria a la cota
+de la cabecera — que es el orden de mando documentado: **manda la ladera, la
+divisoria se calcula como envolvente**.
+
+---
+
+## B-024 · La cota de cresta no casaba con el perfil que se dibujaba
+
+**Síntoma.** Ninguno evidente. Las crestas salían algo más bajas de lo que la
+documentación decía, y el perfil de ladera nunca llegaba a agotar la pendiente
+máxima de Ajustes: se quedaba en el **75 %** de ella.
+
+**Causa raíz.** `ridges._z_ladera` usaba `Δz = 0.5·s_max·D` mientras el
+docstring del propio módulo (`ridges.py:12`) y `context/01_metodo_geofluv.md`
+decían `(2/3)·s_max·D`. Es el patrón de **B-016** —documentación que contradice
+al código— aplicado a una constante del método: un agente que leyera la
+documentación y «corrigiera» el código hacia 2/3 tampoco habría acertado.
+
+**Corrección.** No es escribir 2/3 en el código. El desnivel de una ladera **no
+es un múltiplo fijo** de `s_max·D`: sale de la propia ecuación del perfil que se
+va a dibujar. En `perfil_trapezoidal` la pendiente del tramo recto —la máxima de
+todo el perfil— vale `s_m = dz/(D − lc/2 − lf/2)`; igualarla a `s_max` da
+
+```
+Δz = s_max · (D − lc/2 − lf/2)
+```
+
+que con `lc` y `lf` saturados en sus topes (0.6·D y 0.3·D) es `0.55·s_max·D`,
+con `lc = 0.367·D` es `(2/3)·s_max·D`, y con una cabeza convexa pequeña tiende a
+`s_max·D` (ladera recta). `ridges.tramos_de_ladera()` es el único sitio donde se
+acotan `lc` y `lf`, y la usan las dos funciones: no pueden desincronizarse.
+
+Retirada `ridges.perfil_ladera()`: no la llamaba nadie y su docstring describía
+el perfil superado de dos parábolas, con `H = s_max·D/2`. Dejarla ahí era
+mantener viva la contradicción.
+
+**Dos suposiciones que el test tumbó mientras se escribía**, y por las que está
+escrito: el rango del factor **no** es 0.55–0.667 (con `lc` = 12 m en una ladera
+de 60 m es **0.80**), y el factor 2/3 no sale de `lc = D/3` sino de
+`lc = 0.367·D`.
+
+**Aviso sobre la magnitud.** Al detectar esto se dijo que las crestas salían un
+27 % más bajas que las del original. **Era una medida mal hecha**: se dividió la
+mediana de un reparto entre la mediana de otro. Medido **por línea**, la
+pendiente recta cresta-pie da p50 = 17.4 % frente a 19.0 % del original en el
+Ej_2 (media 21.6 % frente a 21.0 %), es decir mucho más cerca. La corrección
+sigue siendo necesaria —código y documentación no pueden decir cosas
+distintas—, pero su efecto es modesto.
+
+---
+
+## B-023 · El perfil del cauce sacrificaba la pendiente de cabecera pedida 🔴
+
+**Síntoma.** Los tributarios cortos y empinados salían con la cabecera al doble
+de la pendiente pedida. Medido en el Ej_2:
+
+| canal | pedida | nuestra | original |
+|---|---|---|---|
+| main L1 | −15.4 % | **−26.91 %** | −16.16 % |
+| main R4 | −17.44 % | **−36.95 %** | −18.29 % |
+| main | −18.0 % | −18.0 % | −17.57 % |
+
+**Causa raíz.** `profile.disenar_perfil` exigía **concavidad estricta**,
+`s_cabecera < m < s_boca` con `m` la pendiente media. Cuando no se cumplía —es
+decir, cuando la cabecera pedida era **más tendida que la media**— re-empinaba
+la cabecera con `s_cabecera = 2m − s_boca` para forzar una parábola cóncava.
+
+El canal principal salía bien porque su cabecera **sí** es más empinada que la
+media; los tributarios cortos, no. Y como de la cota del cauce cuelgan las
+crestas, las laderas y la superficie, el error se propagaba a todo el diseño.
+
+**Corrección.** Solo se impone la **monotonía** (Fritsch–Carlson, `0 ≤ s/m ≤ 3`,
+más el signo). Si la cabecera es más tendida que la media, algún tramo
+intermedio **tiene** que ser más empinado que ella: la cúbica de Hermite lo
+resuelve sola en cuanto se deja de forzar la concavidad, con la pendiente
+creciendo desde la boca, haciendo máximo en torno al 70–80 % del recorrido y
+decreciendo hacia la cabecera — un **tramo convexo de cabecera**, que es lo que
+hace el original. Ver ADR-017.
+
+**Medida.** Deciles de pendiente boca → cabecera de main L1:
+
+```
+original  6.5  9.8 12.6 14.9 16.5 17.6 18.1 18.1 17.4 16.2
+antes     6.6  8.8 10.9 13.0 15.2 17.3 19.4 21.6 23.7 25.8
+ahora     7.7 11.4 14.5 16.8 18.5 19.5 19.8 19.4 18.3 16.5
+```
+
+Máximo en el decil 7 y descenso hacia la cabecera, como el original, y monótono.
+
+**Lección.** «Cóncavo» en el método significa cóncavo **en su conjunto**. La
+concavidad estricta era una regla que nos habíamos inventado, y se notaba
+porque obligaba a tirar un dato del usuario para poder cumplirla. **Cuando una
+restricción te obliga a ignorar lo que el usuario ha pedido, sospecha de la
+restricción.**
+
+---
+
 ## B-021 · Los tests que necesitan QGIS llevaban meses sin ejecutarse 🔴
 
 **Síntoma.** Ninguno, y ese es exactamente el problema. `pytest -q` daba
@@ -428,10 +647,30 @@ Ver `context/07_entorno_qgis_mcp.md`.
 ## Patrones que se repiten (léelos aunque no leas lo demás)
 
 1. **Identificar geometría por cota** → B-018. Usa distancias y topología.
-2. **Parchear el último vértice** → B-009, B-002. Mezcla la corrección.
+   Y por **suposición** tampoco → B-027: «arranca siempre en el cauce» dejó de
+   ser cierto en cuanto otro módulo pudo partir o invertir la línea.
+2. **Parchear el último vértice** → B-009, B-002, **B-025**. Mezcla la
+   corrección. Y mézclala **lo suficiente**: repartir poco produce mesetas
+   (B-026), que es el mismo defecto por el otro lado.
 3. **Corregir después en vez de generar bien** → B-017. Primero curvar, luego recortar.
 4. **Orden de las etapas del pipeline** → B-014, B-017. El orden ES el algoritmo.
 5. **Heurísticas sin cita** → B-011. El libro manda.
-6. **Documentación que contradice al código** → B-016. Es más peligrosa que la falta de documentación.
+6. **Documentación que contradice al código** → B-016, **B-024**. Es más
+   peligrosa que la falta de documentación. Cuando una constante y una ecuación
+   dicen cosas distintas, la cura no es copiar la constante: es **despejarla**
+   de la ecuación, para que no puedan volver a separarse.
 7. **Recorrer desde los extremos** → B-010. Usa operaciones geométricas de conjunto.
 8. **Rellenar por posición** → B-006. Siempre por nombre de campo.
+9. **Un solo caso de prueba valida un solo escenario** → B-022…B-027. Cinco
+   bugs de golpe al meter el segundo ejemplo, todos en código que llevaba meses
+   «validado» contra el primero.
+10. **Código duplicado que se desincroniza** → B-024, B-026. Dos copias del
+    mismo reparto con smoothstep, dos versiones de la misma ecuación, dos
+    definiciones de «ladera norte o este» (ADR-018). Siempre se arregla una.
+11. **Una restricción que te obliga a ignorar lo que el usuario ha pedido es
+    sospechosa** → B-023. La concavidad estricta del perfil no estaba en el
+    método: nos la habíamos inventado, y se notaba porque para cumplirla había
+    que tirar la pendiente de cabecera del usuario.
+12. **Leer los datos de entrada antes de medir la salida** → B-022. Media
+    sesión comparando geometrías que diferían porque los parámetros estaban
+    tecleados en otro orden.
