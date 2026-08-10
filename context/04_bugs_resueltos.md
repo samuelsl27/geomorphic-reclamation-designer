@@ -6,6 +6,133 @@
 
 ---
 
+> **B-028 … B-035 salen de comparar el relieve de LADERA del Ej_2 contra el
+> DXF del original**, que distingue por color las 127 subcrestas (amarillo) de
+> las 117 vaguadas (cian). Esa separación fue lo que permitió ver que nuestras
+> **subcrestas llegaban bien** (63.4 m frente a 65.1) y las **vaguadas no**
+> (44.0 frente a 62.4). Sin separarlas, las medias se compensaban y no se veía
+> nada.
+
+## B-032 · «Maximum distance from ridgeline to swale head» se tomaba por un retranqueo 🔴
+
+**Síntoma.** Las vaguadas salían cortas y demasiado tendidas, el relieve de
+ladera no se parecía al del original y las curvas de nivel formaban abanicos con
+cuñas vacías.
+
+**Causa raíz.** Ese ajuste **no es un retranqueo: es la longitud convexa (xc) de
+la vaguada** [LIBRO p. 191]. Se usaba para **amputar** 24 m del final de cada
+vaguada (`hillslopes._recortar_cola`), y encima la longitud convexa de verdad
+salía de un `0.05·D` inventado.
+
+**Corrección.** ADR-019. `ridges.convexo_vaguada()`; el retranqueo desaparece.
+La depresión sale de la ecuación que ya teníamos: con el mismo desnivel y los
+mismos extremos, el perfil de menor longitud convexa cae **1.28 m más** a media
+ladera [LIBRO fig. 8-11, p. 204].
+
+**Lo que casi estropea el arreglo.** La cota de coronación la calculaba
+`_z_ladera` con la longitud convexa de **la línea que pregunta**. Como
+`Δz = s_max·(D − lc/2 − lf/2)` crece al menguar `lc`, quitar el retranqueo sin
+más habría hecho que las vaguadas coronaran **más alto** que las subcrestas
+(medido, D = 70 m: 15.68 m frente a 12.71 m). Lo tapaba precisamente el
+retranqueo. **Cuando quites un parche, mira qué estaba tapando.**
+
+**Medido (antes).** Alcance de vaguada 44.0 m (original 62.4); longitud media
+52.0 m (68.4); pendiente recta p50 S-O 10.8 % (24.0); longitud total del
+relieve 14 468 m (19 705).
+
+---
+
+## B-035 · El contador de sillas era acumulado entre divisorias
+
+**Causa raíz.** `res["sillas"]` se sumaba dentro del bucle
+`for f in capa_div.getFeatures()` y se usaba como `monotona=(res["sillas"]==0)`.
+En cuanto **una** divisoria generaba una silla, **todas las siguientes** del
+mismo pase se calculaban sin monotonía. Solo la primera podía recibir el
+tratamiento monótono.
+
+**Corrección.** Contador local por divisoria; `res["sillas"]` solo agrega para
+el registro.
+
+---
+
+## B-034 · La marcha de ladera se paraba EN EL AIRE 🔴
+
+**Síntoma.** Extremos altos que no tocan nada: el **38 %** de los nuestros, con
+un hueco mediano de **10.1 m** hasta la línea vecina. En el original son el
+**13 %** y **2.3 m**.
+
+**Causa raíz.** Dos, en el mismo `if`:
+
+1. Al detectar otra línea a menos de `0.7·PASO_MARCHA`, se rompía el bucle **sin
+   añadir vértice**. La línea quedaba entre 2.8 y 6.8 m corta —un paso entero de
+   holgura, según dónde cayera— y solo heredaba la **cota**.
+2. Solo se miraban las líneas del **propio canal**. El argumento era que las de
+   canales opuestos debían poder llegar las dos a la cresta de encuentro, pero
+   eso ya lo garantiza la equidistancia de Voronoi; lo único que conseguía la
+   excepción era permitir que dos laderas de canales distintos **se cruzaran**,
+   sin que ninguna comprobación posterior lo arreglara.
+
+**Corrección.** La marcha **termina sobre** la otra línea: se añade como último
+vértice su punto más próximo. Y `_RegistroLaderas`, uno solo para todos los
+canales, con `QgsSpatialIndex` —antes era un barrido lineal completo en cada uno
+de los hasta 600 pasos de cada marcha— y eligiendo la **más cercana** en vez de
+la primera en orden de inserción, que es de donde se heredaba la cota.
+
+---
+
+## B-033 · `fundir_con_divisorias` PEGABA el último vértice 🔴
+
+**Síntoma.** Líneas completamente planas con un salto de 20–25 m en el último
+segmento. Peor caso medido: **1017 %**.
+
+**Causa raíz.**
+
+```python
+ajustes_sub[f.id()] = pts[:-1] + [(sobre[0], sobre[1], z_req)]
+```
+
+Dos fallos a la vez: mueve **siempre** el último vértice —aunque la cabecera sea
+el primero, que es lo que pasa en cuanto `divides` parte o invierte la línea— y
+le **clava** la cota nueva sin mezclar, con `sobre` hasta a `TOL_FUSION = 16 m`
+en planta.
+
+Es la regla de oro nº 5 incumplida **en un sitio nuevo**, después de B-009 y
+B-025. Y explica por qué `ajustar_extremo` daba bien en las pruebas offline con
+esos mismos perfiles (148 % y 4 %): el acantilado no lo hacía ella, ya venía
+hecho.
+
+**Corrección.** Pasa por `_sellar_extremo`, que delega en
+`divides.ajustar_extremo` y reparte con la mezcla adaptativa de B-026.
+
+---
+
+## B-028 · La traza y las cotas de una divisoria salían de objetos distintos 🔴
+
+**Síntoma.** Laderas con la cota de coronación disparatada, planas, o con
+acantilado final. Sin ningún aviso.
+
+**Causa raíz.** `ridges._perfil_cresta` hace `dens = dens[::-1]` cuando el
+perfil viene al revés. Es una **reasignación local**: no toca la lista del
+llamante. Pero devuelve `zs` en ese orden invertido, y `generar_crestas` lo
+emparejaba con `rama`, que sigue en el orden original:
+
+```python
+crestas_3d.append((QgsGeometry.fromPolylineXY(
+    [QgsPointXY(x, y) for x, y in rama]), zs))     # zs del revés
+```
+
+Resultado: **la mitad de las divisorias** —todas aquellas en las que el segundo
+extremo sale más alto que el primero— iban en `crestas_3d` con las cotas
+invertidas. Y `crestas_3d` es justo lo que `hillslopes._trazar_ladera` consulta
+como respaldo para la cota de coronación (radio 24 m): esas laderas heredaban la
+cota **del otro extremo de la divisoria**, decenas de metros de error.
+
+**Corrección.** `ridges.traza_y_cotas(linea)` deriva la geometría 2D y el array
+de cotas de la **misma** polilínea 3D. La cura no es acordarse de emparejar
+bien: es que no haya dos objetos entre los que elegir.
+
+---
+
 > **Los cinco siguientes (B-022 … B-027) salen del SEGUNDO ejemplo de
 > referencia** (Rom_Pla, 6 canales, 35.6 ha). El primero (Potoya, 2 canales) no
 > los destapaba: hacen falta confluencias múltiples, tributarios cortos y
@@ -674,3 +801,17 @@ Ver `context/07_entorno_qgis_mcp.md`.
 12. **Leer los datos de entrada antes de medir la salida** → B-022. Media
     sesión comparando geometrías que diferían porque los parámetros estaban
     tecleados en otro orden.
+13. **Una cita que no dice lo que se le atribuye** → B-032, ADR-020. Peor que
+    una constante sin cita, porque parece que la tiene. Dos variantes vistas:
+    un ajuste del método **interpretado al revés** (`dist_cresta_swale_m` era
+    una longitud convexa y se usaba como retranqueo) y una cita **real pero con
+    la sección equivocada** (las sillas: §9.11.2, no 9.4, y sin ninguna cifra).
+    Comprueba la sección, no solo que las comillas existan.
+14. **Cuando quites un parche, mira qué estaba tapando** → B-032. El retranqueo
+    de las vaguadas ocultaba que la cota de coronación se calculaba con la
+    longitud convexa equivocada. Quitarlo sin más habría dejado las vaguadas
+    POR ENCIMA de las subcrestas.
+15. **Dos objetos que hay que mantener emparejados acaban desemparejándose** →
+    B-028. Una geometría y su array de cotas, devueltos por separado, con una
+    inversión local en medio. Devuelve UNA cosa, o derívalas las dos del mismo
+    sitio.

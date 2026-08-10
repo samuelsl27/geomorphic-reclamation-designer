@@ -5,6 +5,77 @@ terminar.** Plantilla al final.
 
 ---
 
+## 2026-08-10 · v1.0.20 — la forma del relieve de ladera
+
+**Versión**: 1.0.20, **sin cerrar**: falta medirla en QGIS (P-17).
+
+**De dónde salió.** El usuario regeneró con la v1.0.19 y dijo que el resultado
+«no tiene nada que ver» con el original, con dos zonas marcadas en las curvas de
+nivel. La v1.0.19 había arreglado el **perfil del cauce** —y eso sí funcionó:
+main R4 sale `4.8 10.8 15.0 18.3 20.7 22.0 22.1 21.0 19.7 17.5` frente al
+original `4.5 9.8 13.9 17.2 19.7 21.3 21.9 21.7 20.7 18.7`— pero el relieve que
+cuelga de él seguía mal.
+
+**Lo que desatascó el diagnóstico** fue descubrir que el DXF del original
+**distingue por color** las 127 subcrestas (amarillo) de las 117 vaguadas
+(cian). Separadas, se vio en una medida: **nuestras subcrestas llegan bien**
+(63.4 m frente a 65.1) y **las vaguadas no** (44.0 frente a 62.4). Mezcladas, las
+medias se compensaban y no se veía nada.
+
+**Y la causa de fondo estaba en el libro**, no en el código: *Maximum distance
+from ridgeline to swale head* **no es un retranqueo, es la longitud convexa de
+la vaguada** (p. 191), y la depresión sale de que ese tramo es **más corto** que
+el de las subcrestas vecinas (fig. 8-11, p. 204). Nosotros amputábamos 24 m a
+cada vaguada.
+
+**Bugs corregidos**: **B-028** (traza y cotas de la divisoria desemparejadas),
+**B-032** (el retranqueo), **B-033** (`fundir_con_divisorias` pegaba el último
+vértice), **B-034** (la marcha se paraba en el aire), **B-035** (contador de
+sillas acumulado). **Decisiones**: ADR-019, ADR-020.
+
+**Medidas.** El «antes» está en `context/06`. Verificado sin QGIS: la depresión
+de la vaguada sale sola de la ecuación (1.28 m a media ladera), y el reparto de
+las correcciones de extremo ya no deja acantilados. **133 tests** (117 → 133).
+
+**Tres hipótesis mías que medí y descarté**, para que nadie las repita:
+
+1. *La red del original es un mallado cerrado de extremos compartidos.* **No**:
+   el 87 % de sus extremos tampoco coincide exactamente con otro.
+2. *El original cubre más terreno.* **No**: distancia de un punto cualquiera a
+   la línea más cercana, p50 4.9 m el original y 5.0 m el nuestro.
+3. *Sus líneas curvan y las nuestras son rectas.* **No**: el original es aún más
+   recto (sinuosidad 1.000; las nuestras 1.021).
+
+**Y dos equivocaciones propias que conviene recordar:**
+
+- **Le hice al usuario una pregunta con la premisa al revés.** Le propuse «que
+  la divisoria emerja» porque creí que el original no tenía capa de divisorias.
+  El libro dice justo lo contrario (glosario p. xxxiv, p. 211): la divisoria
+  existe y las líneas de ladera tienen que **llegar** a ella. Hubo que
+  corregirlo antes de implementar nada.
+- **Casi estropeo el arreglo de las vaguadas.** Quitar el retranqueo sin más
+  habría hecho que coronaran **más alto** que las subcrestas, porque la cota de
+  coronación se calculaba con la longitud convexa de la línea que pregunta y
+  `Δz` crece al menguar `lc`. Lo tapaba el propio retranqueo. **Cuando quites un
+  parche, mira qué estaba tapando.**
+
+**Y una corrección a un agente**: me avisó de una «cita inventada» sobre las
+sillas en `divides.py`. No lo era: el texto entrecomillado es literal del libro.
+Lo que estaba mal era la **sección** (§9.11.2, p. 259, no 9.4) y que el libro no
+da ninguna cifra de profundidad, así que el 25 % es decisión nuestra (ADR-020).
+
+**Lo que NO se ha tocado a propósito**: el criterio de «extremo alto», que sigue
+decidiéndose por cota en cuatro sitios (→ P-19). Es estructural, no tiene
+síntoma medido en el Ej_2, y meterlo en la misma tanda habría hecho imposible
+saber cuál de los cambios movió qué al remedir. Y el ángulo de subcresta, que se
+verificó con una prueba y **está bien**: la desviación medida es de la regla de
+medir, no del motor.
+
+**Pendiente**: P-17 (medir en QGIS), P-19, y arreglar `comparar_original.angulo()`
+antes de volver a juzgar el ángulo.
+
+---
+
 ## 2026-08-10 · v1.0.19 — el segundo ejemplo destapa cinco bugs de geometría
 
 **Versión**: 1.0.19, **sin cerrar todavía**: falta remedir en QGIS real.

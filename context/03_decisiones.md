@@ -6,6 +6,104 @@ la sustituyó.
 
 ---
 
+## ADR-020 · Las sillas de cresta son decisión NUESTRA, no del libro
+
+**Fecha**: 2026-08-10 · **Estado**: aceptada
+
+**Contexto.** `prof_silla_pct = 25 %` estaba documentado —en `context/01`, en el
+glosario, en `core/params.py` y en `core/divides.py`— como si viniera del
+«capítulo 9.4 del libro». Al leer el libro entero para esta ronda resultó que:
+
+- la palabra *saddle* aparece **una sola vez** en las 273 páginas, en **§9.11.2,
+  p. 259**, no en 9.4 (que es *Reference area observation*);
+- el texto que teníamos entrecomillado en el código **sí es literal y correcto**
+  —eso no estaba inventado— pero explica **por qué** existen las sillas, no
+  cuánto miden;
+- el libro **no da ninguna cifra** de profundidad, ni absoluta ni relativa, y lo
+  presenta como una **edición manual del diseñador** con *Edit Longitudinal
+  Profile*.
+
+**Decisión.** Se conserva `prof_silla_pct` con su valor por defecto de 25 %,
+pero **etiquetado como decisión de diseño nuestra**, no como constante del
+método. La cita se corrige a §9.11.2, p. 259, y se acompaña de la advertencia de
+que el libro no da magnitud.
+
+**Consecuencias.** Deja de incumplir la regla de oro nº 1 por la vía sutil: no
+era una constante sin cita, era una constante con una cita que no decía lo que
+se le atribuía. Queda claro para el siguiente que quiera ajustarla que no está
+tocando el método, está tocando una decisión nuestra.
+
+**Alternativas descartadas.** *Quitar las sillas del motor* y dejar que el
+usuario las añada a mano, que es como lo describe el libro. Se descartó porque
+el rebaje en la cabecera de vaguada es geomorfológicamente correcto y el propio
+libro dice que hay que incorporarlo al diseño; lo que no dice es cuánto.
+
+---
+
+## ADR-019 · `dist_cresta_swale_m` es una LONGITUD CONVEXA, no un retranqueo
+
+**Fecha**: 2026-08-10 · **Estado**: aceptada · **Origen**: B-032
+
+**Contexto.** El ajuste *Maximum distance from ridgeline to swale head* se
+estaba usando para **amputar** metros del final de cada vaguada
+(`hillslopes._recortar_cola`). El libro, tabla de ajustes del *Geometry tab*
+(p. 191), dice otra cosa:
+
+> *«maximum distance from ridgeline to swale head — option 1 — **specify swale
+> convex length** based on reference area observations»*
+> *«maximum convex length of a sub-ridge – **1.5 x** 'xx' — sub-ridge convex
+> length calculated as 1.5 x the specified swale convex length»*
+
+Y el mecanismo del relieve, figura 8-11, p. 204:
+
+> *«**A depression is formed by the shorter swale convex length between the
+> longer adjacent sub-ridge convex lengths** and runoff water is directed into
+> the swale bottom.»*
+
+Es decir: subcresta y vaguada **salen las dos del cauce y mueren las dos en la
+divisoria** (p. 211); lo que hunde la vaguada es que su **tramo convexo es más
+corto**, no que sea más corta.
+
+Medido en el Ej_2:
+
+| | nuestro | original |
+|---|---|---|
+| Alcance del extremo alto, subcrestas | 63.4 m | 65.1 m ✅ |
+| Alcance del extremo alto, **vaguadas** | **44.0 m** | **62.4 m** ❌ |
+| Pendiente recta de vaguada (p50 S-O) | 10.8 % | 24.0 % |
+
+**Decisión.**
+
+1. `dist_cresta_swale_m` pasa a ser la **longitud convexa de la vaguada**
+   (`ridges.convexo_vaguada`), con este orden: el ajuste del canal; si no, el
+   global `convexo_swale_m` cuando `convexo_swale_activo`; si no,
+   `max_dist_cresta_cabecera` (xrh), citado de la p. 236 («*the convex swale
+   length, xc, was similar to the xrh value*»).
+2. La subcresta sigue con 1.5 × esa longitud (`convexo_subcresta`, que ya era
+   correcto en sus dos ramas).
+3. **La cota de coronación la fija SIEMPRE la longitud convexa de la
+   SUBCRESTA.** Es una propiedad del filo, no de la línea que pregunta. Como
+   `Δz = s_max·(D − lc/2 − lf/2)` **crece al menguar `lc`**, dejar que cada
+   línea usara la suya habría hecho que la vaguada coronara **más alto** que la
+   subcresta vecina (medido, D = 70 m: 15.68 m frente a 12.71 m). Estaba
+   enmascarado por el retranqueo, y quitarlo sin esto habría empeorado el
+   diseño.
+4. `hillslopes._recortar_cola` se conserva **desconectada**, como
+   `divides._rehacer_laderas`, con el aviso de por qué.
+
+**Consecuencias.** La depresión de la vaguada **sale sola de la ecuación que ya
+teníamos**, sin ningún parámetro nuevo: con el mismo desnivel y los mismos
+extremos, el perfil de menor longitud convexa cae hasta **1.28 m más a media
+ladera**. Cambia el balance corte/relleno (las vaguadas suben hasta el filo), así
+que la tabla de `context/06` hay que rehacerla entera.
+
+**Alternativas descartadas.** *Quitar solo el retranqueo y dejar la longitud
+convexa como estaba* (`0.05·D` inventado). No sirve: las vaguadas llegarían
+arriba pero seguirían sin formar depresión frente a las subcrestas, que es todo
+el punto del patrón.
+
+---
+
 ## ADR-018 · La pendiente N-E es un objetivo de DISEÑO, no solo una comprobación
 
 **Fecha**: 2026-08-10 · **Estado**: aceptada · **Cierra** P-09

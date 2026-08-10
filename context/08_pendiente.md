@@ -12,11 +12,35 @@ Estado a **v1.0.18**. Actualiza esta página en cada sesión: mueve lo hecho a
 
 ## 🔴 Abierto — geometría
 
-### P-17 · Remedir los dos ejemplos en QGIS real 🔴 (nuevo, 2026-08-10)
+### P-19 · Unificar el criterio de «extremo alto» 🔴 (nuevo, 2026-08-10)
 
-Las correcciones B-023…B-027 y ADR-018 están hechas, con 117 tests en verde y
-`ruff` limpio, pero **no se han medido en QGIS**. Hasta entonces la v1.0.19 no
-se cierra. Lo que hay que hacer, por orden:
+Conviven **tres** criterios para decidir cuál es el extremo alto de una línea de
+ladera, y uno de ellos incumple la regla de oro nº 3:
+
+| Sitio | Criterio |
+|---|---|
+| `divides.py:759-762`, `1168-1170` | distancia al cauce ✅ |
+| `divides.py:823`, `854`, `969` | **cota** ❌ |
+| `checks.py` (`laderas_que_no_vierten`) | **cota** ❌ |
+| `topology._extremo_hacia_divisoria` | proyección sobre la divisoria ✅ |
+
+**No se ha tocado en la v1.0.20 a propósito.** Es un cambio estructural que
+toca cuatro módulos y no tiene síntoma medido en el Ej_2; meterlo en la misma
+tanda que las cinco correcciones de forma habría hecho imposible saber cuál
+movió qué al remedir. Se hace **después** de que la v1.0.20 esté medida.
+
+Lo que hay que hacer: una función pública `divides.extremo_alto(pts,
+dist_al_cauce)` que reciba un invocable `(x, y) → distancia` —así cada módulo
+inyecta el suyo (`Corredor._cerca`, `GRD_Channels`, `disenos`) sin crear
+dependencias nuevas— y sustituir los cuatro sitios por cota. Respaldo, si no hay
+cauces: la proyección, nunca la cota. Invariante nuevo para `context/05`:
+*ningún módulo decide un extremo por cota*.
+
+### P-17 · Remedir los dos ejemplos en QGIS real 🔴
+
+Las correcciones de la v1.0.19 (B-023…B-027, ADR-018) y las de la v1.0.20
+(B-028, B-032…B-035, ADR-019/020) están hechas, con 133 tests en verde y `ruff`
+limpio, pero **no se han medido en QGIS**. Hasta entonces no se cierra. Lo que hay que hacer, por orden:
 
 1. **Reiniciar QGIS** (se ha tocado `core/params.py`: recargar en caliente deja
    `GlobalSettings` viejo — trampa 3 de `context/07`).
@@ -48,17 +72,26 @@ total 14 352 m frente a 19 705 m (**−27 %**), una línea cada 13.0 m de cauce
 frente a 11.5 m, y ángulo medio con el eje 51.3° frente a 60.5° (el ajuste
 `angulo_subcresta_deg` es 20°, así que lo esperable serían 70°).
 
-**No se ha tocado en esta ronda**: hay que remedir primero, porque B-025 (líneas
-que no se empalman) y ADR-018 mueven estos números. Sospecha principal: las
-líneas se detienen antes de tiempo por la regla anti-cruce de
-`hillslopes.py:167-174` (se paran a 2.8 m de otra línea del mismo canal), y
-cuanto más oblicuas son, antes convergen y antes chocan. Es decir, el ángulo y
-la longitud podrían ser el mismo problema.
+**Atacado en la v1.0.20, pendiente de medir.** La sospecha era buena y resultó
+ser dos cosas distintas:
 
-Relacionado con P-02, que dice lo contrario medido sobre el Ej_1 (espaciado
-15.5 m frente a 12.5 m del original, ángulo 74° frente a 64°). **Los dos
-ejemplos discrepan en el signo de la desviación**, así que antes de tocar nada
-hay que entender por qué.
+- **la longitud** venía del retranqueo de las vaguadas (B-032/ADR-019): eran
+  ellas, no las subcrestas, las que se quedaban cortas (44.0 m frente a 63.4 de
+  las subcrestas, con el original en 62.4 y 65.1);
+- **la red que no cierra** venía de la regla anti-cruce, que rompía el bucle sin
+  añadir vértice y solo miraba el propio canal (B-034).
+
+**El ángulo, en cambio, NO era un bug.** Se extrajo
+`hillslopes.direccion_de_ladera` y se fijó con una prueba que se mide desde la
+perpendicular hacia aguas arriba, como dice el libro: el motor lo hacía bien. La
+desviación medida (51.9° frente a 60.5°) es de **la regla de medir** —
+`comparar_original.angulo()` usa la tangente del cauce sinuoso y el código usa la
+del valle, y el plegado `min(a, 180−a)` sesga la media. **Antes de tocar la
+constante hay que arreglar la medida**, no el motor.
+
+Sigue en pie que P-02 y P-18 **discrepan en el signo** de la desviación entre
+Ej_1 y Ej_2. Con la regla de medir corregida puede que la discrepancia
+desaparezca sola.
 
 ### P-01 · Dos errores de tensión tractiva en el *Check Design*
 

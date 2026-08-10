@@ -300,16 +300,59 @@ en el original: **41 % de media, 73 % de máximo**. Por eso **no** se le aplica
 
 ## 10. Subcrestas y vaguadas
 
-- **Subcrestas** en los **ápices de meandro**, con espaciado impar ⇒ márgenes
-  alternas, giradas hacia aguas arriba el *Angle from sub-ridge to channel's
-  perpendicular*, y terminadas en la divisoria.
-- **Vaguadas** intermedias, con perfil más cóncavo (`u²`).
-- La cabecera de una vaguada se **retranquea** la distancia *Maximum distance
-  from ridgeline to swale head* y toma la cota **de la ladera** en ese punto
-  (no un porcentaje arbitrario del desnivel). El retranqueo está acotado al
-  40 % de la ladera.
-- Si una vaguada nace donde se encuentran dos subcrestas ya trazadas, hereda la
-  cota de ese punto de encuentro.
+**Las dos salen del cauce y las dos mueren en la divisoria** [LIBRO glosario
+p. xxxiv: la subcresta *«extends from the inside of a stream channel bend up to
+a main ridge at the top of the valley wall that makes the catchment divide»*;
+p. 211: *«it drew the 3D sub-ridge and swale polylines from the channel to its
+sub-watershed divide polyline»*].
+
+- **Subcrestas** en los **ápices de meandro** [p. 41, p. 174], con espaciado
+  impar ⇒ márgenes alternas [p. 185, p. 191], giradas el *sub-ridge angle*
+  **desde la perpendicular al cauce, hacia aguas arriba** [glosario p. xxxiv,
+  rótulo p. 190]. `hillslopes.direccion_de_ladera`.
+- **Vaguadas** entre subcrestas consecutivas, desde el **mismo punto del cauce**
+  y hacia la margen opuesta.
+
+### La depresión sale del CONTRASTE DE LONGITUD CONVEXA
+
+Esta es la ecuación del relieve de ladera, y es lo único que hace falta
+[LIBRO fig. 8-11, p. 204]:
+
+> «**A depression is formed by the shorter swale convex length between the
+> longer adjacent sub-ridge convex lengths** and runoff water is directed into
+> the swale bottom.»
+
+```
+xc_vaguada   = 'Maximum distance from ridgeline to swale head'   [p. 191]
+xc_subcresta = 1.5 · xc_vaguada                                  [p. 191]
+```
+
+`ridges.convexo_vaguada` y `ridges.convexo_subcresta`. Con el **mismo desnivel y
+los mismos dos extremos**, `perfil_trapezoidal` con `lc` menor cae más deprisa:
+la vaguada queda por debajo de las subcrestas de al lado. Medido con los ajustes
+del Ej_2 y `D` = 70 m: **1.28 m más abajo a media ladera**.
+
+⚠️ **La cota de coronación la fija SIEMPRE la longitud convexa de la
+SUBCRESTA**, se la pregunte quien se la pregunte: es una propiedad del filo. Como
+`Δz = s_max·(D − lc/2 − lf/2)` **crece al menguar `lc`**, dejar que cada línea
+usara la suya haría que la vaguada coronase **más alto** que la subcresta vecina
+(medido: 15.68 m frente a 12.71 m).
+
+⚠️ **Error histórico.** Hasta la v1.0.19 *Maximum distance from ridgeline to
+swale head* se interpretaba como un **retranqueo** y se le amputaban 24 m al
+final de cada vaguada, con un `0.05·D` inventado como longitud convexa. Las
+vaguadas llegaban a 44.0 m del cauce cuando las subcrestas llegaban a 63.4 (el
+original: 62.4 y 65.1), y salían al 10.8 % de pendiente recta frente al 24.0 %
+del original. Ver B-032 y ADR-019.
+
+### Cómo termina una línea
+
+Por orden: en el **límite** del proyecto (cota del DEM), **sobre otra línea de
+ladera** ya trazada (hereda su cota en ese punto) o en la **divisoria**
+(equidistancia de Voronoi). Si alcanza otra línea, **termina sobre ella**: se
+añade su punto más próximo como último vértice. Antes se paraba entre 2.8 y
+6.8 m antes, sin añadir nada, y el 38 % de los extremos altos quedaba en el aire
+—el original solo el 13 %— (B-034).
 
 ---
 

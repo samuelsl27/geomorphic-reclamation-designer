@@ -6,11 +6,26 @@ Versionado [SemVer](https://semver.org/lang/es/).
 Los códigos `B-0xx` remiten a [`context/04_bugs_resueltos.md`], los `ADR-0xx` a
 [`context/03_decisiones.md`] y los `P-xx` a [`context/08_pendiente.md`].
 
-## [No publicado] — 1.0.20 en curso
+## [No publicado]
+
+## [1.0.20] — 2026-08-10
 
 Ronda sobre **la forma del relieve de ladera**, que es lo que se ve en las
 curvas de nivel. La v1.0.19 arregló el perfil del cauce; esta arregla lo que
 cuelga de él.
+
+> ⚠️ **Versión de trabajo, no definitiva.** Igual que la 1.0.19: 133 pruebas en
+> verde y el efecto verificado ejecutando el motor fuera de QGIS, pero **el
+> diseño completo no se ha vuelto a medir en QGIS real**. Umbrales y orden de
+> pasos en `context/08_pendiente.md`, P-17. Por eso el instalable lleva la fecha.
+
+**La causa de fondo estaba en el libro, no en el código**: *Maximum distance
+from ridgeline to swale head* no es un retranqueo sino la **longitud convexa de
+la vaguada**, y el relieve nace de que ese tramo es **más corto** que el de las
+subcrestas vecinas. Lo que desatascó el diagnóstico fue descubrir que el DXF del
+original **distingue por color** sus 127 subcrestas de sus 117 vaguadas:
+separadas, se ve que nuestras subcrestas llegan bien (63.4 m frente a 65.1) y
+las vaguadas no (44.0 frente a 62.4); mezcladas, las medias se compensan.
 
 ### Corregido
 - 🔴 **La traza y las cotas de una divisoria salían de objetos distintos**
