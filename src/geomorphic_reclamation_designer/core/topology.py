@@ -167,6 +167,27 @@ def _mejor_proyeccion(idx, geoms, pt, k=6):
     return cand[0] if cand else None
 
 
+def _geoms2d(geoms):
+    """Polilíneas 2D de un dict {fid: [(x, y, z)]}, construidas UNA vez."""
+    salida = []
+    for pts in geoms.values():
+        if len(pts) >= 2:
+            salida.append(QgsGeometry.fromPolylineXY(
+                [QgsPointXY(x, y) for x, y, _z in pts]))
+    return salida
+
+
+def _cruza_alguna(p_a, p_b, geoms2d):
+    """¿El segmento p_a-p_b corta alguna de las polilíneas de `geoms2d`?
+
+    Se usa para no emparejar dos encuentros que tienen un cauce en medio: el
+    valle que naciera entre ellos cruzaría el canal.
+    """
+    seg = QgsGeometry.fromPolylineXY([QgsPointXY(p_a[0], p_a[1]),
+                                      QgsPointXY(p_b[0], p_b[1])])
+    return any(seg.intersects(g) for g in geoms2d)
+
+
 def _densificar3(p0, p1, paso=PASO):
     """Segmento 3D densificado, con la z interpolada linealmente."""
     d = _dist(p0, p1)
@@ -330,28 +351,63 @@ def crestas_de_encuentro(lm, glob, log=None, tol=TOL_ENCUENTRO):
                           max(g[1][3] for g in grupo) + 1)
         nuevas_crestas.append((_densificar3(encuentro, destino), orden_nuevo))
 
-    # --- valles nuevos entre crestas nuevas consecutivas ---
-    if len(nuevas_crestas) >= 2 and capa_sw is not None:
-        centros = [(c[0][0], c) for c in nuevas_crestas]
-        centros.sort(key=lambda t: (t[0][0], t[0][1]))
-        for (p_a, ca), (p_b, cb) in zip(centros[:-1], centros[1:]):
-            if _dist(p_a, p_b) > 6.0 * tol:
+    # --- valles nuevos entre crestas nuevas ---
+    #
+    # Antes esto tenía dos fallos de bulto, ninguno visible en los ejemplos de
+    # referencia (que no generan ni una sola línea 'junction'), pero que
+    # aparecerán en cuanto una cuenca los genere:
+    #
+    # 1. Se emparejaban ordenando por COORDENADA X. Dos encuentros de laderas
+    #    opuestas del mismo valle —o de cuencas distintas— quedaban
+    #    "consecutivos" y el valle resultante cruzaba el cauce.
+    # 2. El extremo bajo era una EXTRAPOLACIÓN a ciegas: dirección la
+    #    bisectriz, longitud 0.6 × la distancia al punto medio de los destinos
+    #    y cota `med.z − 0.35·s_max·largo`, un gradiente que no sale de
+    #    `perfil_trapezoidal` ni de ningún ajuste. La línea terminaba donde
+    #    terminaba, en mitad de la ladera, y nada la recogía después: las cuatro
+    #    reglas de `topology` tocan extremos altos, y `divides` también.
+    #    Resultado: un escalón directo en el TIN.
+    #
+    # Ahora se empareja por PROXIMIDAD REAL, se descartan las parejas separadas
+    # por un cauce, y el valle MUERE EN EL CAUCE, con su cota — igual que
+    # cualquier otra vaguada. A partir de ahí `divides.ajustar_divisorias` lo
+    # trata como a las demás: lo recorta contra el corredor y le pega el pie a
+    # la coronación de la orilla.
+    capa_ch = lm.obtener_capa("GRD_Channels", crear=False)
+    idx_ch, canales = _indice(capa_ch) if capa_ch is not None else (None, {})
+    if len(nuevas_crestas) >= 2 and capa_sw is not None and canales:
+        ejes2d = _geoms2d(canales)
+        pendientes = list(nuevas_crestas)
+        usados = set()
+        for i, ca in enumerate(pendientes):
+            if i in usados:
                 continue
+            p_a = ca[0][0]
+            mejor_j, mejor_d = None, None
+            for j, cb in enumerate(pendientes):
+                if j == i or j in usados:
+                    continue
+                d = _dist(p_a, cb[0][0])
+                if d > 6.0 * tol or (mejor_d is not None and d >= mejor_d):
+                    continue
+                if _cruza_alguna(p_a, cb[0][0], ejes2d):
+                    continue      # hay un cauce en medio: no son vecinas
+                mejor_j, mejor_d = j, d
+            if mejor_j is None:
+                continue
+            p_b = pendientes[mejor_j][0][0]
+            usados.add(i)
+            usados.add(mejor_j)
             # arranque del valle: punto medio entre los dos encuentros, a la
             # cota MENOR de los dos (un valle nace en el punto bajo del collado)
             med = ((p_a[0] + p_b[0]) / 2.0, (p_a[1] + p_b[1]) / 2.0,
                    min(p_a[2], p_b[2]) - 0.25)
-            # baja siguiendo la bisectriz, hacia el lado contrario a la
-            # divisoria (es decir, hacia el cauce)
-            fin_a = ca[0][-1]
-            fin_b = cb[0][-1]
-            arriba = ((fin_a[0] + fin_b[0]) / 2.0, (fin_a[1] + fin_b[1]) / 2.0)
-            dx, dy = med[0] - arriba[0], med[1] - arriba[1]
-            L = math.hypot(dx, dy) or 1.0
-            largo = 0.6 * _dist(med, (arriba[0], arriba[1], 0))
-            largo = max(largo, 3.0 * PASO)
-            destino = (med[0] + dx / L * largo, med[1] + dy / L * largo,
-                       med[2] - 0.35 * largo * (glob.pendiente_max_pct / 100.0))
+            r = _mejor_proyeccion(idx_ch, canales, med)
+            if r is None or r[0] < PASO:
+                continue
+            destino = r[2]
+            if destino[2] >= med[2] - 0.1:
+                continue          # el cauce no queda por debajo: no hay valle
             nuevas_vaguadas.append(_densificar3(med, destino))
 
     # --- escritura ---

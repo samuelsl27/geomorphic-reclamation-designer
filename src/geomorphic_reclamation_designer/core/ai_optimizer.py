@@ -218,8 +218,17 @@ class Evaluador:
         ridges.generar_subcrestas(disenos, g_lim, proyecto.settings, self.lm,
                                   dem=self.dem, crestas=cr3,
                                   ajustes_perfil=cand.geom.get("perfiles"))
-        from . import topology as _top, builder as _b
+        from . import topology as _top, divides as _div, builder as _b
         _top.revisar(self.lm, proyecto.settings)
+        # El MISMO paso que hace `dock._preview`, y por la misma razón: sin él
+        # las laderas se quedan DENTRO del corredor del cauce (arrancan en el
+        # propio eje) y se triangulan contra las líneas del canal, y las
+        # divisorias no reciben la cota derivada de las cabeceras.
+        # Faltaba aquí, así que el optimizador puntuaba una superficie distinta
+        # de la que el usuario obtiene con Preview: cualquier calibración de
+        # parámetros hecha con él estaba sesgada, y sin dar ningún error.
+        _div.ajustar_divisorias(self.lm, disenos, proyecto.settings,
+                                dem=self.dem, g_lim=g_lim)
         _b.recalcular_por_aportes(disenos, self.lm, proyecto.settings)
         s = proyecto.settings
         capa, ruta = surface.interpolar_superficie(
