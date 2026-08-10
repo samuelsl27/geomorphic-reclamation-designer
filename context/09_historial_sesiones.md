@@ -5,6 +5,78 @@ terminar.** Plantilla al final.
 
 ---
 
+## 2026-08-10 · v1.0.19 — el segundo ejemplo destapa cinco bugs de geometría
+
+**Versión**: 1.0.19, **sin cerrar todavía**: falta remedir en QGIS real.
+
+**Qué se hizo.** Meter el **segundo ejemplo de referencia** (Rom_Pla, 6 canales,
+35.6 ha) y depurar contra él. El primero (Potoya, 2 canales) llevaba meses
+dando el visto bueno a un motor que fallaba en cuanto había confluencias
+múltiples, tributarios cortos y empinados, o un tramo con el cauce por encima
+del perímetro.
+
+**Lo primero fue construir la regla de medir**, porque no existía: `context/06`
+afirmaba que `scripts/comparar_original.py` estaba escrito y no lo estaba
+(P-12). Tres guiones nuevos, sin QGIS ni GDAL, ejecutables desde consola:
+`lector_gpkg.py` (GeoPackage con `sqlite3` + parser WKB propio),
+`comparar_original.py` y `leer_geo.py`.
+
+Del parser hay que saber una cosa: el DXF del original llega con **arcos**, así
+que sus polilíneas son `CompoundCurve` (tipo 9) y no `LineString`. Un lector que
+solo entienda el tipo 2 devuelve **cero** entidades y la comparación sale vacía
+**sin dar ningún error**. Es el mismo patrón que el MCP roto o el `except`
+mudo: el fallo silencioso es el caro.
+
+**Y lo segundo fue leer los datos de entrada** (→ B-022). Aparecieron los
+ficheros nativos del programa original —`Ej_2_GeoFluv_File.geo` y
+`GeoFluv_Ej2_Settings.ggs`—, que estaban en la carpeta desde el principio sin
+usar. Los ajustes globales coincidían en las 22 claves; el `.geo` destapó **15
+diferencias de canal**: los parámetros de R1↔R4 y R2↔R3 estaban **tecleados en
+orden invertido**. Media sesión comparando geometrías que diferían por eso.
+
+**Bugs corregidos**: B-022 (datos), **B-023** (perfil del cauce), **B-024**
+(cota de cresta), **B-025** (muro vertical al empalmar), **B-026** (mesetas),
+**B-027** (extremo alto supuesto). Más dos fallos **latentes** que ningún
+ejemplo dispara —0 líneas `junction` en los dos— pero que se arreglaron porque
+se ven leyendo y no midiendo: `ai_optimizer` no llamaba a
+`divides.ajustar_divisorias` (puntuaba una superficie distinta de la del
+usuario) y `topology.crestas_de_encuentro` emparejaba encuentros **por
+coordenada X** y dejaba el extremo bajo de sus vaguadas colgado en mitad de la
+ladera.
+
+**Decisiones**: ADR-017 (cabecera convexa del perfil), ADR-018 (pendiente N-E
+aplicada al trazado, cierra P-09).
+
+**Medidas.** El «antes» completo de los dos ejemplos está en `context/06`. Lo
+peor: 955 % de pendiente en un segmento de subcresta (el original no pasa de
+65.7 %), 19 líneas por encima del 100 %, mesetas de 27 vértices y la cabecera de
+main L1 al 23.67 % con −15.4 % pedido. Verificado ya sin QGIS: las pendientes de
+cabecera vuelven al valor pedido y el reparto de las correcciones de extremo ya
+no deja mesetas. **117 tests en verde** (84 → 117) y `ruff` limpio.
+
+**Intentos fallidos y equivocaciones propias** — esto vale oro:
+
+1. **Se anunció que las crestas salían un 27 % más bajas que las del original.**
+   Era una medida mal hecha: se dividió la mediana de un reparto entre la
+   mediana de otro. Medido **por línea**, la pendiente recta cresta-pie da
+   p50 17.4 % frente a 19.0 %. La corrección de B-024 seguía siendo necesaria
+   (código y documentación no pueden decir cosas distintas) pero su efecto es
+   modesto, no el que se había anunciado.
+2. **Se supuso que el factor del desnivel de ladera estaba entre 0.55 y 2/3.**
+   El test lo tumbó: con `lc` = 12 m en una ladera de 60 m es **0.80**. Y el
+   factor 2/3 no sale de `lc = D/3` sino de `lc = 0.367·D`. Las dos veces el
+   test escrito *mientras* se hacía el cambio cazó la suposición.
+3. **La primera versión de la mezcla adaptativa (B-026) se quedaba corta.**
+   Se planteó como «alargar la mezcla hasta donde la línea ya rebasaba la cota
+   objetivo», y seguía dejando mesetas de 7 vértices. La cota correcta sale de
+   la pendiente máxima del smoothstep: `m ≥ 1.5·|dz|/gradiente`.
+
+**Pendiente / nuevo en el backlog**: remedir los dos ejemplos en QGIS real y
+rehacer la tabla de `context/06` (ADR-018 cambia el balance de tierras), pasar
+*Check Design*, y cerrar 1.0.19 con `bump_version.py` y el zip.
+
+---
+
 ## 2026-08-07 · La marca sale de los nombres de fichero y de capa (ADR-016)
 
 **Versión**: sin subir (queda en 1.0.18). Cambio en el árbol, sin cerrar

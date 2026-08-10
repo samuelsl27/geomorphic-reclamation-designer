@@ -12,6 +12,54 @@ Estado a **v1.0.18**. Actualiza esta página en cada sesión: mueve lo hecho a
 
 ## 🔴 Abierto — geometría
 
+### P-17 · Remedir los dos ejemplos en QGIS real 🔴 (nuevo, 2026-08-10)
+
+Las correcciones B-023…B-027 y ADR-018 están hechas, con 117 tests en verde y
+`ruff` limpio, pero **no se han medido en QGIS**. Hasta entonces la v1.0.19 no
+se cierra. Lo que hay que hacer, por orden:
+
+1. **Reiniciar QGIS** (se ha tocado `core/params.py`: recargar en caliente deja
+   `GlobalSettings` viejo — trampa 3 de `context/07`).
+2. Abrir `QGIS_GRD_Test_Ej_2.qgz`, cargar `GRD_Rom_Pla_File.grd.json` (ya
+   corregido contra el `.geo`) y lanzar *Preview* + *Draw Design Surface*.
+3. `python scripts/comparar_original.py <carpeta del Ej_2>` y comparar con la
+   línea base de `context/06`.
+4. Lo mismo con el Ej_1: **no puede empeorar**, es la red de seguridad.
+5. *Check Design* en los dos.
+6. Rehacer la tabla de `context/06` entera — ADR-018 cambia las cotas de
+   coronación de las laderas al norte y al este, y con ellas el balance.
+7. `python scripts/bump_version.py 1.0.19` y `python scripts/build_zip.py`.
+
+Umbrales que deben cumplirse en el Ej_2 (el «antes» está en `context/06`):
+
+| Métrica | Antes | Objetivo | Original |
+|---|---|---|---|
+| Peor pendiente de segmento | 955.4 % | < 100 % | 65.7 % |
+| Líneas por encima del 100 % | 19 | 0 | 0 |
+| Líneas por debajo del cauce | 1 | 0 | 0 |
+| Meseta más larga | 27 vért. | ≤ 3 | 2 |
+| Cabecera de main L1 | 23.67 % | 15.4 ± 1 % | 16.16 % |
+| Cabecera de main R4 | 32.72 % | 17.44 ± 1 % | 18.29 % |
+
+### P-18 · Las líneas de relieve son menos y más cortas que las del original 🔴 (nuevo)
+
+Medido en el Ej_2 **antes** de esta ronda: 218 líneas frente a 244, longitud
+total 14 352 m frente a 19 705 m (**−27 %**), una línea cada 13.0 m de cauce
+frente a 11.5 m, y ángulo medio con el eje 51.3° frente a 60.5° (el ajuste
+`angulo_subcresta_deg` es 20°, así que lo esperable serían 70°).
+
+**No se ha tocado en esta ronda**: hay que remedir primero, porque B-025 (líneas
+que no se empalman) y ADR-018 mueven estos números. Sospecha principal: las
+líneas se detienen antes de tiempo por la regla anti-cruce de
+`hillslopes.py:167-174` (se paran a 2.8 m de otra línea del mismo canal), y
+cuanto más oblicuas son, antes convergen y antes chocan. Es decir, el ángulo y
+la longitud podrían ser el mismo problema.
+
+Relacionado con P-02, que dice lo contrario medido sobre el Ej_1 (espaciado
+15.5 m frente a 12.5 m del original, ángulo 74° frente a 64°). **Los dos
+ejemplos discrepan en el signo de la desviación**, así que antes de tocar nada
+hay que entender por qué.
+
 ### P-01 · Dos errores de tensión tractiva en el *Check Design*
 
 Son los **únicos 2 errores** que quedan en el caso de prueba (invariante H1:

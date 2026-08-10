@@ -5,14 +5,96 @@ salida del Natural Regrade original sobre el **mismo terreno y los mismos
 ajustes**. Esta página es la tabla de referencia: si un cambio mueve alguno de
 estos números en la dirección equivocada, es una regresión.
 
-**Caso de prueba**: emplazamiento de referencia interno (no se publican sus
-datos). El grupo de capas de referencia lleva `origen` en el nombre, que es lo
-que buscan los guiones de comparación. Importadas del DXF de la salida
-original: 17 polilíneas de canal, 106 de cresta/vaguada y 147 curvas de nivel.
+**Casos de prueba**: dos emplazamientos de referencia internos (no se publican
+sus datos), cada uno con su carpeta `GRD_Files/` y su `GeoFluv_origen/`.
+
+| | Ej_1 | Ej_2 |
+|---|---|---|
+| canales | 2 | **6** |
+| área | 23.3 ha | 35.6 ha |
+| líneas de canal del original | 17 | 39 |
+| líneas de cresta/vaguada del original | 104 | **244** |
+| proyecto nativo del original (`.geo`/`.ggs`) | no | **sí** |
+
+**El Ej_2 es el que manda desde 2026-08-10**: tiene confluencias múltiples,
+tributarios cortos y empinados y un tramo con el cauce por encima del perímetro,
+y destapó cinco bugs (B-023…B-027) en código que llevaba meses «validado»
+contra el Ej_1. El Ej_1 se conserva como **red de seguridad**: no puede
+empeorar.
+
+Solo el Ej_2 conserva el proyecto nativo del programa original, así que es el
+único donde se puede comparar **ajuste a ajuste** (`scripts/leer_geo.py`) y no
+solo geometría contra geometría.
 
 ---
 
-## Estado actual (v1.0.17)
+## Línea base del Ej_2 ANTES de la ronda de correcciones (2026-08-10)
+
+Medido con `scripts/comparar_original.py`. Es el punto de partida contra el que
+hay que comparar cuando se remida en QGIS.
+
+| Magnitud | Nuestro | Original |
+|---|---|---|
+| Peor pendiente de segmento (subcrestas) | **955.4 %** | 65.7 % |
+| Líneas de relieve por encima del 100 % | **19** | 0 |
+| Líneas por debajo del cauce más bajo | 1 (−6.56 m) | 0 |
+| Meseta más larga (vértices a la misma cota) | **27** | 2 |
+| Líneas de relieve, longitud total | 14 352 m | 19 705 m |
+| Líneas de relieve, número | 218 | 244 |
+| Espaciado a lo largo del cauce | 13.0 m | 11.5 m |
+| Ángulo medio con el eje | 51.3° | 60.5° |
+| Pendiente recta cresta-pie (p50 / media) | 17.4 % / 21.6 % | 19.0 % / 21.0 % |
+| Pendiente de cabecera, main L1 | 23.67 % | 16.16 % |
+| Pendiente de cabecera, main R4 | 32.72 % | 18.29 % |
+| Pendiente de cabecera, main | 16.11 % | 17.57 % |
+| Longitud del canal principal | 1068.1 m | 1076.0 m |
+| Cota de boca del canal principal | 275.03 m | 275.03 m |
+
+Y el Ej_1, que ya estaba sano y **no puede empeorar**:
+
+| Magnitud | Nuestro | Original |
+|---|---|---|
+| Peor pendiente de segmento (subcrestas) | 87.2 % | 84.7 % |
+| Líneas por encima del 100 % | 0 | 0 |
+| Meseta más larga | 18 | 2 |
+| Longitud del canal principal | 925.7 m | 935.2 m |
+
+## ⏳ Pendiente de remedir en QGIS (v1.0.19)
+
+Las correcciones B-023…B-027 y ADR-018 **están hechas, con 117 tests en verde,
+pero NO se han medido todavía en QGIS real**. Hasta que se remidan, las tablas
+de abajo siguen siendo las de v1.0.17 y la de arriba es el «antes».
+
+Lo verificado sin QGIS, ejecutando el motor de perfiles directamente:
+
+| Canal Ej_2 | pedida | antes | ahora | original |
+|---|---|---|---|---|
+| main L1 | −15.40 % | −26.91 % | **−15.40 %** | −16.16 % |
+| main R4 | −17.44 % | −36.95 % | **−17.44 %** | −18.29 % |
+| main | −18.00 % | −18.00 % | −18.00 % | −17.57 % |
+
+Deciles de pendiente boca→cabecera de main L1:
+
+```
+original  6.5  9.8 12.6 14.9 16.5 17.6 18.1 18.1 17.4 16.2
+antes     6.6  8.8 10.9 13.0 15.2 17.3 19.4 21.6 23.7 25.8
+ahora     7.7 11.4 14.5 16.8 18.5 19.5 19.8 19.4 18.3 16.5
+```
+
+Y el reparto de una corrección de extremo, que era la causa de las mesetas:
+
+```
+antes: 284.8 … 302.9 303.2 303.2 303.2 303.2 303.2 303.2 303.2
+ahora: 284.8 … 300.7 301.2 301.4 301.5 301.5 301.6 301.9 302.4 303.2
+```
+
+**Ojo con ADR-018**: la pendiente N-E baja las crestas orientadas al norte y al
+este en la proporción 22/33, así que cambia el balance de tierras. Al remedir
+hay que rehacer la tabla entera, no solo mirar los defectos de forma.
+
+---
+
+## Estado del Ej_1 (v1.0.17, pendiente de remedir)
 
 | Magnitud | Nuestro | Original | Veredicto |
 |---|---|---|---|
