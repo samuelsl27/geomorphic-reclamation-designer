@@ -379,3 +379,37 @@ def test_no_se_empalma_contra_una_divisoria_a_cota_imposible():
     # la segunda queda fuera de TOL_EMPALME (18 m), asi que NO se empalma:
     # mejor un hueco en planta, que el TIN resuelve, que un muro de 35 m
     assert elegida is None
+
+
+def test_el_sellado_reparte_aunque_la_correccion_sea_enorme():
+    """B-033. `fundir_con_divisorias` hacia
+    `pts[:-1] + [(sobre[0], sobre[1], z_req)]`: clavaba la cota nueva en el
+    ULTIMO vertice, sin mezclar, y sin mirar si la cabecera era ese o el
+    primero. Con la divisoria hasta a TOL_FUSION = 16 m en planta, eso deja la
+    linea entera plana y un salto de veinte metros en el ultimo segmento — la
+    firma que se midio en el Ej_2, con 1017 % en el peor caso.
+
+    Ahora pasa por _sellar_extremo, que delega en divides.ajustar_extremo y
+    reparte con la mezcla adaptativa."""
+    # ladera de 120 m que sube poco, y una divisoria 20 m por encima
+    pts = [(float(i) * 4.0, 0.0, 300.0 + i * 0.05) for i in range(31)]
+    out = topo._sellar_extremo(pts, 320.0, en_inicio=False)
+    assert abs(out[-1][2] - 320.0) < 1e-9
+    s = [0.0]
+    for a, b in zip(out[:-1], out[1:]):
+        s.append(s[-1] + math.hypot(b[0] - a[0], b[1] - a[1]))
+    peor = max(abs(out[i + 1][2] - out[i][2]) / (s[i + 1] - s[i])
+               for i in range(len(out) - 1)) * 100
+    assert peor < 100.0, peor
+    zs = [p[2] for p in out]
+    assert zs == sorted(zs)
+
+
+def test_el_sellado_mueve_el_extremo_que_toca_no_siempre_el_ultimo():
+    """La misma linea del reves: la cabecera es ahora el PRIMER vertice."""
+    pts = [(float(i) * 4.0, 0.0, 320.0 - i * 0.05) for i in range(31)]
+    out = topo._sellar_extremo(pts, 340.0, en_inicio=True)
+    assert abs(out[0][2] - 340.0) < 1e-9
+    assert abs(out[-1][2] - pts[-1][2]) < 1e-6      # el pie no se toca
+    zs = [p[2] for p in out]
+    assert zs == sorted(zs, reverse=True)

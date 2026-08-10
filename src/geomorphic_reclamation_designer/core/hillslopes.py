@@ -20,7 +20,7 @@ público de este módulo, de modo que el código que llamaba a
 import math
 
 from qgis.core import (
-    QgsFeature, QgsGeometry, QgsPoint, QgsPointXY,
+    QgsFeature, QgsGeometry, QgsPoint, QgsPointXY, QgsSpatialIndex,
 )
 
 from . import setup_tools as st
@@ -118,6 +118,65 @@ def _recortar_cola(pts_xy, retranqueo):
     return out, retranqueo
 
 
+TOL_TOQUE = 0.7 * PASO_MARCHA   # m (2.8), a partir de aquí se considera que la
+                        # marcha ha alcanzado una línea de ladera ya trazada.
+                        # Solo decide CUÁNDO se engancha, no dónde: el vértice
+                        # final se pone sobre la otra línea, así que ya no deja
+                        # una separación sistemática (ver B-034).
+
+
+class _RegistroLaderas:
+    """Líneas de ladera ya trazadas, con índice espacial.
+
+    Antes era un dict por canal recorrido entero en CADA uno de los hasta 600
+    pasos de cada marcha, y solo miraba las del PROPIO canal. Dos problemas:
+
+    1. Dos laderas de canales distintos podían cruzarse sin que nada lo
+       impidiera, y ninguna comprobación posterior lo arregla.
+    2. Coste O(nº de líneas) por paso, sin índice, a diferencia de
+       `topology._indice` y `divides.Corredor`, que sí lo usan.
+    """
+
+    def __init__(self):
+        self.idx = QgsSpatialIndex()
+        self.datos = {}
+        self._n = 0
+
+    def anadir(self, linea):
+        geom = QgsGeometry.fromPolylineXY(
+            [QgsPointXY(p.x(), p.y()) for p in linea])
+        self._n += 1
+        f = QgsFeature(self._n)
+        f.setGeometry(geom)
+        try:
+            self.idx.addFeature(f)
+        except Exception:
+            pass
+        self.datos[self._n] = (geom, [p.z() for p in linea])
+
+    def mas_cercana(self, g, radio):
+        """`(distancia, geom, zs)` de la línea más próxima dentro del radio.
+
+        La MÁS PRÓXIMA, no la primera que aparezca: antes se rompía el bucle en
+        la primera dentro del radio, en orden de inserción, así que la cota se
+        heredaba de una línea que podía no ser la de al lado."""
+        rect = g.boundingBox()
+        rect.grow(radio)
+        try:
+            candidatas = self.idx.intersects(rect)
+        except Exception:
+            candidatas = list(self.datos.keys())
+        mejor = None
+        for fid in candidatas:
+            par = self.datos.get(fid)
+            if not par:
+                continue
+            d = par[0].distance(g)
+            if d < radio and (mejor is None or d < mejor[0]):
+                mejor = (d, par[0], par[1])
+        return mejor
+
+
 def _z_en_linea(geom_xy, zs, pt):
     """Cota de la polilínea (geom_xy, zs) en el vértice más próximo a pt."""
     try:
@@ -170,17 +229,28 @@ def _trazar_ladera(origen, direccion, propio, geoms, g_lim, disenos, s_max,
                 pts_xy.append((xb, yb))
             toco_borde = True
             break
-        # no cruzar líneas de ladera ya trazadas; si se toca una, se recuerda:
-        # esa es la CRESTA en la que nace esta línea (regla del método: donde
-        # dos crestas se tocan nace una nueva línea, y desde la cota de ese
-        # punto de encuentro la vaguada desciende hasta el canal)
-        if lineas_previas:
-            for lp in lineas_previas:
-                geom_lp, zs_lp = lp if isinstance(lp, tuple) else (lp, None)
-                if geom_lp.distance(g) < 0.7 * PASO_MARCHA:
-                    linea_tocada = (geom_lp, zs_lp)
-                    break
-            if linea_tocada is not None:
+        # No cruzar líneas de ladera ya trazadas. Si se alcanza una, la marcha
+        # TERMINA SOBRE ELLA: se añade como último vértice el punto de esa
+        # línea más próximo, y de ahí se hereda la cota. Hasta la v1.0.19 se
+        # rompía el bucle SIN añadir nada, así que la línea quedaba entre 2.8 y
+        # 6.8 m corta y el extremo alto se quedaba en el aire — medido en el
+        # Ej_2: el 38 % de los extremos altos sin nada cerca, con un hueco
+        # mediano de 10.1 m, frente al 13 % y 2.3 m del original. Ver B-034.
+        #
+        # Los tres primeros pasos no cuentan: la subcresta y la vaguada de un
+        # mismo ápice nacen en el MISMO punto del cauce y se separarían al
+        # instante por su propio arranque.
+        if lineas_previas is not None and len(pts_xy) >= 3:
+            cerca = lineas_previas.mas_cercana(g, TOL_TOQUE)
+            if cerca is not None:
+                _d, geom_lp, zs_lp = cerca
+                linea_tocada = (geom_lp, zs_lp)
+                try:
+                    p_toque = geom_lp.nearestPoint(g).asPoint()
+                    if math.hypot(p_toque.x() - x, p_toque.y() - y) > 0.3:
+                        pts_xy.append((p_toque.x(), p_toque.y()))
+                except Exception:
+                    pass
                 break
         d_propio = geoms[propio].distance(g)
         d_otro = min((ge.distance(g) for n, ge in geoms.items() if n != propio),
@@ -314,10 +384,14 @@ def generar_subcrestas(disenos, g_lim, glob, lm, dem=None, crestas=None,
     capa_s.dataProvider().truncate()
     capa_v.dataProvider().truncate()
     fs, fv = [], []
-    # anti-cruce SOLO entre líneas del MISMO canal: las de canales opuestos
-    # deben poder llegar ambas hasta la cresta de encuentro (allí empalman
-    # con la misma cota, como en el original)
-    lineas_por_canal = {}
+    # Anti-cruce contra TODAS las líneas ya trazadas, de cualquier canal.
+    # Antes se miraban solo las del propio canal, con el argumento de que las
+    # de canales opuestos debían poder llegar las dos a la cresta de encuentro.
+    # Pero llegar a la divisoria ya lo garantiza la condición de equidistancia
+    # de Voronoi; lo único que conseguía la excepción era permitir que dos
+    # laderas de canales distintos se cruzaran, sin que ninguna comprobación
+    # posterior lo arreglara.
+    registro = _RegistroLaderas()
 
     # 'Edit Longitudinal Profile' aplicado por la optimización: cada línea
     # puede subir o bajar su extremo alto un % del desnivel, en conjunto
@@ -335,17 +409,15 @@ def generar_subcrestas(disenos, g_lim, glob, lm, dem=None, crestas=None,
     def _traza(d, k, lado, convexo, factor_dz=1.0):
         return _linea_ladera_en(d, k, lado, ang, geoms, g_lim, disenos,
                                 s_max, convexo=convexo, dem=dem,
-                                lineas_previas=lineas_por_canal.get(d.nombre),
+                                lineas_previas=registro,
                                 contorno=contorno,
                                 banda_mezcla=banda_mezcla,
                                 forzar_bajo=glob.forzar_crestas_bajo_limite,
                                 crestas=crestas,
                                 factor_dz=factor_dz, glob=glob)
 
-    def _registrar(d, linea):
-        lineas_por_canal.setdefault(d.nombre, []).append(
-            (QgsGeometry.fromPolylineXY([QgsPointXY(p.x(), p.y()) for p in linea]),
-             [p.z() for p in linea]))
+    def _registrar(_d, linea):
+        registro.anadir(linea)
 
     for d in disenos.values():
         aps = _apices(d)

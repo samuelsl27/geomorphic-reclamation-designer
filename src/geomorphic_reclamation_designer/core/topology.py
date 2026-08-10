@@ -570,7 +570,7 @@ def fundir_con_divisorias(lm, log=None, tol=TOL_FUSION):
         pts = _pts3(f)
         if len(pts) < 2:
             continue
-        alto, _en_inicio, mejor = _extremo_hacia_divisoria(pts, idx, divisorias)
+        alto, en_inicio, mejor = _extremo_hacia_divisoria(pts, idx, divisorias)
         if mejor is None or mejor[0] > tol:
             continue
         _, fid, sobre = mejor
@@ -593,7 +593,19 @@ def fundir_con_divisorias(lm, log=None, tol=TOL_FUSION):
             continue
         encuentros.setdefault(fid, []).append(
             (s_div[k], z_req, (alto[0], alto[1]), peso_l))
-        ajustes_sub[f.id()] = pts[:-1] + [(sobre[0], sobre[1], z_req)]
+        # La corrección de cota se REPARTE, no se pega. Hasta la v1.0.19 esto
+        # era `pts[:-1] + [(sobre[0], sobre[1], z_req)]`, con dos fallos a la
+        # vez: movía SIEMPRE el último vértice —aunque la cabecera fuese el
+        # primero, que es lo que pasa en cuanto `divides` parte o invierte la
+        # línea— y le clavaba la cota nueva sin mezclar nada. Con `sobre` hasta
+        # a `TOL_FUSION` = 16 m en planta, eso deja una línea entera plana y un
+        # salto de veinte metros en el último segmento: es la firma que se
+        # midió en el Ej_2 (peor caso, 1017 %). Regla de oro nº 5. Ver B-033.
+        movido = _sellar_extremo(pts, z_req, en_inicio=en_inicio)
+        k_ext = 0 if en_inicio else len(movido) - 1
+        # el extremo se lleva además a la traza de la divisoria, en planta
+        movido[k_ext] = (sobre[0], sobre[1], z_req)
+        ajustes_sub[f.id()] = movido
 
     if not encuentros:
         return 0
