@@ -41,6 +41,13 @@ LARGO_MAX_ENCUENTRO = 60.0   # m, longitud máxima de una cresta de encuentro:
                         # si la divisoria queda más lejos, ese encuentro no da
                         # lugar a una cresta de orden superior (antes salía una
                         # línea de 441 m atravesando media cuenca)
+MAX_PENDIENTE_EMPALME = 1.00   # 100 %, cortapicos del tramo que se añade para
+                        # empalmar una subcresta con su divisoria. NO es un
+                        # objetivo de diseño: es el listón por debajo del cual
+                        # el empalme deja de ser una cresta y pasa a ser un
+                        # muro. Referencia medida en el DXF del original: sus
+                        # 244 líneas de cresta no pasan de 65.7 %. Mismo valor
+                        # que `divides.MAX_PENDIENTE_FILO`, por coherencia.
 PASO = 4.0              # m, densificado de las líneas nuevas
 MAX_ORDEN = 10          # órdenes de cresta como máximo. Una cresta nacida de
                         # un encuentro es de orden 2, la que nazca del
@@ -56,9 +63,37 @@ def _pts3(f):
     return [(v.x(), v.y(), v.z()) for v in f.geometry().vertices()]
 
 
-def _lejos_del_cauce(pts):
-    """Extremo ALTO de una línea de ladera (arranca siempre en el cauce)."""
-    return pts[-1]
+def _extremo_hacia_divisoria(pts, idx=None, divisorias=None):
+    """Extremo de una línea de ladera que muere contra la divisoria.
+
+    Se MIDE, no se supone: de los dos extremos, el que se proyecta más cerca de
+    la red de divisorias. Devuelve `(punto, en_inicio, proyección)`.
+
+    Hasta la v1.0.18 esto era `return pts[-1]`, con el comentario «arranca
+    siempre en el cauce». Deja de ser cierto en cuanto `divides` parte una
+    línea contra el corredor o la invierte, y no lo es NUNCA para las líneas de
+    encuentro (`channel = "junction"`), que van de alto a bajo. Cuando falla,
+    `sellar_contra_divisorias` sube el PIE a la cota de la divisoria y luego
+    fuerza monotonía ascendente: la línea entera queda invertida.
+
+    Tampoco se identifica por cota — regla de oro nº 3: donde el cauce va en
+    relleno la ladera desciende DESDE el cauce y el extremo que muere en la
+    divisoria es el más bajo. Por construcción las divisorias están lejos del
+    cauce (`Corredor` las recorta), así que el pie no puede ganar esta
+    comparación.
+    """
+    # `idx` puede ser None (si QgsSpatialIndex falla): `_cercanas` lo absorbe
+    # probando contra todas las divisorias. Lo único que impide medir es que no
+    # haya ninguna divisoria contra la que proyectar.
+    if not divisorias:
+        return pts[-1], False, None
+    r_ini = _mejor_proyeccion(idx, divisorias, pts[0])
+    r_fin = _mejor_proyeccion(idx, divisorias, pts[-1])
+    if r_ini is None:
+        return pts[-1], False, r_fin
+    if r_fin is None or r_ini[0] < r_fin[0]:
+        return pts[0], True, r_ini
+    return pts[-1], False, r_fin
 
 
 def _dist(a, b):
@@ -109,17 +144,27 @@ def _cercanas(idx, geoms, pt, k=6):
         return list(geoms.keys())
 
 
-def _mejor_proyeccion(idx, geoms, pt, k=6):
-    """(distancia, fid, punto sobre la línea) de la divisoria más próxima."""
-    mejor = None
+def _proyecciones(idx, geoms, pt, k=6):
+    """[(distancia, fid, punto sobre la línea)] ordenadas de más cerca a más
+    lejos. En lista, y no solo la mejor, porque la divisoria más próxima EN
+    PLANTA puede estar a una cota imposible: hay que poder descartarla y
+    probar la siguiente."""
+    salida = []
     for fid in _cercanas(idx, geoms, pt, k):
         d = geoms.get(fid)
         if not d:
             continue
         r = _proyectar_en(d, pt)
-        if r and (mejor is None or r[0] < mejor[0]):
-            mejor = (r[0], fid, r[1])
-    return mejor
+        if r:
+            salida.append((r[0], fid, r[1]))
+    salida.sort(key=lambda t: t[0])
+    return salida
+
+
+def _mejor_proyeccion(idx, geoms, pt, k=6):
+    """(distancia, fid, punto sobre la línea) de la divisoria más próxima."""
+    cand = _proyecciones(idx, geoms, pt, k)
+    return cand[0] if cand else None
 
 
 def _densificar3(p0, p1, paso=PASO):
@@ -149,21 +194,34 @@ def empalmar_en_divisorias(lm, tol=TOL_EMPALME, log=None):
     idx, divisorias = _indice(capa_div)
     if not divisorias:
         return 0
-    cambios = {}
+    cambios, descartados = {}, 0
     for f in capa_sr.getFeatures():
         pts = _pts3(f)
         if len(pts) < 2:
             continue
-        alto = _lejos_del_cauce(pts)
-        mejor = _mejor_proyeccion(idx, divisorias, alto)
-        if mejor is None or mejor[0] < 0.5 or mejor[0] > tol:
+        alto, en_inicio, _ = _extremo_hacia_divisoria(pts, idx, divisorias)
+        destino = None
+        for d_xy, _fid, punto in _proyecciones(idx, divisorias, alto):
+            if d_xy < 0.5 or d_xy > tol:
+                continue
+            # La divisoria más próxima EN PLANTA puede estar a una cota
+            # imposible. Sin esta comprobación se pegaba la diferencia entera
+            # en un solo segmento: medido en el Ej_2, una subcresta subía de
+            # 300.7 a 336.0 m en 3.69 m de recorrido, un 955 %. El original no
+            # pasa de 65.7 % en ninguna de sus 244 líneas.
+            if abs(punto[2] - alto[2]) > MAX_PENDIENTE_EMPALME * d_xy:
+                continue
+            destino = punto
+            break
+        if destino is None:
+            descartados += 1
             continue
-        destino = mejor[2]
-        # la cresta sube hasta la divisoria: se añade el tramo que falta
         cola = _densificar3(alto, destino)[1:]
-        if not cola or _dist(alto, destino) < 0.5:
+        if not cola:
             continue
-        nuevos = pts + cola
+        # La cola se añade por el extremo que corresponda: si la línea viene
+        # invertida, `pts + cola` la dejaría con un pico en medio.
+        nuevos = (list(reversed(cola)) + pts) if en_inicio else (pts + cola)
         cambios[f.id()] = QgsGeometry.fromPolyline(
             [QgsPoint(x, y, z) for x, y, z in nuevos])
     if cambios:
@@ -174,6 +232,12 @@ def empalmar_en_divisorias(lm, tol=TOL_EMPALME, log=None):
         capa_sr.triggerRepaint()
     log(f"   · {len(cambios)} subcresta(s) prolongada(s) hasta morir sobre la "
         "cresta divisoria")
+    if descartados:
+        # No se calla: una subcresta que no empalma deja un hueco en planta, y
+        # el hueco tiene que poder verse en el registro. La cota la resuelve
+        # despues `divides`, que baja la divisoria a la cota de la cabecera.
+        log(f"   · {descartados} subcresta(s) sin empalmar: la divisoria mas "
+            "proxima quedaba a una cota inalcanzable")
     return len(cambios)
 
 
@@ -226,7 +290,7 @@ def crestas_de_encuentro(lm, glob, log=None, tol=TOL_ENCUENTRO):
         pts = _pts3(f)
         if len(pts) < 2:
             continue
-        alto = _lejos_del_cauce(pts)
+        alto, _en_inicio, _proy = _extremo_hacia_divisoria(pts, idx, divisorias)
         # una cresta ya de orden alto no vuelve a engendrar otro nivel
         try:
             orden = -int(f["index"]) if str(f["channel"]) == "junction" else 1
@@ -321,35 +385,24 @@ def crestas_de_encuentro(lm, glob, log=None, tol=TOL_ENCUENTRO):
 MEZCLA_SELLADO = 25.0    # m sobre los que se reparte la corrección del sellado
 
 
-def _sellar_extremo(pts, z_nuevo, mezcla=MEZCLA_SELLADO):
-    """Lleva el extremo alto de una línea de ladera a 'z_nuevo' REPARTIENDO la
-    corrección hacia abajo.
+def _sellar_extremo(pts, z_nuevo, en_inicio=False, mezcla=MEZCLA_SELLADO):
+    """Lleva a 'z_nuevo' el extremo de una línea de ladera que muere sobre la
+    divisoria, REPARTIENDO la corrección hacia dentro.
 
     Mover solo el último vértice era un error: cuando la corrección es grande
     y hacia abajo, el penúltimo vértice se queda por encima del último y la
     línea deja de ser monótona. En una ladera corta —las que salen recortadas
     junto a una confluencia— eso produce un pico de varios metros en dos
     metros de recorrido, que es exactamente el diente que luego aparece en el
-    TIN. Se reparte con smoothstep, como en los demás empalmes, y después se
-    fuerza la monotonía por si la ladera venía ya con algún escalón."""
-    s = _estaciones(pts)
-    L = s[-1]
-    if L <= 1e-6:
-        return pts[:-1] + [(pts[-1][0], pts[-1][1], z_nuevo)]
-    dz = z_nuevo - pts[-1][2]
-    m = min(mezcla, L)
-    nuevos = []
-    for (x, y, z), si in zip(pts, s):
-        w = max(0.0, 1.0 - (L - si) / m)
-        w = w * w * (3 - 2 * w)               # smoothstep: sin quiebro
-        nuevos.append((x, y, z + dz * w))
-    nuevos[-1] = (pts[-1][0], pts[-1][1], z_nuevo)
-    # la ladera sube del canal a la divisoria: ningún punto puede quedar por
-    # encima del siguiente
-    for i in range(len(nuevos) - 2, -1, -1):
-        if nuevos[i][2] > nuevos[i + 1][2]:
-            nuevos[i] = (nuevos[i][0], nuevos[i][1], nuevos[i + 1][2])
-    return nuevos
+    TIN.
+
+    Es exactamente lo que hace `divides.ajustar_extremo`, así que se delega en
+    ella en vez de mantener dos veces el mismo reparto con smoothstep. Tenerlo
+    duplicado ya salió caro: la mezcla adaptativa que evita las mesetas se
+    añadió a una de las dos copias y la otra se habría quedado atrás.
+    """
+    from .divides import ajustar_extremo
+    return ajustar_extremo(pts, z_nuevo, en_inicio=en_inicio, mezcla=mezcla)
 
 
 def sellar_contra_divisorias(lm, log=None, tol=2.5):
@@ -375,13 +428,17 @@ def sellar_contra_divisorias(lm, log=None, tol=2.5):
             pts = _pts3(f)
             if len(pts) < 2:
                 continue
-            alto = pts[-1]
-            mejor = _mejor_proyeccion(idx, divs, alto)
+            # El extremo que muere en la divisoria se MIDE. Suponiendo que era
+            # `pts[-1]` bastaba con que `divides` hubiera partido o invertido
+            # la linea para acabar subiendo el PIE a la cota de la divisoria y
+            # forzando monotonia despues: la linea entera quedaba del reves.
+            alto, en_inicio, mejor = _extremo_hacia_divisoria(pts, idx, divs)
             if mejor is None or mejor[0] > tol:
                 continue
             if abs(alto[2] - mejor[2][2]) < 0.02:
                 continue
-            cambios[f.id()] = _sellar_extremo(pts, mejor[2][2])
+            cambios[f.id()] = _sellar_extremo(pts, mejor[2][2],
+                                              en_inicio=en_inicio)
         if cambios:
             capa.startEditing()
             for fid, pts in cambios.items():
@@ -457,8 +514,7 @@ def fundir_con_divisorias(lm, log=None, tol=TOL_FUSION):
         pts = _pts3(f)
         if len(pts) < 2:
             continue
-        alto = _lejos_del_cauce(pts)
-        mejor = _mejor_proyeccion(idx, divisorias, alto)
+        alto, _en_inicio, mejor = _extremo_hacia_divisoria(pts, idx, divisorias)
         if mejor is None or mejor[0] > tol:
             continue
         _, fid, sobre = mejor

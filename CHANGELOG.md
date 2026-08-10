@@ -31,7 +31,15 @@ encima del perímetro.
 - `PerfilLongitudinal.cabecera_convexa`, expuesto también en
   `perfiles_efectivos` para el optimizador.
 - `ridges.tramos_de_ladera()` y `ridges.desnivel_de_ladera()`.
-- `tests/test_perfil_canal.py` (12) y `tests/test_ladera.py` (10).
+- `topology.MAX_PENDIENTE_EMPALME` (100 %), cortapicos del tramo que se añade
+  al empalmar una subcresta con su divisoria.
+- `tests/test_perfil_canal.py` (12) y `tests/test_ladera.py` (10), más 7
+  pruebas nuevas en `test_divisorias.py` y `test_checks.py`.
+
+### Cambiado
+- `topology._sellar_extremo` delega en `divides.ajustar_extremo` en vez de
+  repetir el mismo reparto con *smoothstep*. Tenerlo duplicado ya costó que la
+  mezcla adaptativa se añadiera a una copia y no a la otra.
 
 ### Corregido
 - 🔴 **El perfil del cauce sacrificaba la pendiente de cabecera pedida**
@@ -41,6 +49,27 @@ encima del perímetro.
   cabecera**, que es lo que hace el original. Medido en Rom_Pla: main L1 pasa de
   −26.91 % a −15.40 % (pedida −15.4 %, original −16.16 %) y main R4 de −36.95 %
   a −17.44 % (pedida −17.44 %, original −18.29 %).
+- 🔴 **Muro vertical al empalmar una subcresta con su divisoria** (B-025).
+  `topology.empalmar_en_divisorias` elegía la divisoria más próxima **en
+  planta** y le metía toda la diferencia de cota en un solo segmento. Medido en
+  Rom_Pla: una subcresta subía de 300.7 a 336.0 m en 3.69 m de recorrido, un
+  **955 %**; el original no pasa de 65.7 % en ninguna de sus 244 líneas. Ahora
+  se comprueba la pendiente del tramo que se añade contra
+  `MAX_PENDIENTE_EMPALME`, se prueban las divisorias siguientes, y si ninguna
+  vale **no se empalma** y se deja constancia en el registro.
+- 🔴 **Mesetas al bajar un extremo** (B-026). `divides.ajustar_extremo`
+  repartía la corrección sobre una longitud fija, y el recorte de monotonía
+  arrastraba a la misma cota todos los vértices que quedaban fuera. Medido en
+  Rom_Pla: 10 de 218 líneas con esa firma y mesetas de hasta **27 vértices**
+  (el original no pasa de 2). Ahora la mezcla se alarga hasta
+  `1.5·|Δz|/gradiente` —la pendiente máxima del *smoothstep*— y se comprueba el
+  resultado.
+- **El extremo que muere en la divisoria se suponía, no se medía** (B-027).
+  `topology._lejos_del_cauce` devolvía `pts[-1]`. Deja de ser cierto en cuanto
+  `divides` parte o invierte una línea, y no lo es nunca para las líneas de
+  encuentro; cuando fallaba, el sellado subía el **pie** a la cota de la
+  divisoria y forzaba monotonía después, invirtiendo la línea entera. Ahora se
+  mide (`_extremo_hacia_divisoria`), en los tres sitios que lo usaban.
 - **La cota de cresta no casaba con el perfil que se dibujaba** (B-024).
   `_z_ladera` usaba `0.5·s_max·D` mientras el docstring del propio módulo y
   `context/01_metodo_geofluv.md` decían `(2/3)·s_max·D`. Ahora se **despeja** de

@@ -322,6 +322,58 @@ def test_ajustar_una_linea_descendente():
     assert zs == sorted(zs, reverse=True) and abs(zs[-1] - 1075.0) < 1e-9
 
 
+def _meseta_mas_larga(zs, tol=0.01):
+    peor = run = 1
+    for i in range(1, len(zs)):
+        run = run + 1 if abs(zs[i] - zs[i - 1]) <= tol else 1
+        peor = max(peor, run)
+    return peor
+
+
+def test_bajar_mucho_la_cabecera_no_deja_una_meseta():
+    """Si la correccion se reparte solo sobre `mezcla`, los vertices de mas
+    alla conservan su cota vieja y el recorte de monotonia los arrastra a todos
+    a la misma: sale una MESETA seguida de una rampa.
+
+    Medido en el Ej_2 (Rom_Pla): la subcresta fid 65 subia 284.8 -> 303.2 m en
+    siete vertices y despues se quedaba 48 m completamente planos a 303.2. Diez
+    de sus 218 lineas tenian esa firma, con mesetas de hasta 27 vertices; el
+    original no pasa de 2. La mezcla se ALARGA hasta donde la linea original ya
+    rebasaba la cota objetivo."""
+    # ladera de 100 m que sube de 284.8 a 310.0, cabecera forzada a 303.2
+    pts = [(float(i) * 4.0, 0.0, 284.8 + i * (310.0 - 284.8) / 25.0)
+           for i in range(26)]
+    out = dv.ajustar_extremo(pts, 303.2, en_inicio=False, mezcla=25.0)
+    zs = [p[2] for p in out]
+    assert abs(zs[-1] - 303.2) < 1e-9
+    assert zs == sorted(zs), zs                     # sigue subiendo
+    assert abs(zs[0] - 284.8) < 1e-9                # el pie no se mueve
+    assert _meseta_mas_larga(zs) <= 3, zs
+
+
+def test_bajar_el_pie_tampoco_deja_meseta():
+    """El mismo caso por el otro extremo: linea que desciende hacia el pie."""
+    pts = [(float(i) * 4.0, 0.0, 310.0 - i * (310.0 - 284.8) / 25.0)
+           for i in range(26)]
+    out = dv.ajustar_extremo(pts, 303.2, en_inicio=True, mezcla=25.0)
+    zs = [p[2] for p in out]
+    assert abs(zs[0] - 303.2) < 1e-9
+    assert zs == sorted(zs, reverse=True), zs
+    assert _meseta_mas_larga(zs) <= 3, zs
+
+
+def test_subir_la_cabecera_no_alarga_la_mezcla_sin_motivo():
+    """Subir la cabecera de una linea que ya sube no rompe la monotonia, asi
+    que la mezcla se queda como estaba y el resto de la linea no se toca."""
+    pts = [(float(i) * 4.0, 0.0, 284.8 + i * 1.0) for i in range(26)]
+    out = dv.ajustar_extremo(pts, 315.0, en_inicio=False, mezcla=20.0)
+    zs = [p[2] for p in out]
+    assert abs(zs[-1] - 315.0) < 1e-9
+    assert zs == sorted(zs)
+    # a mas de 20 m de la cabecera nada se ha movido
+    assert abs(zs[0] - 284.8) < 1e-9 and abs(zs[10] - pts[10][2]) < 1e-9
+
+
 # ------------------------------- perfil de ladera con la ECUACION
 def _perfil_trapezoidal(x, D, dz, lc, lf=None):
     """Copia de ridges.perfil_trapezoidal para no arrastrar QGIS."""

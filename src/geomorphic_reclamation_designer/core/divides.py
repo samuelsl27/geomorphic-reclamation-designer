@@ -63,6 +63,60 @@ def _pts3(f):
     return [(v.x(), v.y(), v.z()) for v in f.geometry().vertices()]
 
 
+def _mezcla_sin_meseta(dz, L, grad, m0):
+    """Longitud de mezcla mínima para que el recorte de monotonía no aplaste la
+    línea en una MESETA.
+
+    Si la corrección se reparte solo sobre `mezcla` metros, los vértices que
+    quedan fuera conservan su cota vieja; cuando esa cota contradice el nuevo
+    extremo, el recorte de monotonía los arrastra a todos a la misma cota y sale
+    una meseta seguida de una rampa. Medido en el Ej_2 (Rom_Pla): la subcresta
+    fid 65 subía 284.8 → 303.2 m en siete vértices y después se quedaba **48 m
+    completamente planos** a 303.2. Diez de sus 218 líneas de relieve tenían esa
+    firma, con mesetas de hasta 27 vértices; el original no pasa de 2.
+
+    La cura NO es quitar la monotonía —eso deja dientes, y ya se probó y se
+    revirtió (B-018)— sino repartir la corrección sobre longitud suficiente.
+
+    CUÁNTA. La corrección vale `dz·w(d)` con `w` el smoothstep `3u²−2u³`, cuya
+    pendiente máxima es `1.5/m`. Para que no invierta el sentido de la línea
+    hace falta que no supere el gradiente propio de la línea:
+
+        |dz| · 1.5/m  ≤  grad      ⇒      m ≥ 1.5 · |dz| / grad
+
+    Es una cota, no un valor exacto: si el gradiente no es uniforme puede
+    quedarse corta, y por eso `ajustar_extremo` comprueba el resultado y
+    alarga otra vez si hace falta.
+    """
+    if abs(dz) < 1e-9 or grad < 1e-6:
+        return m0
+    return min(L, max(m0, 1.5 * abs(dz) / grad))
+
+
+def _mezclar(pts, s, L, k, dz, m, en_inicio):
+    """Reparte `dz` sobre los `m` metros contiguos al vértice `k`."""
+    salida = []
+    for (x, y, z), si in zip(pts, s):
+        dist = si if en_inicio else (L - si)
+        w = max(0.0, 1.0 - dist / m)
+        w = w * w * (3 - 2 * w)
+        salida.append((x, y, z + dz * w))
+    salida[k] = (pts[k][0], pts[k][1], pts[k][2] + dz)
+    return salida
+
+
+def _rompe_monotonia(salida, sube):
+    """Cuánta cota habría que recortar para dejar la línea monótona."""
+    peor = 0.0
+    if sube:
+        for i in range(len(salida) - 2, -1, -1):
+            peor = max(peor, salida[i][2] - salida[i + 1][2])
+    else:
+        for i in range(1, len(salida)):
+            peor = max(peor, salida[i][2] - salida[i - 1][2])
+    return peor
+
+
 def ajustar_extremo(pts, z_obj, en_inicio=False, mezcla=20.0, monotona=True):
     """Lleva un extremo de la línea a la cota `z_obj` repartiendo la corrección
     hacia el interior con smoothstep.
@@ -87,16 +141,27 @@ def ajustar_extremo(pts, z_obj, en_inicio=False, mezcla=20.0, monotona=True):
         return list(pts)
     k = 0 if en_inicio else len(pts) - 1
     dz = z_obj - pts[k][2]
-    m = min(mezcla, L)
-    salida = []
-    for (x, y, z), si in zip(pts, s):
-        dist = si if en_inicio else (L - si)
-        w = max(0.0, 1.0 - dist / m)
-        w = w * w * (3 - 2 * w)
-        salida.append((x, y, z + dz * w))
-    salida[k] = (pts[k][0], pts[k][1], z_obj)
+    m = max(1e-6, min(mezcla, L))
     if not monotona:
-        return salida
+        return _mezclar(pts, s, L, k, dz, m, en_inicio)
+
+    # La mezcla se ALARGA lo que haga falta para que el recorte de monotonía
+    # de más abajo no tenga nada que recortar y no deje una meseta. La cota de
+    # `_mezcla_sin_meseta` supone gradiente uniforme, así que se comprueba el
+    # resultado y se alarga otra vez si se ha quedado corta. Converge en dos o
+    # tres vueltas; el tope está solo para que una línea patológica no gire
+    # indefinidamente.
+    sube = pts[-1][2] >= pts[0][2]
+    grad = abs(pts[-1][2] - pts[0][2]) / L
+    m = _mezcla_sin_meseta(dz, L, grad, m)
+    salida = _mezclar(pts, s, L, k, dz, m, en_inicio)
+    for _ in range(4):
+        exceso = _rompe_monotonia(salida, sube)
+        if exceso < 1e-6 or m >= L - 1e-9:
+            break
+        m = min(L, m * 1.8)
+        salida = _mezclar(pts, s, L, k, dz, m, en_inicio)
+
     sube = salida[-1][2] >= salida[0][2]
     if sube:
         for i in range(len(salida) - 2, -1, -1):

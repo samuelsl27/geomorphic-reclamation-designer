@@ -268,9 +268,26 @@ def test_resumen_y_orden():
 
 
 # ------------------------------------------------- sellado de laderas
+# `topology._sellar_extremo` delega el reparto de la correccion en
+# `divides.ajustar_extremo`: las dos hacian lo mismo y tenerlo duplicado ya
+# costo que la mezcla adaptativa se anadiera a una copia y no a la otra. Para
+# que el test siga probando el codigo REAL y no un doble, se carga tambien
+# divides.py con sus importaciones relativas neutralizadas y se enchufa por el
+# mismo sitio.
+_fdiv = os.path.join(_DIR, "divides.py")
+_srcd = open(_fdiv, encoding="utf-8").read().replace(
+    "from .compat import attrs, indices_datos",
+    "attrs = lambda capa, v: v\nindices_datos = lambda capa: []").replace(
+    "from .ridges import convexo_subcresta", "convexo_subcresta = None")
+_div = types.ModuleType("grd_divides_para_topology")
+exec(compile(_srcd, _fdiv, "exec"), _div.__dict__)
+sys.modules["grd_divides_para_topology"] = _div
+
 _ftopo = os.path.join(_DIR, "topology.py")
 _src = open(_ftopo, encoding="utf-8").read().replace(
-    "from .compat import attrs", "attrs = lambda capa, v: v")
+    "from .compat import attrs", "attrs = lambda capa, v: v").replace(
+    "from .divides import ajustar_extremo",
+    "from grd_divides_para_topology import ajustar_extremo")
 topo = types.ModuleType("gfq_topology")
 exec(compile(_src, _ftopo, "exec"), topo.__dict__)
 
@@ -300,3 +317,60 @@ def test_sellado_hacia_arriba_no_rompe_la_monotonia():
     out = topo._sellar_extremo(pts, 1012.0)
     zs = [p[2] for p in out]
     assert zs == sorted(zs) and abs(zs[-1] - 1012.0) < 1e-9
+
+
+# ------------------------- empalme de subcrestas con su divisoria
+def test_el_extremo_que_muere_en_la_divisoria_se_mide_no_se_supone():
+    """Hasta la v1.0.18 se suponia que era `pts[-1]`, con el comentario
+    'arranca siempre en el cauce'. Deja de ser cierto en cuanto `divides`
+    parte o invierte una linea, y no lo es NUNCA para las lineas de encuentro
+    (channel = 'junction'), que van de alto a bajo. Cuando falla, el sellado
+    sube el PIE a la cota de la divisoria y fuerza monotonia despues: la linea
+    entera queda del reves."""
+    divisorias = {1: [(100.0, -50.0, 320.0), (100.0, 50.0, 320.0)]}
+    #     pie en x=0 (lejos de la divisoria), cabecera en x=98 (a 2 m de ella)
+    normal = [(0.0, 0.0, 280.0), (50.0, 0.0, 300.0), (98.0, 0.0, 319.0)]
+    pt, en_inicio, proy = topo._extremo_hacia_divisoria(normal, None, divisorias)
+    assert pt == normal[-1] and en_inicio is False
+    assert proy is not None and proy[0] < 2.5
+    # la MISMA linea al reves tiene que dar el MISMO extremo
+    pt2, en_inicio2, _ = topo._extremo_hacia_divisoria(
+        list(reversed(normal)), None, divisorias)
+    assert pt2 == normal[-1] and en_inicio2 is True
+
+
+def test_sin_divisorias_no_se_inventa_un_extremo():
+    pt, en_inicio, proy = topo._extremo_hacia_divisoria(
+        [(0.0, 0.0, 1.0), (1.0, 0.0, 2.0)], None, {})
+    assert pt == (1.0, 0.0, 2.0) and en_inicio is False and proy is None
+
+
+def test_las_proyecciones_vienen_ordenadas_por_distancia():
+    """`empalmar_en_divisorias` necesita poder descartar la divisoria mas
+    proxima en planta —si esta a una cota imposible— y probar la siguiente."""
+    geoms = {1: [(10.0, -5.0, 300.0), (10.0, 5.0, 300.0)],
+             2: [(30.0, -5.0, 310.0), (30.0, 5.0, 310.0)],
+             3: [(60.0, -5.0, 330.0), (60.0, 5.0, 330.0)]}
+    cand = topo._proyecciones(None, geoms, (0.0, 0.0, 295.0))
+    assert [c[1] for c in cand] == [1, 2, 3]
+    assert [round(c[0]) for c in cand] == [10, 30, 60]
+
+
+def test_no_se_empalma_contra_una_divisoria_a_cota_imposible():
+    """La comprobacion que evita el muro vertical. Medido en el Ej_2: una
+    subcresta subia de 300.7 a 336.0 m en 3.69 m de recorrido, un 955 %. El
+    original no pasa de 65.7 % en ninguna de sus 244 lineas de cresta."""
+    alto = (0.0, 0.0, 300.7)
+    geoms = {1: [(3.69, -5.0, 336.0), (3.69, 5.0, 336.0)],   # 955 %: se rechaza
+             2: [(40.0, -5.0, 305.0), (40.0, 5.0, 305.0)]}   # 10.8 %: vale
+    elegida = None
+    for d_xy, fid, punto in topo._proyecciones(None, geoms, alto):
+        if d_xy < 0.5 or d_xy > topo.TOL_EMPALME:
+            continue
+        if abs(punto[2] - alto[2]) > topo.MAX_PENDIENTE_EMPALME * d_xy:
+            continue
+        elegida = fid
+        break
+    # la segunda queda fuera de TOL_EMPALME (18 m), asi que NO se empalma:
+    # mejor un hueco en planta, que el TIN resuelve, que un muro de 35 m
+    assert elegida is None
