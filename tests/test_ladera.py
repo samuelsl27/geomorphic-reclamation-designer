@@ -247,3 +247,138 @@ def test_una_ladera_sin_rumbo_no_se_clasifica_como_NE():
     assert par.rumbo_de_ladera([(0.0, 0.0, 10.0), (0.0, 0.0, 5.0)]) is None
     assert not par.es_orientacion_NE(None)
     assert abs(par.pendiente_max_ladera(_AjustesNE(), None) - 0.33) < 1e-12
+
+
+# ================================================ perfil de la cresta divisoria
+# `_perfil_cresta` invierte su copia de los puntos cuando el perfil viene al
+# reves. Para poder ejecutarlo de verdad hace falta un poco mas de QGIS que la
+# clase vacia del doble global: se inyectan geometrias falsas con la distancia
+# euclidea, que es lo unico que la funcion usa.
+class _PtXY:
+    def __init__(self, x, y):
+        self._x, self._y = float(x), float(y)
+
+    def x(self):
+        return self._x
+
+    def y(self):
+        return self._y
+
+
+class _Pt3(_PtXY):
+    def __init__(self, x, y, z=0.0):
+        _PtXY.__init__(self, x, y)
+        self._z = float(z)
+
+    def z(self):
+        return self._z
+
+
+def _dist_pt_seg(p, a, b):
+    import math
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    L2 = dx * dx + dy * dy
+    if L2 < 1e-12:
+        return math.dist(p, a)
+    t = max(0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2))
+    return math.dist(p, (a[0] + t * dx, a[1] + t * dy))
+
+
+class _Geom:
+    """Punto o polilinea 2D con `distance()`; es todo lo que se usa aqui."""
+
+    def __init__(self, pts):
+        self.pts = [(p.x(), p.y()) if hasattr(p, "x") else (p[0], p[1])
+                    for p in pts]
+
+    @staticmethod
+    def fromPointXY(p):
+        return _Geom([p])
+
+    @staticmethod
+    def fromPolylineXY(ps):
+        return _Geom(ps)
+
+    @staticmethod
+    def fromPolyline(ps):
+        return _Geom(ps)
+
+    def distance(self, otra):
+        mejor = float("inf")
+        for p in otra.pts:
+            if len(self.pts) == 1:
+                import math
+                mejor = min(mejor, math.dist(p, self.pts[0]))
+            for a, b in zip(self.pts[:-1], self.pts[1:]):
+                mejor = min(mejor, _dist_pt_seg(p, a, b))
+        return mejor
+
+
+class _Canal:
+    """Eje que sube de oeste a este: z crece con x."""
+
+    def __init__(self):
+        self.puntos = [(float(i) * 5.0, 0.0, 200.0 + i * 2.0, float(i) * 5.0)
+                       for i in range(41)]          # 0..200 m, z 200..280
+
+
+class _AjustesCresta(_AjustesNE):
+    pass
+
+
+def _monta_qgis_falso():
+    rg.QgsGeometry = _Geom
+    rg.QgsPointXY = _PtXY
+    rg.QgsPoint = _Pt3
+
+
+def test_la_traza_y_las_cotas_salen_del_MISMO_objeto():
+    """B-028. `_perfil_cresta` hace `dens = dens[::-1]` cuando el perfil viene
+    al reves, y esa reasignacion es LOCAL: no toca la lista del llamante. Asi
+    que `zs` puede quedar en orden inverso al de los puntos que le pasaste.
+
+    `generar_crestas` emparejaba `zs` con esos puntos (`rama`) y le daba a la
+    mitad de las divisorias LAS COTAS DEL REVES. Las laderas que toman de ahi
+    su cota de coronacion (`hillslopes._trazar_ladera`, radio 24 m) heredaban
+    la del OTRO extremo de la divisoria.
+
+    La cura no es acordarse de emparejar bien: es que solo haya UNA fuente.
+    `traza_y_cotas` deriva las dos cosas de la misma polilinea 3D.
+    """
+    _monta_qgis_falso()
+    disenos = {"main": _Canal()}
+    geoms = {"main": _Geom([(x, y) for x, y, _z, _s in disenos["main"].puntos])}
+    contorno = _Geom([(-500.0, -500.0), (500.0, -500.0),
+                      (500.0, 500.0), (-500.0, 500.0), (-500.0, -500.0)])
+    # divisoria paralela al cauce, a 50 m: su extremo ESTE es el mas alto,
+    # asi que `_perfil_cresta` tiene que invertir (zB > zA)
+    rama = [(float(i) * 10.0, 50.0) for i in range(16)]     # x 0..150, y 50
+
+    linea, zs = rg._perfil_cresta(rama, disenos, geoms, 0.33, None,
+                                  _AjustesCresta(), contorno)
+
+    # el caso discrimina: ha invertido y las dos cotas extremas son distintas
+    assert abs(linea[0].x() - rama[-1][0]) < 1e-9, "no ha invertido: revisa el caso"
+    assert abs(zs[0] - zs[-1]) > 1.0, "el caso no discrimina: cotas casi iguales"
+
+    geom, cotas = rg.traza_y_cotas(linea)
+    assert len(geom.pts) == len(cotas) == len(linea)
+    for i, (xy, z) in enumerate(zip(geom.pts, cotas)):
+        assert abs(xy[0] - linea[i].x()) < 1e-9
+        assert abs(z - linea[i].z()) < 1e-9, (i, z, linea[i].z())
+    # la traza empieza donde empieza `linea`, NO donde empezaba `rama`
+    assert abs(geom.pts[0][0] - rama[-1][0]) < 1e-9
+    # y por tanto la cota del primer punto es la del extremo ALTO
+    assert cotas[0] == max(cotas)
+
+
+def test_el_perfil_de_cresta_desciende_de_un_extremo_al_otro():
+    _monta_qgis_falso()
+    disenos = {"main": _Canal()}
+    geoms = {"main": _Geom([(x, y) for x, y, _z, _s in disenos["main"].puntos])}
+    contorno = _Geom([(-500.0, -500.0), (500.0, -500.0),
+                      (500.0, 500.0), (-500.0, 500.0), (-500.0, -500.0)])
+    dens = [(float(i) * 10.0, 50.0) for i in range(16)]
+    _linea, zs = rg._perfil_cresta(dens, disenos, geoms, 0.33, None,
+                                   _AjustesCresta(), contorno)
+    assert zs[0] > zs[-1], zs          # orientada de ALTO a bajo

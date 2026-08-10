@@ -125,6 +125,24 @@ def convexo_subcresta(glob, canal=None, D=None):
     return 1.5 * glob.max_dist_cresta_cabecera
 
 
+def traza_y_cotas(linea):
+    """`(traza 2D, cotas)` de una polilínea 3D, para consumo de `hillslopes`.
+
+    Existe para que la geometría y el array de cotas salgan SIEMPRE del mismo
+    objeto. `_perfil_cresta` invierte su copia de los puntos cuando el perfil
+    viene al revés (`dens = dens[::-1]`, reasignación local que no toca la
+    lista del llamante), así que `zs` puede quedar en orden inverso al de los
+    puntos que se le pasaron. Emparejarlos con esos puntos daba a la mitad de
+    las divisorias **las cotas del revés**, y las laderas que toman de aquí su
+    cota de coronación heredaban la del OTRO extremo de la divisoria (B-028).
+
+    Pasar por esta función quita de en medio la posibilidad de equivocarse: no
+    hay dos fuentes entre las que elegir.
+    """
+    return (QgsGeometry.fromPolylineXY([QgsPointXY(p.x(), p.y()) for p in linea]),
+            [p.z() for p in linea])
+
+
 def _capa_puntos_canales(disenos, crs):
     """Capa temporal de puntos densificados de los ejes, con atributo 'canal'.
     Muestreo denso (todos los puntos del eje) para que la divisoria Voronoi
@@ -554,7 +572,7 @@ def generar_crestas(disenos, subcuencas, g_lim, glob, dem, lm):
                     if largo_r < 0.5 * long_min:
                         continue
                     rama = _salir_por_bisectriz(rama, anclaje, bisectrices)
-                    linea, zs = _perfil_cresta(rama, disenos, geoms, s_max, dem,
+                    linea, _zs = _perfil_cresta(rama, disenos, geoms, s_max, dem,
                                                glob, contorno, anclaje=anclaje)
                     f = QgsFeature(capa.fields())
                     f.setGeometry(QgsGeometry.fromPolyline(linea))
@@ -562,8 +580,7 @@ def generar_crestas(disenos, subcuencas, g_lim, glob, dem, lm):
                         f"cresta {nombres[i]} | {nombres[j]}"
                         + (f" ({k_r + 1})" if k_r else "")]))
                     feats.append(f)
-                    crestas_3d.append((QgsGeometry.fromPolylineXY(
-                        [QgsPointXY(x, y) for x, y in rama]), zs))
+                    crestas_3d.append(traza_y_cotas(linea))
     capa.dataProvider().addFeatures(feats)
     capa.updateExtents(); capa.triggerRepaint()
     return len(feats), crestas_3d
