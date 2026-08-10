@@ -6,6 +6,65 @@ la sustituyó.
 
 ---
 
+## ADR-017 · El perfil del cauce respeta las pendientes pedidas; la cabecera puede ser convexa
+
+**Fecha**: 2026-08-10 · **Estado**: aceptada · **Origen**: B-023
+
+**Contexto.** `profile.disenar_perfil` exigía **concavidad estricta**,
+`s_cabecera < m < s_boca` con `m` la pendiente media. Cuando no se cumplía —es
+decir, cuando la cabecera pedida era **más tendida** que la media— re-empinaba
+la cabecera con `s_cabecera = 2m − s_boca` para forzar una parábola cóncava.
+
+Medido en el Ej_2 (Rom_Pla) con `scripts/comparar_original.py`:
+
+| canal | pedida | nuestra (antes) | original |
+|---|---|---|---|
+| main L1 | −15.4 % | **−26.91 %** | −16.16 % |
+| main R4 | −17.44 % | **−36.95 %** | −18.29 % |
+| main | −18.0 % | −18.0 % | −17.57 % |
+
+El canal principal salía bien porque su cabecera **sí** es más empinada que la
+media; los tributarios cortos y empinados, no. Y como de la cota del cauce
+cuelgan las crestas, las laderas y la superficie, el error se propagaba a todo.
+
+**Decisión.** Las dos pendientes del usuario **se respetan**. Lo único que se
+impone encima es la **monotonía**: la condición suficiente de Fritsch–Carlson
+para la cúbica de Hermite, `0 ≤ s_cabecera/m, s_boca/m ≤ 3`, más el signo (una
+pendiente que remonta se lleva a 0). Si actúa, se marca `ajustado` y se informa
+(invariante H7).
+
+Cuando `|s_cabecera| < |m|` el perfil **no puede** ser cóncavo en todo su
+recorrido: para bajar el desnivel que hay que bajar, algún tramo intermedio
+tiene que ser más empinado que la cabecera. La cúbica de Hermite lo resuelve
+sola, con la pendiente creciendo desde la boca, haciendo máximo en torno al
+70–80 % del recorrido y decreciendo hacia la cabecera: un **tramo convexo de
+cabecera**. Se marca en `PerfilLongitudinal.cabecera_convexa`, se avisa desde
+`builder` y se expone en `perfiles_efectivos` para el optimizador.
+
+**Consecuencias.** main L1 pasa de 25.8 % a 16.5 % en la cabecera (original
+16.2 %) y main R4 de 35.2 % a 19.4 % (original 18.7 %), con la misma forma de
+perfil que el original —máximo en el decil 7 y descenso hacia la cabecera— y
+manteniendo la monotonía. El aviso de `builder` deja de ser «te he recortado la
+pendiente» y pasa a ser «el tramo alto es convexo», que es información de
+diseño, no un recorte. `checks.perfil_ajustado` (C02) deja de dispararse en los
+casos en que la pendiente pedida sí era realizable.
+
+**Alternativas descartadas.**
+
+- *Dejar la concavidad estricta y avisar mejor.* No sirve: el problema no era
+  la comunicación, era que el diseño salía mal. Y el original demuestra que la
+  cabecera convexa es la solución correcta, no un mal menor.
+- *Añadir un tramo convexo explícito, con su longitud como ajuste nuevo.* No
+  hace falta ninguna constante nueva: la propia curva de Hermite lo produce en
+  cuanto se deja de forzar la concavidad. Regla de oro nº 1 — no metas una
+  constante que no necesitas.
+
+**La concavidad estricta no es una regla del método.** El método pide un perfil
+cóncavo **en su conjunto** [LIBRO cap. 2, DL78]; el propio programa original
+produce cabeceras convexas cuando el desnivel lo exige, y así está medido.
+
+---
+
 ## ADR-016 · La marca sale también de los NOMBRES DE FICHERO y de capa
 
 **Fecha**: 2026-08-07 · **Estado**: aceptada · **Completa a** ADR-015 ·

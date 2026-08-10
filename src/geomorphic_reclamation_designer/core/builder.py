@@ -351,8 +351,19 @@ class GeoFluvBuilder:
                 d.avisos.append(
                     f"'{d.nombre}': head/mouth elevations and slopes were not fully "
                     "compatible; slopes were minimally adjusted to keep a "
-                    f"monotonic concave profile (result: {d.perfil.s_cabecera*100:.1f} % -> "
+                    f"monotonic profile (result: {d.perfil.s_cabecera*100:.1f} % -> "
                     f"{d.perfil.s_boca*100:.1f} %).")
+            elif d.perfil.cabecera_convexa:
+                # No es un recorte: la pendiente pedida se ha respetado. Pero el
+                # usuario tiene que saber que el tramo alto es convexo, porque
+                # significa que hay reaches por debajo de la cabecera MAS
+                # empinados que ella. Si no lo quiere, la palanca es subir la
+                # cota de cabecera o tender la pendiente de boca.
+                d.avisos.append(
+                    f"'{d.nombre}': the head slope "
+                    f"({d.perfil.s_cabecera*100:.1f} %) is gentler than the mean "
+                    "slope, so the profile has a convex head reach; the steepest "
+                    "point is downstream of the head.")
             # regla del método: la cabecera debe quedar a menos de la
             # 'distancia máx. de cresta a cabecera' del límite/divisoria
             if d.dens:

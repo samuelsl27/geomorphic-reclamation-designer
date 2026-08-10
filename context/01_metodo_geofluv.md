@@ -175,9 +175,32 @@ Fritsch–Carlson** — impide que el perfil se ondule entre puntos de control.
 - La **pendiente de la boca es el valor más crítico del método** [MOD, TUT]:
   todo el perfil cuelga de ella.
 - Empalme suave de **cota y pendiente** en las confluencias.
-- El perfil debe seguir siendo **monótono y cóncavo**: si el usuario (o la IA)
-  pide una pendiente de boca mayor que la pendiente media del valle, el motor la
-  recorta. Esa limitación se realimenta al optimizador (`perfiles_efectivos`).
+- **Las dos pendientes que pide el usuario se respetan.** Lo único que se impone
+  encima es la **monotonía** (el cauce no remonta): la condición suficiente de
+  Fritsch–Carlson, `0 ≤ s_cabecera/m, s_boca/m ≤ 3`, con `m` la pendiente media.
+  Si actúa, se marca `ajustado` y se realimenta al optimizador
+  (`perfiles_efectivos`) — invariante H7.
+- **Tramo convexo de cabecera.** Si la cabecera es más tendida que la media
+  (`|s_cabecera| < |m|`) **no cabe un perfil cóncavo**: para bajar el desnivel
+  que hay que bajar, algún tramo intermedio tiene que ser más empinado que la
+  cabecera. La curva de Hermite lo resuelve sola: la pendiente crece desde la
+  boca, hace máximo en torno al 70–80 % del recorrido y **decrece hacia la
+  cabecera**. Se marca en `cabecera_convexa`. Es lo que hace el original.
+
+  Medido en el Ej_2 (Rom_Pla), pendiente media (%) por deciles boca→cabecera:
+
+  | main L1 (cabecera pedida −15.4 %) | deciles | cabecera |
+  |---|---|---|
+  | original | 6.5 9.8 12.6 14.9 16.5 17.6 **18.1 18.1** 17.4 16.2 | 16.2 % |
+  | nuestro | 7.7 11.4 14.5 16.8 18.5 19.5 **19.8** 19.4 18.3 16.5 | 16.5 % |
+
+  ⚠️ **Error histórico.** Hasta la v1.0.18 el código exigía concavidad estricta
+  (`s_cabecera < m < s_boca`) y, cuando no se cumplía, **re-empinaba la
+  cabecera** con `s_cabecera = 2m − s_boca`. Eso sacrificaba el dato del
+  usuario: main L1 salía al 25.8 % con −15.4 % pedido, y main R4 al 36.95 % con
+  −17.44 %. La concavidad *estricta* no es una regla del método: el método pide
+  un perfil cóncavo **en su conjunto**, y el propio original produce cabeceras
+  convexas cuando el desnivel lo exige. Ver ADR-017 y B-023.
 - `concavidad_perfil`: 0 = recto, 1 = curva estándar, 2 = muy cóncavo.
 
 `profile.disenar_perfil`, `profile.estacion_transicion`.

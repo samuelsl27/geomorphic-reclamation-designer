@@ -29,6 +29,7 @@ class PerfilLongitudinal:
     s_cabecera: float = 0.0   # pendiente dz/ds en cabecera (negativa)
     s_boca: float = 0.0       # pendiente dz/ds en boca (negativa)
     ajustado: bool = False    # True si hubo que corregir pendientes para consistencia
+    cabecera_convexa: bool = False   # True si el tramo alto es convexo (ver abajo)
 
     def z(self, s):
         """Cota interpolada en la estación s."""
@@ -59,10 +60,33 @@ def disenar_perfil(L, z_cabecera, z_boca, pend_cabecera, pend_boca, n=200,
     """Curva vertical cúbica de Hermite que cumple cotas y pendientes en ambos
     extremos. Pendientes en tanto por uno, negativas (p. ej. -0.12 y -0.02).
 
-    Si la pendiente media (z_boca - z_cabecera)/L no queda entre las pendientes
-    de cabecera y boca, no existe una curva monótona cóncava que cumpla las
-    cuatro condiciones; se ajusta la pendiente de cabecera para mantener una
-    parábola cóncava consistente (y se marca 'ajustado' para avisar al usuario).
+    LAS DOS PENDIENTES DEL USUARIO SE RESPETAN. Lo único que se impone encima
+    es la monotonía (el cauce no puede remontar): la condición suficiente de
+    Fritsch-Carlson para la cúbica de Hermite, `0 <= s0/m, s1/m <= 3`. Si actúa,
+    se marca `ajustado` para que el motor avise (invariante H7).
+
+    CUANDO LA CABECERA ES MÁS TENDIDA QUE LA MEDIA (`|s0| < |m|`) el perfil no
+    puede ser cóncavo en todo su recorrido: para bajar el desnivel que hay que
+    bajar, algún tramo intermedio tiene que ser más empinado que la cabecera. La
+    curva de Hermite lo resuelve sola, con la pendiente creciendo desde la boca,
+    alcanzando su máximo en torno al 70-80 % del recorrido y **decreciendo hacia
+    la cabecera**: un TRAMO CONVEXO DE CABECERA. Eso se marca en
+    `cabecera_convexa` y es exactamente lo que hace el programa original.
+
+    Medido en el Ej_2 (Rom_Pla), pendiente media por deciles boca -> cabecera:
+
+        main L1, cabecera pedida -15.4 %
+          original  6.5  9.8 12.6 14.9 16.5 17.6 18.1 18.1 17.4 16.2  -> 16.2 %
+          nuestro   7.7 11.4 14.5 16.8 18.5 19.5 19.8 19.4 18.3 16.5  -> 16.5 %
+
+    Hasta la v1.0.18 el código exigía `s0 < m < s1` (concavidad estricta) y,
+    cuando no se cumplía, **re-empinaba la cabecera** con `s0 = 2m - s1` para
+    forzar una parábola cóncava. Eso sacrificaba el dato del usuario: main L1
+    salía al 25.8 % con -15.4 % pedido y main R4 al 35.2 % con -17.44 %. Y como
+    de la cota del cauce cuelgan las crestas, las laderas y la superficie, el
+    error se propagaba a todo el diseño. La concavidad estricta no es una regla
+    del método: el método pide un perfil cóncavo *en su conjunto*, y el propio
+    original produce cabeceras convexas cuando el desnivel lo exige.
     """
     perfil = PerfilLongitudinal(L=L)
     if L <= 0:
@@ -77,19 +101,13 @@ def disenar_perfil(L, z_cabecera, z_boca, pend_cabecera, pend_boca, n=200,
         s0 = s1 = m
         ajustado = True
     else:
-        # 1) Concavidad exige s0 < m < s1 (todas negativas; s0 la más empinada).
-        #    La pendiente de boca es "el valor más crítico" del método: se
-        #    respeta y se ajusta la de cabecera si hace falta (parábola:
-        #    pendiente media = (s0+s1)/2  =>  s0 = 2m - s1).
-        if not (s0 < m < s1):
-            s0_nuevo = 2.0 * m - s1
-            if s0_nuevo < m < s1:
-                s0 = s0_nuevo
-            else:
-                s0 = s1 = m       # ni siquiera así: perfil lineal
-            ajustado = True
-        # 2) Condición suficiente de monotonía de la cúbica de Hermite
-        #    (Fritsch-Carlson): 0 <= s0/m, s1/m <= 3.
+        # Ambas pendientes tienen que descender aguas abajo.
+        if s0 > 0:
+            s0, ajustado = 0.0, True
+        if s1 > 0:
+            s1, ajustado = 0.0, True
+        # Condición suficiente de monotonía de la cúbica de Hermite
+        # (Fritsch-Carlson): 0 <= s0/m, s1/m <= 3. Es lo ÚNICO que se impone.
         if s0 / m > 3.0:
             s0 = 3.0 * m
             ajustado = True
@@ -100,6 +118,9 @@ def disenar_perfil(L, z_cabecera, z_boca, pend_cabecera, pend_boca, n=200,
     perfil.z_cabecera, perfil.z_boca = z_cabecera, z_boca
     perfil.s_cabecera, perfil.s_boca = s0, s1
     perfil.ajustado = ajustado
+    # |s0| < |m| con las dos negativas <=> s0 > m: la cabecera es más tendida
+    # que la media, así que hay tramo intermedio más empinado que ella.
+    perfil.cabecera_convexa = bool(m < 0 and s0 > m)
 
     for i in range(n + 1):
         t = i / n

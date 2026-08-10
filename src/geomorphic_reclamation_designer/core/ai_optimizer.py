@@ -465,7 +465,8 @@ class Evaluador:
                 "pendiente_cabecera_efectiva_pct": round(d.perfil.s_cabecera * 100, 2),
                 "pendiente_boca_efectiva_pct": round(d.perfil.s_boca * 100, 2),
                 "pendiente_media_pct": round(m_media, 2),
-                "recortado": bool(d.perfil.ajustado)}
+                "recortado": bool(d.perfil.ajustado),
+                "cabecera_convexa": bool(d.perfil.cabecera_convexa)}
         return {"perfiles_efectivos": perfiles,
                 "dd_media": round(sum(dd) / len(dd), 1) if dd else None,
                 "dd_objetivo": s.dd_objetivo,
