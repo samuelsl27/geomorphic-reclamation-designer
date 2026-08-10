@@ -78,12 +78,17 @@ Idea futura: que el usuario converse con el modelo sobre el diseño y pueda
 dibujar sobre el lienzo instrucciones que el optimizador interprete
 ("baja esta ladera", "más relleno aquí").
 
-### P-09 · Objetivo de pendiente diferenciado para laderas N/E
+### P-09 · Objetivo de pendiente diferenciado para laderas N/E ✅ (hecho 2026-08-10)
 
-Ahora todas las laderas usan la pendiente máxima global. El método admite
-objetivos distintos según orientación (las laderas norte y este suelen
-tolerar menos pendiente por humedad y vegetación). `checks._es_NE` ya sabe
-identificarlas.
+Aplicado al trazado, no solo a las comprobaciones (ADR-018). La definición de
+«ladera norte o este» pasa a `core/params.py` y la comparten el motor y
+`checks`. De paso se corrigió el rumbo, que salía **invertido** para las
+subcrestas y las vaguadas: se tomaba de `pts[0]` a `pts[-1]`, pero se trazan del
+cauce hacia arriba, así que su primer vértice es el pie.
+
+Queda por **medir el efecto** en los dos ejemplos: las crestas orientadas al
+norte y al este bajan en la proporción 22/33, así que cambia el balance de
+tierras y hay que rehacer la tabla de `context/06`.
 
 ---
 

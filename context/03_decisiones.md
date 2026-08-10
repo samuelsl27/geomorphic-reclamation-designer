@@ -6,6 +6,60 @@ la sustituyó.
 
 ---
 
+## ADR-018 · La pendiente N-E es un objetivo de DISEÑO, no solo una comprobación
+
+**Fecha**: 2026-08-10 · **Estado**: aceptada · **Cierra** P-09
+
+**Contexto.** El método tiene **dos** objetivos de pendiente de ladera:
+*Maximum straight-line slopes* (`pendiente_max_pct`) y *North or East
+straight-line slopes* (`pendiente_NE_pct`), más tendido porque las laderas
+orientadas al norte y al este retienen más humedad y vegetación. En el proyecto
+original del Ej_2 son `m_fMaxSlope 33` y `m_fNESlope 22`.
+
+Nuestro motor **leía el segundo ajuste y no lo usaba para nada**: trazaba todas
+las laderas con la pendiente general y `pendiente_NE_pct` solo aparecía en
+`checks.pendientes_de_ladera` (C20/C21). Es decir, el complemento avisaba de un
+incumplimiento que él mismo acababa de provocar.
+
+Además la orientación estaba **invertida**. `checks._rumbo` tomaba el acimut de
+`pts[0]` a `pts[-1]`, pero las subcrestas y las vaguadas se trazan del cauce
+hacia arriba, así que su primer vértice es el **pie**: lo que mira al sur se
+clasificaba como norte, y al revés.
+
+**Decisión.**
+
+1. La definición de «ladera norte o este» vive **una sola vez**, en
+   `core/params.py` (que no importa QGIS): `es_orientacion_NE(acimut)`,
+   `rumbo_de_ladera(pts)` y `pendiente_max_ladera(glob, acimut)`. Las usan
+   tanto el trazado (`ridges`, `hillslopes`) como `checks`. Tenerlas dos veces
+   era garantizar que el motor y el *Error Log* acabaran discrepando.
+2. `rumbo_de_ladera` devuelve el acimut **de descenso**, tomando como cabeza el
+   extremo de mayor cota. Aquí usar la cota **no** contradice la regla de oro
+   nº 3: la orientación de una ladera *es por definición* la dirección de
+   máxima pendiente descendente, no un rasgo que se esté deduciendo de ella.
+3. `ridges._z_ladera` recibe `glob` y elige el objetivo: ya conoce el canal más
+   próximo, y la ladera desciende hacia él, así que la orientación se sabe **sin
+   haber trazado la línea todavía**. Eso resuelve el huevo y la gallina (la
+   pendiente decide la cota de coronación, que decide dónde está la cresta).
+
+**Consecuencias.** Las crestas de las laderas orientadas al norte y al este
+bajan en la proporción 22/33 = **0.67** respecto de las demás. Cambia la
+superficie de diseño, el balance de tierras y las cotas de coronación, así que
+la tabla de referencia de `context/06` hay que rehacerla entera después de este
+cambio. Los avisos C20/C21 dejan de dispararse por culpa del propio motor.
+
+**Alternativas descartadas.**
+
+- *Aplicarlo como post-proceso, bajando las crestas ya trazadas.* Sería parchear
+  al final, que es el error recurrente del proyecto (§4 de `AGENTS.md`): la
+  cota de coronación es un dato de entrada del perfil, no un resultado que se
+  pueda retocar sin deformar la ladera.
+- *Poner los helpers en `ridges.py` y que `checks` los importe.* `checks` no
+  importa `ridges` hoy y arrastrarlo entero (con QGIS) para dos funciones de
+  trigonometría no compensa. `params` ya lo importan los dos y es Python puro.
+
+---
+
 ## ADR-017 · El perfil del cauce respeta las pendientes pedidas; la cabecera puede ser convexa
 
 **Fecha**: 2026-08-10 · **Estado**: aceptada · **Origen**: B-023

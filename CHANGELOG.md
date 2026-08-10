@@ -37,6 +37,20 @@ encima del perímetro.
   pruebas nuevas en `test_divisorias.py` y `test_checks.py`.
 
 ### Cambiado
+- 🔴 **La pendiente máxima de laderas al norte y al este se aplica al TRAZADO**
+  (P-09, ADR-018). El método tiene dos objetivos —*Maximum straight-line
+  slopes* y *North or East straight-line slopes*, 33 % y 22 % en el proyecto
+  original de Rom_Pla— pero `pendiente_NE_pct` solo se usaba en las
+  comprobaciones (C20/C21): el motor trazaba todas las laderas con la general.
+  Ahora `ridges._z_ladera` conoce la orientación (la ladera desciende hacia el
+  canal más próximo) y aplica el objetivo que toca.
+- **La definición de «ladera norte o este» es ahora una sola**
+  (`params.es_orientacion_NE`, `params.rumbo_de_ladera`,
+  `params.pendiente_max_ladera`), compartida por el trazado y por `checks`.
+  De paso se corrige el rumbo: se tomaba de `pts[0]` a `pts[-1]`, pero las
+  subcrestas y las vaguadas se trazan del cauce hacia arriba, así que su primer
+  vértice es el pie y **la orientación salía invertida** — lo que mira al sur
+  se clasificaba como norte.
 - `topology._sellar_extremo` delega en `divides.ajustar_extremo` en vez de
   repetir el mismo reparto con *smoothstep*. Tenerlo duplicado ya costó que la
   mezcla adaptativa se añadiera a una copia y no a la otra.

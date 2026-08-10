@@ -31,7 +31,8 @@ from qgis.core import (
     QgsGeometry, QgsPointXY, QgsSpatialIndex, QgsFeature, QgsWkbTypes,
 )
 
-from .params import UMBRAL_PENDIENTE
+from .params import (UMBRAL_PENDIENTE, es_orientacion_NE,
+                     rumbo_de_ladera)
 from . import setup_tools as st
 
 
@@ -140,23 +141,12 @@ def _z_en(pts, x, y):
     return mejor_z
 
 
-def _rumbo(pts):
-    """Acimut medio de la línea, en grados desde el norte (0-360)."""
-    if len(pts) < 2:
-        return None
-    dx = pts[-1][0] - pts[0][0]
-    dy = pts[-1][1] - pts[0][1]
-    if abs(dx) < 1e-9 and abs(dy) < 1e-9:
-        return None
-    return (math.degrees(math.atan2(dx, dy))) % 360.0
-
-
-def _es_NE(acimut):
-    """Ladera orientada al norte o al este: entre 315° y 135° pasando por 0°,
-    que es el criterio del ajuste 'North or East straight-line slopes'."""
-    if acimut is None:
-        return False
-    return acimut >= 315.0 or acimut <= 135.0
+# La definición de «ladera norte o este» y el rumbo de una ladera viven en
+# `params.py` porque los usa también el TRAZADO (`ridges`, `hillslopes`), no
+# solo esta comprobación: tenerlos dos veces era garantizar que el motor y el
+# Error Log acabaran discrepando sobre qué ladera es cuál.
+_es_NE = es_orientacion_NE
+_rumbo = rumbo_de_ladera
 
 
 def _pendiente_recta_pct(pts):

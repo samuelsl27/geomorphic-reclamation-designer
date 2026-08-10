@@ -37,6 +37,7 @@ from qgis.core import (
 
 from . import setup_tools as st
 from .compat import tipo_geom, CAMPO_STR, attrs
+from .params import pendiente_max_ladera, rumbo_de_ladera
 
 PASO_CRESTA = 5.0     # m, densificado de crestas
 PASO_MARCHA = 4.0     # m, paso de avance al trazar subcrestas
@@ -150,8 +151,14 @@ def _geoms_ejes(disenos):
 
 
 def _z_ladera(pt, disenos, geoms, s_max, dem=None, cap_dem=False,
-              contorno=None, banda_mezcla=0.0, convexo=None):
+              contorno=None, banda_mezcla=0.0, convexo=None, glob=None):
     """Cota de diseño en un punto de ladera/cresta: canal más próximo + Δz.
+
+    `glob` activa el segundo objetivo de pendiente del método ('North or East
+    straight-line slopes'): la ladera que sube desde el cauce hasta `pt`
+    desciende hacia el canal más próximo, así que su orientación se conoce aquí
+    sin necesidad de haberla trazado, y si mira al norte o al este se usa
+    `pendiente_NE_pct` en lugar de `pendiente_max_pct`.
 
     `convexo` es la porción convexa de cabeza (m), o una función de la
     distancia que la devuelva; sale de `convexo_subcresta()`. Con ella se
@@ -179,7 +186,13 @@ def _z_ladera(pt, disenos, geoms, s_max, dem=None, cap_dem=False,
     # por debajo del lecho y crear charcos espurios en el TIN.
     lc = convexo(dist) if callable(convexo) else (0.5 if convexo is None
                                                   else convexo)
-    z = z_ch + max(desnivel_de_ladera(dist, s_max, lc), 0.25)
+    s = s_max
+    if glob is not None:
+        # la ladera desciende de `pt` hacia el cauce: ese es su rumbo
+        s = pendiente_max_ladera(
+            glob, rumbo_de_ladera([(pt[0], pt[1], z_ch + 1.0),
+                                   (d.puntos[i][0], d.puntos[i][1], z_ch)]))
+    z = z_ch + max(desnivel_de_ladera(dist, s, lc), 0.25)
     # --- mezcla con el DEM junto al límite (continuidad de relieve) ---
     if dem is not None and contorno is not None and banda_mezcla > 0:
         d_borde = contorno.distance(g)
@@ -601,7 +614,7 @@ def _perfil_cresta(dens, disenos, geoms, s_max, dem, glob, contorno, anclaje=Non
                                   (d.puntos[k][1] - pt[1]) ** 2)
             return d.puntos[i][2] + 0.25, "confluencia"
         return (_z_ladera(pt, disenos, geoms, s_max, dem, False,
-                          convexo=_conv_ladera), "cresta")
+                          convexo=_conv_ladera, glob=glob), "cresta")
 
     zA, _ = z_extremo(dens[0])
     zB, _ = z_extremo(dens[-1])
@@ -623,7 +636,7 @@ def _perfil_cresta(dens, disenos, geoms, s_max, dem, glob, contorno, anclaje=Non
     lc = min(1.5 * glob.max_dist_cresta_cabecera, 0.5 * D)
     # envolvente de cresta de diseño (sin mezcla con el DEM)
     z_env = [_z_ladera((pt[0], pt[1]), disenos, geoms, s_max, dem, False,
-                       convexo=_conv_ladera)
+                       convexo=_conv_ladera, glob=glob)
              for pt in dens]
     zs = []
     n = len(dens)

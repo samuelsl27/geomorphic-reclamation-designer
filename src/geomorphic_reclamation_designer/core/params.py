@@ -19,6 +19,7 @@ CRS proyectado en metros).
 # funcionan igual porque no llaman a get_type_hints().
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, asdict
 
 
@@ -167,3 +168,48 @@ class ChannelSettings:
 # Umbral de pendiente que separa canales tipo A (zigzag, empinados) de los
 # canales de fondo de valle sinusoidales (tipo Bc/C), según el método.
 UMBRAL_PENDIENTE = 0.04
+
+
+# --------------------------------------------------- orientación de la ladera
+# El método admite DOS objetivos de pendiente de ladera: el general ('Maximum
+# straight-line slopes', `pendiente_max_pct`) y uno más tendido para las
+# laderas orientadas al norte y al este ('North or East straight-line slopes',
+# `pendiente_NE_pct`). En el proyecto original del ejemplo Rom_Pla son 33 % y
+# 22 %. Estas dos funciones son la ÚNICA definición de «ladera norte o este»
+# del proyecto: las usan tanto el trazado (`ridges`, `hillslopes`) como las
+# comprobaciones (`checks`), para que no puedan discrepar.
+def es_orientacion_NE(acimut):
+    """Ladera orientada al norte o al este: de 315° a 135° pasando por 0°."""
+    if acimut is None:
+        return False
+    return acimut >= 315.0 or acimut <= 135.0
+
+
+def rumbo_de_ladera(pts):
+    """Acimut (0-360, desde el norte) hacia el que MIRA una línea de ladera.
+
+    La orientación de una ladera es la dirección en la que DESCIENDE, y eso no
+    depende del orden en que estén guardados sus vértices. Las subcrestas y las
+    vaguadas se trazan del cauce hacia arriba, así que su primer vértice es el
+    pie: tomar el rumbo de `pts[0]` a `pts[-1]` daba la dirección contraria y
+    clasificaba como norte lo que mira al sur.
+
+    Aquí sí se usa la cota, y no contradice la regla de oro nº 3: la orientación
+    de una ladera **es por definición** la dirección de máxima pendiente
+    descendente, no un rasgo que se esté deduciendo de la cota.
+    """
+    if len(pts) < 2:
+        return None
+    a, b = (pts[0], pts[-1]) if pts[0][2] >= pts[-1][2] else (pts[-1], pts[0])
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    if abs(dx) < 1e-9 and abs(dy) < 1e-9:
+        return None
+    return math.degrees(math.atan2(dx, dy)) % 360.0
+
+
+def pendiente_max_ladera(glob, acimut):
+    """Pendiente máxima de ladera (en tanto por uno) para esa orientación."""
+    s = float(glob.pendiente_max_pct)
+    if es_orientacion_NE(acimut):
+        s = min(s, float(glob.pendiente_NE_pct))
+    return s / 100.0

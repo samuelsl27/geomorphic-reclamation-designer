@@ -36,11 +36,27 @@ sys.modules.setdefault("qgis.core", _c)
 
 _DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src",
                     "geomorphic_reclamation_designer", "core")
+
+# params.py no importa QGIS, asi que se carga el de verdad: la definicion de
+# "ladera norte o este" tiene que ser LA MISMA en el motor y en las
+# comprobaciones. Se registra aqui y no se da por hecho que ya este: un test
+# que solo pasa segun el orden en que se ejecuten los ficheros es una trampa.
+if "gfq_params" not in sys.modules:
+    import importlib.util
+    _spec = importlib.util.spec_from_file_location(
+        "gfq_params", os.path.join(_DIR, "params.py"))
+    _mod = importlib.util.module_from_spec(_spec)
+    _mod.__package__ = ""
+    sys.modules["gfq_params"] = _mod
+    _spec.loader.exec_module(_mod)
+
 _ruta = os.path.join(_DIR, "ridges.py")
 _src = open(_ruta, encoding="utf-8").read().replace(
     "from . import setup_tools as st", "st = None").replace(
     "from .compat import tipo_geom, CAMPO_STR, attrs",
-    "tipo_geom = CAMPO_STR = None\nattrs = lambda capa, v: v")
+    "tipo_geom = CAMPO_STR = None\nattrs = lambda capa, v: v").replace(
+    "from .params import pendiente_max_ladera, rumbo_de_ladera",
+    "from gfq_params import pendiente_max_ladera, rumbo_de_ladera")
 rg = types.ModuleType("grd_ridges")
 exec(compile(_src, _ruta, "exec"), rg.__dict__)
 
@@ -173,3 +189,61 @@ def test_convexo_por_factor_y_por_porcentaje():
     assert rg.convexo_subcresta(g, None, 100.0) == 1.5 * 25.0
     g = _Ajustes(modo="pct", pct=20.0)
     assert rg.convexo_subcresta(g, None, 100.0) == 20.0
+
+
+# ------------------------------------------------- orientacion de la ladera
+class _AjustesNE:
+    """Los del proyecto original del Ej_2: 33 % general, 22 % al norte/este."""
+    convexo_modo = "factor"
+    convexo_pct = 20.0
+    max_dist_cresta_cabecera = 50.0
+    pendiente_max_pct = 33.0
+    pendiente_NE_pct = 22.0
+
+
+def test_el_rumbo_es_el_de_DESCENSO_no_el_del_orden_de_los_vertices():
+    """Las subcrestas y las vaguadas se trazan del cauce hacia arriba, asi que
+    su primer vertice es el PIE. Tomar el rumbo de pts[0] a pts[-1] daba la
+    direccion contraria y clasificaba como norte lo que mira al sur."""
+    par = sys.modules["gfq_params"]
+    # cresta al norte (y=100, alta), pie al sur (y=0, bajo): mira al SUR
+    del_pie_a_la_cresta = [(0.0, 0.0, 100.0), (0.0, 100.0, 130.0)]
+    assert abs(par.rumbo_de_ladera(del_pie_a_la_cresta) - 180.0) < 1e-9
+    # la misma ladera guardada al reves tiene que dar el MISMO rumbo
+    assert abs(par.rumbo_de_ladera(list(reversed(del_pie_a_la_cresta)))
+               - 180.0) < 1e-9
+    assert not par.es_orientacion_NE(180.0)
+
+
+def test_una_ladera_al_norte_usa_la_pendiente_NE():
+    """'North or East straight-line slopes' (m_fNESlope en el original) es un
+    objetivo de DISENO, no solo una comprobacion: hasta la v1.0.18 el motor
+    trazaba todas las laderas con la pendiente general (P-09)."""
+    par = sys.modules["gfq_params"]
+    g = _AjustesNE()
+    # pie al norte (y=100), cresta al sur (y=0): la ladera mira al NORTE
+    al_norte = par.rumbo_de_ladera([(0.0, 0.0, 130.0), (0.0, 100.0, 100.0)])
+    assert abs(al_norte - 0.0) < 1e-9
+    assert par.es_orientacion_NE(al_norte)
+    assert abs(par.pendiente_max_ladera(g, al_norte) - 0.22) < 1e-12
+    al_sur = par.rumbo_de_ladera([(0.0, 100.0, 130.0), (0.0, 0.0, 100.0)])
+    assert abs(par.pendiente_max_ladera(g, al_sur) - 0.33) < 1e-12
+
+
+def test_la_cresta_de_una_ladera_al_norte_queda_mas_baja():
+    """Consecuencia geometrica: con 22 % en vez de 33 %, la misma ladera
+    corona un tercio mas abajo."""
+    g = _AjustesNE()
+    par = sys.modules["gfq_params"]
+    lc = rg.convexo_subcresta(g, None, 60.0)
+    dz_general = rg.desnivel_de_ladera(60.0, par.pendiente_max_ladera(g, 200.0), lc)
+    dz_ne = rg.desnivel_de_ladera(60.0, par.pendiente_max_ladera(g, 45.0), lc)
+    assert dz_ne < dz_general
+    assert abs(dz_ne / dz_general - 22.0 / 33.0) < 1e-9
+
+
+def test_una_ladera_sin_rumbo_no_se_clasifica_como_NE():
+    par = sys.modules["gfq_params"]
+    assert par.rumbo_de_ladera([(0.0, 0.0, 10.0), (0.0, 0.0, 5.0)]) is None
+    assert not par.es_orientacion_NE(None)
+    assert abs(par.pendiente_max_ladera(_AjustesNE(), None) - 0.33) < 1e-12

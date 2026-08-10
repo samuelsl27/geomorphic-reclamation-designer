@@ -61,8 +61,13 @@ _st.cota_dem = lambda *a, **k: None
 
 _ruta = os.path.join(_DIR, "checks.py")
 _fuente = open(_ruta, encoding="utf-8").read()
-_fuente = _fuente.replace("from .params import UMBRAL_PENDIENTE",
-                          "UMBRAL_PENDIENTE = 0.04")
+# params.py no importa QGIS, asi que aqui se usa el de verdad: la definicion de
+# "ladera norte o este" tiene que ser LA MISMA que usa el trazado.
+_fuente = _fuente.replace(
+    "from .params import (UMBRAL_PENDIENTE, es_orientacion_NE,\n"
+    "                     rumbo_de_ladera)",
+    "from gfq_params import (UMBRAL_PENDIENTE, es_orientacion_NE,\n"
+    "                        rumbo_de_ladera)")
 _fuente = _fuente.replace("from . import setup_tools as st", "")
 ck = types.ModuleType("gfq_checks")
 ck.st = _st

@@ -244,6 +244,22 @@ constante del método. La corrección **no** ha sido escribir 2/3 en el código:
 ha sido despejarlo de la ecuación del perfil, porque cualquier constante vale
 para un caso y falla en otro. Ver B-024.
 
+**Dos objetivos de pendiente, según la orientación.** El método distingue
+*Maximum straight-line slopes* (`pendiente_max_pct`) de *North or East
+straight-line slopes* (`pendiente_NE_pct`), más tendido porque las laderas
+orientadas al norte y al este retienen más humedad y vegetación. En el proyecto
+original del Ej_2 son `m_fMaxSlope 33` y `m_fNESlope 22`. Una ladera es «norte o
+este» si su acimut **de descenso** está entre 315° y 135°.
+
+Definición única en `params.es_orientacion_NE`, `params.rumbo_de_ladera` y
+`params.pendiente_max_ladera`; la usan el trazado (`ridges._z_ladera`,
+`hillslopes`) y las comprobaciones (C20/C21). Ver ADR-018.
+
+⚠️ Hasta la v1.0.18 `pendiente_NE_pct` **solo se comprobaba, no se aplicaba**:
+el motor trazaba todas las laderas con la pendiente general y luego el *Error
+Log* avisaba de un incumplimiento que él mismo había provocado. Y el rumbo salía
+invertido para subcrestas y vaguadas, que se trazan del cauce hacia arriba.
+
 **Sillas de cresta** [LIBRO §9.4]: la cresta no es una línea de cota monótona;
 lleva rebajes entre culminaciones (`prof_silla_pct`, por defecto 25 %).
 

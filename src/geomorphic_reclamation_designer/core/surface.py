@@ -62,8 +62,9 @@ def _puntos_limite(g_lim, dem, lm, disenos, glob, paso=15.0):
             y = a.y() + t * (b.y() - a.y())
             z = st.cota_dem(dem, x, y) if dem is not None else None
             if z is None and geoms:
-                z = _z_ladera((x, y), disenos, geoms, s_max,
-                              convexo=lambda D: convexo_subcresta(glob, None, D))
+                z = _z_ladera(
+                    (x, y), disenos, geoms, s_max, glob=glob,
+                    convexo=lambda D: convexo_subcresta(glob, None, D))
             if z is None:
                 continue
             f = QgsFeature()

@@ -123,7 +123,7 @@ def _trazar_ladera(origen, direccion, propio, geoms, g_lim, disenos, s_max,
                    convexo_m, z0, dem=None, lineas_previas=None,
                    factor_fin=1.0, contorno=None, banda_mezcla=0.0,
                    forzar_bajo=False, crestas=None, retranqueo=0.0,
-                   factor_dz=1.0):
+                   factor_dz=1.0, glob=None):
     """Marcha desde el borde del canal hacia la divisoria con dirección FIJA
     (todas las subcrestas/vaguadas del canal comparten el mismo ángulo con la
     perpendicular del valle, por lo que resultan sub-paralelas/equidistantes).
@@ -224,7 +224,7 @@ def _trazar_ladera(origen, direccion, propio, geoms, g_lim, disenos, s_max,
     if z_div is None:
         z_div = _z_ladera(fin, disenos, geoms, s_max, dem, forzar_bajo,
                           contorno=contorno, banda_mezcla=banda_mezcla,
-                          convexo=convexo_m)
+                          convexo=convexo_m, glob=glob)
     if not toco_borde:
         z_div = max(z_div, z0 + 0.25)   # drenaje interior siempre hacia el canal
 
@@ -338,7 +338,7 @@ def generar_subcrestas(disenos, g_lim, glob, lm, dem=None, crestas=None,
                                 banda_mezcla=banda_mezcla,
                                 forzar_bajo=glob.forzar_crestas_bajo_limite,
                                 crestas=crestas, retranqueo=retranqueo,
-                                factor_dz=factor_dz)
+                                factor_dz=factor_dz, glob=glob)
 
     def _registrar(d, linea):
         lineas_por_canal.setdefault(d.nombre, []).append(
@@ -430,7 +430,7 @@ def _linea_ladera_en(d, k, signo, ang, geoms, g_lim, disenos, s_max,
                      convexo=None, dem=None, lineas_previas=None,
                      factor_fin=1.0, contorno=None, banda_mezcla=0.0,
                      forzar_bajo=False, crestas=None, retranqueo=0.0,
-                   factor_dz=1.0):
+                     factor_dz=1.0, glob=None):
     """Construye la línea de ladera (subcresta o vaguada) que arranca del
     punto k del eje del canal d, hacia la margen 'signo', girada 'ang' hacia
     aguas arriba. La referencia angular es la tangente de la LÍNEA DE VALLE
@@ -448,5 +448,5 @@ def _linea_ladera_en(d, k, signo, ang, geoms, g_lim, disenos, s_max,
                            factor_fin=factor_fin, contorno=contorno,
                            banda_mezcla=banda_mezcla, forzar_bajo=forzar_bajo,
                            crestas=crestas, retranqueo=retranqueo,
-                           factor_dz=factor_dz)
+                           factor_dz=factor_dz, glob=glob)
     return linea
