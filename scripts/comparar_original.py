@@ -56,14 +56,27 @@ import lector_gpkg
 CAPA_CANALES_ORIG = "GF_Channels"
 CAPA_RELIEVE_ORIG = "GF_Ridges"
 
-# El original NO tiene una capa aparte de divisorias: en el Ej_2 las 244 lineas
-# de `GF_Ridges` arrancan junto a un cauce. Nuestro `GRD_Ridges` es un artefacto
-# del motor (la divisoria como envolvente, que sirve de control de cota), asi
-# que se informa por separado y no se suma a la comparacion de relieve.
+# El original mete divisorias y lineas de ladera en la MISMA capa `GF_Ridges`, y
+# hay que separarlas para comparar como con como: nosotros las tenemos en capas
+# distintas y compararlas en bloque enmascara el defecto que este guion busca.
+#
+# No sirve mirar los extremos. Una divisoria muere en la CONFLUENCIA de los dos
+# cauces que separa, asi que su extremo bajo tambien esta pegado a un cauce: con
+# una tolerancia de 10 m, las 244 lineas del Ej_2 salen clasificadas como
+# ladera. Lo que si las distingue es la EQUIDISTANCIA — una divisoria corre por
+# el medio entre dos cauces; una ladera esta mucho mas cerca del suyo.
+#
+# Los dos umbrales estan calibrados contra la verdad conocida: se aplica el
+# clasificador a la union de nuestras tres capas, donde ya se sabe cual es cual.
+# Con 0.75/0.5 la precision es del 65 %, y ese fue el error que inflo la cuenta
+# de divisorias del original de 7 a 17. Con 0.80/0.8 acierta las 13 de 13 sin
+# ningun falso positivo entre las 219 lineas de ladera.
 NUESTRAS_RELIEVE = ("GRD_SubRidges", "GRD_Swales")
 
 TOL_CABECERA = 1.0     # m, para emparejar un canal nuestro con el del original
 CERCA_CAUCE = 8.0      # m, "este extremo arranca en el cauce"
+EQUIDIST = 0.80        # d(cauce mas cercano) / d(segundo) por encima de esto...
+EQUIDIST_FRAC = 0.8    # ...en esta fraccion de los vertices muestreados
 
 
 # ------------------------------------------------------------------ geometria
@@ -241,6 +254,30 @@ def ejes_del_original(canales_grd, lineas_orig):
     return salida, sobran
 
 
+def es_divisoria(pts, ejes, umbral=EQUIDIST, frac=EQUIDIST_FRAC):
+    """True si la linea corre por el medio entre dos cauces. Ver la nota de
+    arriba: los umbrales estan calibrados, no elegidos a ojo."""
+    if len(ejes) < 2:
+        return False
+    muestra = pts[::max(1, len(pts) // 12)]
+    razones = []
+    for q in muestra:
+        ds = sorted(min(math.dist(q[:2], w[:2]) for w in e) for e in ejes)
+        if ds[1] > 0:
+            razones.append(ds[0] / ds[1])
+    if not razones:
+        return False
+    return sum(1 for x in razones if x > umbral) / len(razones) > frac
+
+
+def separar_relieve(lineas, ejes):
+    """(divisorias, laderas) a partir de una capa que mezcla las dos."""
+    div, lad = [], []
+    for at, p in lineas:
+        (div if es_divisoria(p, ejes) else lad).append((at, p))
+    return div, lad
+
+
 # ------------------------------------------------------------------- informe
 def informe(carpeta, salida_json=None):
     grd, orig = localizar(carpeta)
@@ -264,7 +301,8 @@ def informe(carpeta, salida_json=None):
     print("\n1) INVENTARIO")
     for nom, lst in (("GRD_Channels", n_canales),
                      ("GRD_SubRidges+GRD_Swales", n_relieve),
-                     ("GRD_Ridges (sin equivalente en el original)", n_divisorias),
+                     ("GRD_Ridges (las del original van en %s)"
+                      % CAPA_RELIEVE_ORIG, n_divisorias),
                      ("ORIG " + CAPA_CANALES_ORIG, o_canales),
                      ("ORIG " + CAPA_RELIEVE_ORIG, o_relieve)):
         print("   %-44s %4d lineas  %10.1f m"
@@ -355,6 +393,60 @@ def informe(carpeta, salida_json=None):
         print("     longitud de cada linea              %s" % resumen(largos))
         print("     cota del extremo alto sobre el cauce %s" % resumen(sobre))
         print("     distancia en planta alto -> cauce   %s" % resumen(dist))
+
+    # --------------------------------------------------------- 3b divisorias
+    # El original las mezcla con las laderas en `GF_Ridges`; hay que sacarlas
+    # para comparar como con como. Nuestras 13 sirven de patron de calibracion:
+    # el clasificador tiene que reconocerlas TODAS y no llamar divisoria a
+    # ninguna de nuestras laderas.
+    print("\n3b) DIVISORIAS DE CUENCA (el original las mezcla en %s)"
+          % CAPA_RELIEVE_ORIG)
+    res["divisorias"] = {}
+    if ejes_o_geom:
+        falsos = sum(1 for _at, p in n_relieve if es_divisoria(p, ejes_n_geom))
+        aciertos = sum(1 for _at, p in n_divisorias
+                       if es_divisoria(p, ejes_n_geom))
+        print("   calibracion sobre lo NUESTRO, donde se sabe la respuesta: "
+              "reconoce %d de %d divisorias y llama divisoria a %d de %d "
+              "laderas" % (aciertos, len(n_divisorias), falsos, len(n_relieve)))
+        if aciertos < len(n_divisorias) or falsos:
+            print("   AVISO: el clasificador falla sobre nuestros propios "
+                  "datos; las cifras del original que siguen NO son fiables")
+        o_div, o_lad = separar_relieve(o_relieve, ejes_o_geom)
+        for cual, lst in (("nuestro", n_divisorias), ("original", o_div)):
+            if not lst:
+                continue
+            largos = [largo(p) for _at, p in lst]
+            ps = [x[0] for _at, p in lst for x in pend_segmentos(p)]
+            ps.sort()
+            seg = [math.dist(p[i][:2], p[i + 1][:2])
+                   for _at, p in lst for i in range(len(p) - 1)]
+            d = {"n": len(lst), "longitud_total": sum(largos),
+                 "pend_p50": ps[len(ps) // 2] if ps else None,
+                 "pend_p90": ps[int(len(ps) * .9)] if ps else None,
+                 "pend_max": ps[-1] if ps else None,
+                 "pct_sobre_33": (100.0 * sum(1 for x in ps if x > 33) / len(ps)
+                                  if ps else None),
+                 "espaciado_vertices": resumen(seg),
+                 "meseta_max": max(meseta(p) for _at, p in lst),
+                 "vaiven_p50": sorted(vaiven(p) for _at, p in lst)[len(lst) // 2]}
+            res["divisorias"][cual] = d
+            print("   --- %s ---" % cual)
+            print("     lineas / longitud total             %d / %.0f m"
+                  % (d["n"], d["longitud_total"]))
+            print("     longitud de cada una                %s" % resumen(largos))
+            print("     pendiente vertice a vertice (%%)     p50=%.1f p90=%.1f "
+                  "MAX=%.1f" % (d["pend_p50"], d["pend_p90"], d["pend_max"]))
+            print("     tramos por encima del 33 %%          %.2f %%"
+                  % d["pct_sobre_33"])
+            print("     meseta mas larga / vaiven p50       %d vert. / %.1f m"
+                  % (d["meseta_max"], d["vaiven_p50"]))
+            print("     espaciado entre vertices            %s"
+                  % d["espaciado_vertices"])
+        print("   resto del original (lineas de ladera): %d, %.0f m"
+              % (len(o_lad), sum(largo(p) for _at, p in o_lad)))
+    else:
+        print("   sin ejes del original emparejados: no se puede separar")
 
     # --------------------------------------------------- 4 defectos de forma
     print("\n4) DEFECTOS DE FORMA (una diferencia de FORMA siempre es un bug)")

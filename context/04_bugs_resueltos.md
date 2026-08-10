@@ -6,6 +6,87 @@
 
 ---
 
+## B-036 · La monotonía global convertía la divisoria en un trinquete 🔴
+
+**Síntoma.** El perfil longitudinal de `GRD_Ridges` no se parecía al del
+original: mesetas larguísimas, segmentos clavados al 100 % y vaivén. Medido en
+el Ej_2 sobre las divisorias del original separadas de sus líneas de ladera:
+
+| | Nuestro (v1.0.20) | Original |
+|---|---|---|
+| Pendiente vértice a vértice, p50 | 10.9 % | 11.8 % ✅ |
+| p90 | 31.4 % | 18.6 % |
+| **máx** | **100.0 %** | **33.0 %** |
+| Segmentos > 33 % | **8.45 %** | **0.00 %** |
+| Meseta más larga | **28 vért.** | 2 |
+| Vaivén, p50 | **6.7 m** | 1.2 m |
+
+**La mediana ya coincidía**: el ritmo de descenso estaba bien y el defecto
+estaba entero en la cola.
+
+**Causa raíz.** `_monotonizar` decidía el sentido del perfil con **los dos
+extremos de la divisoria entera** (`sube = zs[-1] >= zs[0]`). Una divisoria
+puede tener una loma legítima —sube desde una confluencia, corona y baja a
+otra—, y ahí el sentido único la destroza. La divisoria fid=52 del Ej_2, entera:
+
+```
+i=0..27   z = 289.31 EXACTO durante 48.8 m      <- meseta de 28 vertices
+i=29,30   CONTROL (cabeceras), sube a 297.09
+i=31..36  z = 297.23 EXACTO                     <- segunda meseta
+i=37..41  -42 %, -100 %, -100 %, -100 %, -100 % <- acantilado
+```
+
+Va de 289 a 297 y baja a 276, o sea una loma. Como 276 < 289, la monotonía la
+declaraba **descendente** y se volvía un trinquete: los puntos de control son
+intocables, así que el perfil quedaba encaramado detrás de ellos y todo lo
+demás se aplanaba contra su cota; al llegar al extremo anclado en 276 había que
+soltar 21 m en 19, y `_limitar_pendiente` los escribía como cuatro segmentos al
+100.0 % clavado — que no es una pendiente, es el cortafuegos escribiendo su
+propio tope.
+
+Un solo fallo explicaba las tres cosas: las mesetas, los picos y el vaivén.
+
+**Corrección.** La monotonía se aplica **tramo a tramo entre puntos fijos**, en
+el sentido que marcan sus dos extremos, y el perfil no puede salirse del
+intervalo que ellos encierran. Reproducido el caso en `test_divisorias.py`: la
+loma sobrevive, no queda ningún tramo llano detrás de la corona y el filo deja
+de apoyarse en el cortafuegos.
+
+Dos correcciones más de la misma tanda:
+
+* `puntos_de_control` **funde** las cabeceras separadas menos que el paso de
+  vértices y se queda con la más alta. Antes las dos aterrizaban en el mismo
+  índice y `_restaurar_control` dejaba la que llegara **la última**: el
+  resultado dependía del orden del diccionario. La ventana se mide contra el
+  arranque del grupo, no contra el último que entró, para que una hilera
+  separada algo menos que la ventana no se funda en cadena.
+* `max_dist_vertices_cresta` = `m_fMaxDistOnRidges` del `.geo` del original
+  (6.1 m). Su espaciado medido da 6.1 / 12.2 / 24.4 / 30.5 — múltiplos exactos,
+  o sea vértices sobre una retícula. El nuestro iba de 0.7 a 9.5 m dentro de
+  una misma línea, con el 53 % de los tramos por debajo de 3 m. Aplicado a las
+  divisorias del Ej_2: 723 → 406 vértices, espaciado p50 5.99 m, 4 % de tramos
+  cortos. Se conservan los vértices cuya pérdida desviaría la traza más de
+  0.5 m: el ajuste es una distancia **máxima entre vértices**, no licencia para
+  comerse una curva cerrada (sin esa salvaguarda una se recortaba 1.8 m).
+
+**Y dos medidas mías que hubo que retirar por el camino**, porque el sesgo es
+fácil de repetir:
+
+1. «41 de los 41 segmentos por encima del 40 % tienen una cabecera a menos de
+   20 m, el 100 %». Cierto, pero **la tasa base es del 81 %**: casi cualquier
+   segmento del filo tiene una cabecera cerca. Un porcentaje alto no dice nada
+   si no lo comparas con el que saldría por azar.
+2. «Nuestras cabeceras vecinas discrepan 4.00 m de p90 frente a 1.30 del
+   original». Son el p90 de **ocho pares** en todo el diseño, y lo marca uno
+   solo. No es un fenómeno general y no podía explicar 60 segmentos por encima
+   del 33 %. La hipótesis de que la discrepancia fuese la diferencia de cota
+   entre los dos cauces también se midió y quedó descartada (r = 0.18).
+
+Ninguna de las dos era la causa. La causa apareció al dejar de contrastar
+hipótesis y **listar los picos uno a uno con su entorno**.
+
+---
+
 > **B-028 … B-035 salen de comparar el relieve de LADERA del Ej_2 contra el
 > DXF del original**, que distingue por color las 127 subcrestas (amarillo) de
 > las 117 vaguadas (cian). Esa separación fue lo que permitió ver que nuestras
@@ -815,3 +896,22 @@ Ver `context/07_entorno_qgis_mcp.md`.
     B-028. Una geometría y su array de cotas, devueltos por separado, con una
     inversión local en medio. Devuelve UNA cosa, o derívalas las dos del mismo
     sitio.
+16. **Una propiedad global impuesta a una forma que solo la cumple a trozos** →
+    B-036. La divisoria era «monótona» mirando sus dos extremos, y una loma
+    legítima en medio la convertía en un trinquete. Si una restricción se
+    decide con dos puntos y se aplica a doscientos, pregúntate entre qué puntos
+    es realmente cierta.
+17. **Un porcentaje sin su tasa base no es una prueba** → B-036. «El 100 % de
+    los picos tiene una cabecera cerca» dejó de impresionar cuando resultó que
+    el 81 % de todos los segmentos la tiene. Y un p90 de ocho datos es el
+    segundo peor dato, no un percentil.
+18. **Cuando dos hipótesis seguidas fallan, deja de proponer hipótesis** →
+    B-036. La causa apareció al listar los sesenta picos con su entorno —
+    posición en la línea, longitud del segmento, qué tenían cerca— en vez de
+    seguir buscando confirmación a una idea previa.
+19. **Un clasificador que no has calibrado te inventa los datos** → B-036,
+    ADR-021. Separar las divisorias del original «por equidistancia» con
+    umbrales a ojo daba 17; calibrado contra nuestros propios datos, donde la
+    respuesta se conoce, la precisión era del 65 % y el número real es 7. Sobre
+    esa cifra falsa se había planificado una fase entera para «recuperar las 4
+    divisorias que faltaban» — cuando en realidad nos sobran.

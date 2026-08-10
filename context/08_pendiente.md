@@ -1,6 +1,6 @@
 # Backlog — lo que falta y lo que está a medias
 
-Estado a **v1.0.18**. Actualiza esta página en cada sesión: mueve lo hecho a
+Estado a **v1.0.21**. Actualiza esta página en cada sesión: mueve lo hecho a
 `09_historial_sesiones.md` y añade lo nuevo.
 
 > **Numeración**: el proyecto sigue en **1.0.x** mientras no haya nada
@@ -11,6 +11,43 @@ Estado a **v1.0.18**. Actualiza esta página en cada sesión: mueve lo hecho a
 ---
 
 ## 🔴 Abierto — geometría
+
+### P-21 · El Ej_1 no es comparable: le falta un canal 🔴 (nuevo, 2026-08-11)
+
+Nuestro diseño del Ej_1 (Potoya) tiene **2 canales** y el original **3**. Se ve
+descomponiendo su `GF_Channels`, que guarda cada canal por triplicado (eje y dos
+orillas) más los arcos de cabecera: los tríos 558/581/592 y 617/640/651 m que
+mueren en (663602, 4420391) son un canal entero que nosotros no tenemos.
+
+| | nuestro | original |
+|---|---|---|
+| Canales | 2 (926 + 472 m) | 3 (935 + 651 + 474 m) |
+| `GRD_Ridges` | 2 líneas, 278 m | — |
+
+Mientras esto no se corrija, **cualquier medida del Ej_1 contra el original es
+ruido**, y eso incluye la reverificación de ADR-009, que se quedó a medias por
+esto. Es el mismo tipo de error de transcripción que se corrigió en el Ej_2
+(R1↔R4 y R2↔R3 cambiados, B-022): mirar los datos de entrada **antes** de medir
+la salida.
+
+### P-22 · ¿Sobran divisorias cortas? 🟠 (nuevo, 2026-08-11)
+
+Con el clasificador ya calibrado (ADR-021), en el Ej_2 tenemos **13 divisorias
+y 2265 m** frente a **7 y 2103 m** del original, y generamos tres de 46, 46 y
+52 m cuando la más corta del original mide 118 m.
+
+**No se ha tocado ningún umbral**, a propósito. La justificación que había para
+tocarlos —«faltan 4 divisorias»— resultó ser un artefacto del clasificador sin
+calibrar, y cambiar un umbral con la evidencia en contra es exactamente lo que
+ya salió mal una vez esta sesión. Además la precisión del clasificador está
+medida sobre **nuestras** líneas, no sobre las del original: puede que alguna
+divisoria suya se esté yendo al montón de laderas.
+
+Antes de mover nada hay que: (a) verificar el clasificador contra el DXF por
+color o por capa, si el original los distingue; (b) mirar los tres filtros a la
+vez, porque se pisan — `ridges.long_min` (50 m en el Ej_2, y usa `xrh`, que es
+una distancia divisoria-cabecera, como longitud mínima de divisoria) y
+`divides.min_divisoria` (25 m).
 
 ### P-19 · Unificar el criterio de «extremo alto» 🔴 (nuevo, 2026-08-10)
 

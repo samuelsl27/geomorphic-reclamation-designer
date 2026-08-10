@@ -8,6 +8,66 @@ Los códigos `B-0xx` remiten a [`context/04_bugs_resueltos.md`], los `ADR-0xx` a
 
 ## [No publicado]
 
+## [1.0.21] — 2026-08-11
+
+Ronda sobre **el perfil longitudinal de las divisorias** (`GRD_Ridges`), que era
+lo único del relieve que seguía sin parecerse al original: mesetas de 28
+vértices, segmentos clavados al 100 % y vaivén.
+
+> ⚠️ **Versión de trabajo, no definitiva.** 141 pruebas en verde y el efecto
+> verificado ejecutando el motor fuera de QGIS, pero **el diseño completo no se
+> ha vuelto a medir en QGIS real** (P-17). Por eso el instalable lleva la fecha.
+
+Lo que la desatascó no fue una hipótesis mejor sino **dejar de proponer
+hipótesis**: las dos primeras se midieron y se cayeron, y la causa apareció al
+listar los sesenta picos uno a uno con su entorno. Está contado entero en B-036,
+con las dos medidas que hubo que retirar.
+
+### Corregido
+- 🔴 **La monotonía global convertía la divisoria en un trinquete** (B-036).
+  `_monotonizar` decidía el sentido con **los dos extremos de la divisoria
+  entera**, y una divisoria puede tener una loma legítima: sube desde una
+  confluencia, corona y baja a otra. Como los puntos de control son intocables,
+  el perfil quedaba encaramado detrás de ellos, todo lo demás se aplanaba contra
+  su cota, y al llegar al extremo anclado había que soltar el desnivel de golpe
+  — que el cortafuegos escribía como segmentos al **100.0 % clavado**. Un solo
+  fallo explicaba las mesetas, los picos y el vaivén. Ahora la monotonía se
+  aplica **tramo a tramo entre puntos fijos**.
+- **Dos cabeceras pegadas dejaban un resultado dependiente del orden del
+  diccionario** (B-036). Aterrizaban en el mismo vértice y `_restaurar_control`
+  se quedaba con la última en llegar. Ahora `puntos_de_control` las funde y
+  manda la más alta.
+
+### Añadido
+- **`max_dist_vertices_cresta`** (6.1 m), que es `m_fMaxDistOnRidges` del `.geo`
+  del original. Su espaciado medido da 6.1 / 12.2 / 24.4 / 30.5 —múltiplos
+  exactos, o sea vértices sobre una retícula—; el nuestro iba de 0.7 a 9.5 m
+  dentro de una misma línea, con el 53 % de los tramos por debajo de 3 m. En las
+  divisorias del Ej_2: 723 → 406 vértices, espaciado p50 5.99 m y 4 % de tramos
+  cortos. Se conservan los vértices cuya pérdida desviaría la traza más de
+  0.5 m, porque es una distancia **máxima entre vértices** y no licencia para
+  comerse una curva cerrada.
+- `comparar_original.py` **separa las divisorias de las líneas de ladera** y las
+  mide aparte. El original las mezcla todas en `GF_Ridges`, y compararlas en
+  bloque es lo que había impedido ver este defecto en las dos rondas anteriores.
+
+### Verificado (sin cambio de código)
+- **ADR-009 se reverifica y se mantiene**: `pendiente_max_pct` no es un tope del
+  perfil longitudinal de las crestas. Los dos ejemplos lo tienen a 33 % y en los
+  dos las líneas del original lo superan de largo (máximo 65.7 % en el Ej_2 y
+  84.7 % en el Ej_1).
+
+### Corregido en la documentación
+- **Nos sobran divisorias, no nos faltan** (ADR-021). Separarlas del original
+  con umbrales elegidos a ojo daba 17; **calibrado contra nuestros propios
+  datos**, donde la respuesta se conoce, la precisión de aquello era del 65 % y
+  el número real es **7**, frente a nuestras 13. Había una fase entera planeada
+  para bajar el umbral de longitud mínima y «recuperar las 4 que faltaban». No
+  se ha tocado (P-22).
+- **El Ej_1 no es comparable**: nuestro diseño tiene 2 canales y el original 3
+  (P-21). Cualquier medida suya contra el original es ruido hasta que se
+  corrija.
+
 ## [1.0.20] — 2026-08-10
 
 Ronda sobre **la forma del relieve de ladera**, que es lo que se ve en las

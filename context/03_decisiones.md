@@ -6,6 +6,37 @@ la sustituyó.
 
 ---
 
+## ADR-021 · Un clasificador que se compara con el original se calibra primero
+
+**Fecha**: 2026-08 · **Estado**: aceptada · **Origen**: bug B-036
+
+**Contexto.** El original mete divisorias y líneas de ladera en la **misma**
+capa `GF_Ridges`; nosotros las tenemos separadas. Para comparar como con como
+hay que clasificarlas, y no vale mirar los extremos: una divisoria muere en la
+**confluencia** de los dos cauces que separa, así que su extremo bajo también
+está pegado a un cauce. Con una tolerancia de 10 m, las 244 líneas del Ej_2
+salen clasificadas como ladera. Lo que sí discrimina es la **equidistancia**.
+
+**Decisión.** Todo clasificador que se use para medir el original se **calibra
+contra nuestros propios datos**, donde la respuesta se conoce porque las capas
+ya vienen separadas, y `comparar_original.py` **imprime esa calibración en cada
+ejecución** y avisa si falla.
+
+**Evidencia.** Con los umbrales elegidos a ojo (razón > 0.75 en más de la mitad
+de los vértices) la precisión sobre nuestros datos es del **65 %**, y el
+original salía con 17 divisorias. Calibrado (> 0.80 en más del 80 % de los
+vértices) acierta 13 de 13 sin ningún falso positivo entre 219 líneas de
+ladera, y el original tiene **7**.
+
+**Consecuencia.** La diferencia real es la contraria de la que se creía: no nos
+faltan divisorias, **nos sobran**. Las nuestras son 13 y 2265 m frente a 7 y
+2103 m, y generamos tres de 46, 46 y 52 m cuando la más corta del original mide
+118 m. Se había planificado una fase entera para bajar el umbral de longitud
+mínima y «recuperar las 4 que faltaban»; se habría ido en la dirección
+equivocada. El umbral **no se toca** hasta tener una medida mejor.
+
+---
+
 ## ADR-020 · Las sillas de cresta son decisión NUESTRA, no del libro
 
 **Fecha**: 2026-08-10 · **Estado**: aceptada
@@ -519,13 +550,35 @@ en ese caso, que es frecuente en el margen alto del perímetro.
 
 ## ADR-009 · La divisoria no tiene límite de pendiente de ladera
 
-**Fecha**: 2026-07 · **Estado**: aceptada · **Origen**: bug B-012
+**Fecha**: 2026-07 · **Estado**: aceptada, **reverificada 2026-08** ·
+**Origen**: bug B-012
 
 **Decisión.** Al perfil longitudinal de una divisoria **no** se le aplica
 `pendiente_max_pct`. Solo actúa `MAX_PENDIENTE_FILO = 100 %` como cortapicos.
 
 **Evidencia.** La divisoria del original desciende al **41 % de media y 73 % de
 máximo**. Aplicarle el máximo de ladera la dejaba 17 m colgada sobre el cauce.
+
+**Reverificación (v1.0.21).** Se puso en duda al medir el Ej_2, donde las
+divisorias del original no pasan de 34 % teniendo `pendiente_max_pct` = 33 %, y
+además su segmento más empinado mide **33.000 % exacto**. Parecía un recorte.
+No lo es:
+
+* Los dos ejemplos tienen `pendiente_max_pct` = 33 % y en los dos **las líneas
+  de `GF_Ridges` lo superan de largo**: máximo 65.7 % en el Ej_2 y 84.7 % en el
+  Ej_1, con el 14 % y el 52 % de los segmentos por encima del 33 %. Eso no
+  necesita separar divisorias de laderas y por sí solo cierra la cuestión: el
+  ajuste no es un tope del perfil longitudinal de las crestas.
+* En el Ej_2 el 33.000 % es **un único segmento**, y el siguiente baja a
+  30.475: no hay acumulación contra el tope, que es lo que delata un recorte.
+  Las líneas de ladera, en cambio, atraviesan el 33 % sin discontinuidad
+  ninguna (108 / 72 / 79 / 67 / 67 segmentos por decil).
+* El Ej_1 **no sirve de contraste**: nuestro diseño allí tiene 2 canales frente
+  a los 3 del original, así que no es comparable. Anotado en `08_pendiente.md`.
+
+Lo que sí quedó claro es que el defecto que se buscaba no era de tope sino de
+ruido: la mediana ya coincidía (10.9 % frente a 11.8 %) y todo el error estaba
+en la cola. Ver **B-036**.
 
 ---
 
