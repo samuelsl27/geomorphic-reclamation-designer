@@ -112,10 +112,54 @@ def perfil_trapezoidal(x_desde_cresta, D, dz, lc, lf=None):
     return drop
 
 
+def convexo_vaguada(glob, canal=None):
+    """Longitud convexa (m) de una VAGUADA — su xc de Horton.
+
+    Es el ajuste *'maximum distance from ridgeline to swale head'*
+    [LIBRO p. 191]: «option 1 — **specify swale convex length** based on
+    reference area observations». Se mide DESDE LA DIVISORIA, y es lo que sitúa
+    la cabecera de la vaguada; **no es un retranqueo** que acorte la línea.
+
+    De ella cuelga todo el relieve de ladera [LIBRO fig. 8-11, p. 204]:
+
+        «A depression is formed by the SHORTER SWALE CONVEX LENGTH between the
+         LONGER ADJACENT SUB-RIDGE CONVEX LENGTHS and runoff water is directed
+         into the swale bottom.»
+
+    Es decir: la vaguada es una depresión **porque su tramo convexo es más
+    corto** que el de las subcrestas vecinas, no porque sea más corta ni acabe
+    más abajo. Las dos salen del cauce y las dos mueren en la divisoria.
+
+    Orden de preferencia:
+      1. `dist_cresta_swale_m` del canal (el ajuste por cuenca del *Geometry
+         tab*);
+      2. `convexo_swale_m` global, si `convexo_swale_activo` (*maximum swale
+         convexity* de Global Settings, [LIBRO p. 189]);
+      3. `max_dist_cresta_cabecera` (xrh) — [LIBRO p. 236]: «the convex swale
+         length, xc, was **similar to the xrh value** in the three stable
+         reference areas».
+    """
+    if canal is not None:
+        v = getattr(canal, "dist_cresta_swale_m", None)
+        if v:
+            return float(v)
+    if getattr(glob, "convexo_swale_activo", False) and \
+            getattr(glob, "convexo_swale_m", 0):
+        return float(glob.convexo_swale_m)
+    return float(glob.max_dist_cresta_cabecera)
+
+
 def convexo_subcresta(glob, canal=None, D=None):
     """Longitud convexa (m) de subcresta según ajustes: por canal si
     'especificar_convexo', si no la global. Modo 'factor' = 1.5 × distancia
-    cresta-cabecera(-swale); modo 'pct' = % de la longitud de la ladera."""
+    cresta-cabecera(-swale); modo 'pct' = % de la longitud de la ladera.
+
+    El factor 1.5 es del método [LIBRO p. 191]: «maximum convex length of a
+    sub-ridge – **1.5 x** 'xx' — sub-ridge convex length calculated as 1.5 x
+    the specified swale convex length», y en Global Settings [LIBRO p. 189]
+    «1.5 x '25' — 1.5 times the ridge-to-head of channel distance». La
+    subcresta tiene SIEMPRE tramo convexo más largo que la vaguada: de esa
+    diferencia sale la depresión (`convexo_vaguada`)."""
     if canal is not None and getattr(canal, "especificar_convexo", False):
         if getattr(canal, "convexo_modo_canal", "factor") == "pct" and D:
             return canal.convexo_pct_canal / 100.0 * D
@@ -178,10 +222,22 @@ def _z_ladera(pt, disenos, geoms, s_max, dem=None, cap_dem=False,
     sin necesidad de haberla trazado, y si mira al norte o al este se usa
     `pendiente_NE_pct` en lugar de `pendiente_max_pct`.
 
-    `convexo` es la porción convexa de cabeza (m), o una función de la
-    distancia que la devuelva; sale de `convexo_subcresta()`. Con ella se
-    despeja el Δz de la ecuación del perfil (`desnivel_de_ladera`). Si no se
-    pasa, se supone ladera recta sin cabeza convexa (Δz ≈ s_max·D).
+    La porción convexa que se usa para despejar el Δz es **siempre la de la
+    SUBCRESTA**, se lo pregunte quien se lo pregunte. La cota de coronación es
+    una propiedad del FILO, no de la línea que consulta: si cada línea usara la
+    suya, la vaguada —que tiene el tramo convexo más corto— pediría una cota
+    MÁS ALTA que la subcresta de al lado (`Δz = s_max·(D − lc/2 − lf/2)` crece
+    al menguar `lc`), justo lo contrario de lo que tiene que pasar. Medido con
+    los ajustes del Ej_2 y D = 70 m: subcresta 12.71 m, vaguada 15.68 m.
+
+    La depresión de la vaguada NO sale de coronar más abajo: sale de que su
+    perfil, con el MISMO desnivel y los mismos extremos, cae más deprisa
+    [LIBRO fig. 8-11, p. 204]. Con esos números, hasta 1.28 m más a media
+    ladera.
+
+    `convexo` permite forzar esa longitud (una función de la distancia o un
+    número); si no se pasa, se calcula con `convexo_subcresta` a partir de los
+    ajustes del canal más próximo, que es lo correcto por defecto.
 
     Continuidad con el relieve existente: dentro de la banda de mezcla junto
     al límite GeoFluv la cota de diseño se funde progresivamente con la del
@@ -202,8 +258,11 @@ def _z_ladera(pt, disenos, geoms, s_max, dem=None, cap_dem=False,
     # resguardo mínimo: donde las divisorias mueren en las confluencias la
     # distancia tiende a 0; sin resguardo el muestreo puede dejar la cresta
     # por debajo del lecho y crear charcos espurios en el TIN.
-    lc = convexo(dist) if callable(convexo) else (0.5 if convexo is None
-                                                  else convexo)
+    if convexo is None and glob is not None:
+        lc = convexo_subcresta(glob, getattr(d, "settings", None), dist)
+    else:
+        lc = convexo(dist) if callable(convexo) else (0.5 if convexo is None
+                                                      else convexo)
     s = s_max
     if glob is not None:
         # la ladera desciende de `pt` hacia el cauce: ese es su rumbo
@@ -606,12 +665,6 @@ def _perfil_cresta(dens, disenos, geoms, s_max, dem, glob, contorno, anclaje=Non
     DEM: fundirlo hacía que la "cresta" copiase la topografía original y en
     muchos tramos no separase realmente las dos cuencas.
     """
-    # Porción convexa de la LADERA que sube hasta esta cresta (no la de la
-    # cresta misma): es la que hay que meter en `desnivel_de_ladera` para que
-    # la cota de coronación case con el perfil que dibujan las subcrestas.
-    def _conv_ladera(D_ladera):
-        return convexo_subcresta(glob, None, D_ladera)
-
     def z_extremo(pt):
         g = QgsGeometry.fromPointXY(QgsPointXY(*pt))
         if contorno is not None and contorno.distance(g) < 3.0 and dem is not None:
@@ -631,7 +684,7 @@ def _perfil_cresta(dens, disenos, geoms, s_max, dem, glob, contorno, anclaje=Non
                                   (d.puntos[k][1] - pt[1]) ** 2)
             return d.puntos[i][2] + 0.25, "confluencia"
         return (_z_ladera(pt, disenos, geoms, s_max, dem, False,
-                          convexo=_conv_ladera, glob=glob), "cresta")
+                          glob=glob), "cresta")
 
     zA, _ = z_extremo(dens[0])
     zB, _ = z_extremo(dens[-1])
@@ -653,7 +706,7 @@ def _perfil_cresta(dens, disenos, geoms, s_max, dem, glob, contorno, anclaje=Non
     lc = min(1.5 * glob.max_dist_cresta_cabecera, 0.5 * D)
     # envolvente de cresta de diseño (sin mezcla con el DEM)
     z_env = [_z_ladera((pt[0], pt[1]), disenos, geoms, s_max, dem, False,
-                       convexo=_conv_ladera, glob=glob)
+                       glob=glob)
              for pt in dens]
     zs = []
     n = len(dens)

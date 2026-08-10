@@ -1215,7 +1215,7 @@ def _rehacer_laderas(lm, glob, disenos):
     los dos extremos actuales, con la longitud convexa xc que corresponda al
     canal, y la forma vuelve a ser la de diseño en toda la línea.
     """
-    from .ridges import convexo_subcresta
+    from .ridges import convexo_subcresta, convexo_vaguada
     canales = {}
     iterable = disenos.values() if isinstance(disenos, dict) else (disenos or [])
     for d in iterable:
@@ -1240,9 +1240,8 @@ def _rehacer_laderas(lm, glob, disenos):
                 canal = canales.get(f.attributes()[1])
             except Exception:
                 canal = None
-            lc = convexo_subcresta(glob, canal, L)
-            if es_vaguada and getattr(glob, "convexo_swale_activo", False):
-                lc = glob.convexo_swale_m
+            lc = (convexo_vaguada(glob, canal) if es_vaguada
+                  else convexo_subcresta(glob, canal, L))
             zs = perfil_base(pts, z_alto, z_bajo, lc,
                              desde_inicio=desde_inicio)
             if max(abs(a - b[2]) for a, b in zip(zs, pts)) < 0.02:

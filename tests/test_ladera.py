@@ -382,3 +382,87 @@ def test_el_perfil_de_cresta_desciende_de_un_extremo_al_otro():
     _linea, zs = rg._perfil_cresta(dens, disenos, geoms, 0.33, None,
                                    _AjustesCresta(), contorno)
     assert zs[0] > zs[-1], zs          # orientada de ALTO a bajo
+
+
+# =========================== longitud convexa de vaguada y de subcresta
+class _AjustesXC:
+    """Los ajustes del Ej_2: xrh = 50 m, vaguada por canal 24 m."""
+    convexo_modo = "factor"
+    convexo_pct = 20.0
+    max_dist_cresta_cabecera = 50.0
+    convexo_swale_activo = False
+    convexo_swale_m = 12.0
+    pendiente_max_pct = 33.0
+    pendiente_NE_pct = 22.0
+
+
+class _Canal24:
+    dist_cresta_swale_m = 24.0
+    especificar_convexo = False
+    convexo_modo_canal = "factor"
+    convexo_pct_canal = 20.0
+
+
+def test_la_longitud_convexa_de_la_vaguada_es_el_ajuste_de_cabecera():
+    """[LIBRO p. 191] 'maximum distance from ridgeline to swale head — option 1
+    — SPECIFY SWALE CONVEX LENGTH based on reference area observations'.
+
+    Es una longitud convexa, no un retranqueo. Hasta la v1.0.19 se usaba para
+    AMPUTAR 24 m del final de cada vaguada (B-032)."""
+    g = _AjustesXC()
+    assert rg.convexo_vaguada(g, _Canal24()) == 24.0
+    # sin canal: la casilla global, si esta marcada
+    g.convexo_swale_activo = True
+    assert rg.convexo_vaguada(g, None) == 12.0
+    # y si no, xc ~ xrh [LIBRO p. 236]
+    g.convexo_swale_activo = False
+    assert rg.convexo_vaguada(g, None) == 50.0
+
+
+def test_la_subcresta_tiene_el_tramo_convexo_MAS_LARGO_que_la_vaguada():
+    """[LIBRO p. 191] 'maximum convex length of a sub-ridge – 1.5 x ...'.
+    De esa diferencia sale la depresion, asi que el orden importa."""
+    g = _AjustesXC()
+    c = _Canal24()
+    assert rg.convexo_subcresta(g, c, 70.0) > rg.convexo_vaguada(g, c)
+
+
+def test_la_vaguada_queda_por_DEBAJO_de_la_subcresta_con_los_mismos_extremos():
+    """[LIBRO fig. 8-11, p. 204] 'A depression is formed by the SHORTER SWALE
+    CONVEX LENGTH between the LONGER ADJACENT SUB-RIDGE CONVEX LENGTHS and
+    runoff water is directed into the swale bottom.'
+
+    La depresion NO se hace acortando la vaguada ni bajandole la cabecera: con
+    el MISMO desnivel y los MISMOS dos extremos, el perfil de menor longitud
+    convexa cae mas deprisa y queda por debajo en todo el interior."""
+    g, c = _AjustesXC(), _Canal24()
+    D, s_max = 70.0, 0.33
+    lc_s = rg.convexo_subcresta(g, c, D)
+    lc_v = rg.convexo_vaguada(g, c)
+    dz = rg.desnivel_de_ladera(D, s_max, lc_s)      # la cota la fija el FILO
+    for x in range(1, int(D)):
+        caida_s = rg.perfil_trapezoidal(x, D, dz, lc_s)
+        caida_v = rg.perfil_trapezoidal(x, D, dz, lc_v)
+        assert caida_v >= caida_s - 1e-9, (x, caida_v, caida_s)
+    # y estrictamente por debajo a media ladera
+    x = D / 2.0
+    assert (rg.perfil_trapezoidal(x, D, dz, lc_v)
+            - rg.perfil_trapezoidal(x, D, dz, lc_s)) > 0.5
+    # los dos extremos, en cambio, coinciden: las dos mueren en la divisoria
+    assert abs(rg.perfil_trapezoidal(0.0, D, dz, lc_v)
+               - rg.perfil_trapezoidal(0.0, D, dz, lc_s)) < 1e-9
+    assert abs(rg.perfil_trapezoidal(D, D, dz, lc_v)
+               - rg.perfil_trapezoidal(D, D, dz, lc_s)) < 1e-6
+
+
+def test_la_cota_de_coronacion_la_fija_la_SUBCRESTA_no_quien_pregunta():
+    """Si cada linea usara su propia longitud convexa, la vaguada pediria una
+    cota MAS ALTA que la subcresta vecina: `dz = s_max*(D - lc/2 - lf/2)` crece
+    al menguar `lc`. Medido con los ajustes del Ej_2 y D = 70 m: subcresta
+    12.71 m, vaguada 15.68 m. Por eso `_z_ladera` calcula la longitud convexa
+    por su cuenta, con `convexo_subcresta`, y ya no acepta la de la linea."""
+    g, c = _AjustesXC(), _Canal24()
+    D, s_max = 70.0, 0.33
+    dz_sub = rg.desnivel_de_ladera(D, s_max, rg.convexo_subcresta(g, c, D))
+    dz_vag = rg.desnivel_de_ladera(D, s_max, rg.convexo_vaguada(g, c))
+    assert dz_vag > dz_sub, (dz_vag, dz_sub)     # la trampa que se evita

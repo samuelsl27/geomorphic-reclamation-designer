@@ -37,7 +37,10 @@ class GlobalSettings:
     # o 'pct' (% de la longitud total de la subcresta) — como el original
     convexo_modo: str = "factor"                  # 'factor' | 'pct'
     convexo_pct: float = 20.0                     # % si convexo_modo == 'pct'
-    convexo_swale_activo: bool = False            # porción convexa máx. de vaguada (swale)
+    # 'Maximum swale convexity' de Global Settings [LIBRO p. 189]: longitud
+    # convexa de las vaguadas para todo el proyecto. La de cada canal manda
+    # sobre esta (ver ChannelSettings.dist_cresta_swale_m).
+    convexo_swale_activo: bool = False
     convexo_swale_m: float = 12.0                 # m
     pendiente_desembocadura: float = -2.0         # %, pendiente en la boca del canal principal (crítico)
     sinuosidad_canal_A: float = 1.15              # canales con pendiente > 4% (tipo A), sinuosidad < 1.2
@@ -125,7 +128,11 @@ class ChannelSettings:
     espaciado_subcrestas: int = 3                 # nº impar de meandros entre subcrestas
     # Longitud convexa de subcresta/vaguada específica del canal (sobrescribe la global)
     especificar_convexo: bool = False
-    dist_cresta_swale_m: float = 24.0             # 'Maximum distance from ridgeline to swale head'
+    # 'Maximum distance from ridgeline to swale head' [LIBRO p. 191]: es la
+    # LONGITUD CONVEXA de la vaguada, NO un retranqueo de su cabecera. La
+    # subcresta usa 1.5 veces este valor, y de esa diferencia sale la
+    # depresion de la vaguada [LIBRO fig. 8-11, p. 204]. Ver ADR-019.
+    dist_cresta_swale_m: float = 24.0             # m
     convexo_modo_canal: str = "factor"            # 'factor' (1.5 × dist) | 'pct'
     convexo_pct_canal: float = 20.0
     concavidad_perfil: float = 1.0                # 0 = recto, 1 = curva Hermite estándar, >1 más cóncavo

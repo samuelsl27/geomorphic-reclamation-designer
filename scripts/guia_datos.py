@@ -615,19 +615,29 @@ sobrescribirlo. Si una cota especificada se aparta del terreno más que la
 tolerancia, recibes un aviso."""),
  ("Specify sub-ridge/swale convex length", """Overrides the global convex settings for this channel only, so a steep tributary
 can have a different hillslope shape from the trunk. <b>Maximum distance from
-ridgeline to swale head</b> is how far below the divide each swale starts: a
-<b>larger</b> value keeps the swale head well down the slope and leaves a
-continuous ridge line along the divide; a <b>smaller</b> value takes the swale
-almost to the crest and gives a more dissected hillslope. Values larger than the
-hillslope itself are capped so the channel does not lose its swales.""",
+ridgeline to swale head</b> is the <b>convex length</b> of the swale — the
+distance from the divide over which the slope is still convex before it inflects
+into its concave lower part. It is <b>not</b> a set-back: sub-ridges and swales
+both run from the channel all the way up to the divide. What makes the swale a
+depression is that its convex length is <b>shorter</b> than that of the
+sub-ridges on either side, so with the same drop it falls away faster and sits
+below them. The sub-ridge convex length is 1.5 times this value. A
+<b>smaller</b> value digs the swale deeper and gives a more dissected hillslope;
+a <b>larger</b> one flattens the contrast until sub-ridge and swale are alike.
+Values larger than the hillslope itself are capped.""",
  """Sobrescribe los ajustes convexos globales solo para este canal, de modo que un
 tributario empinado pueda tener una forma de ladera distinta del tronco.
-<b>Maximum distance from ridgeline to swale head</b> es a qué distancia por
-debajo de la divisoria arranca cada vaguada: un valor <b>mayor</b> mantiene la
-cabecera de la vaguada bien abajo y deja una línea de cresta continua a lo largo
-de la divisoria; un valor <b>menor</b> lleva la vaguada casi hasta la coronación y
-da una ladera más disecada. Los valores mayores que la propia ladera se recortan
-para que el canal no se quede sin vaguadas."""),
+<b>Maximum distance from ridgeline to swale head</b> es la <b>longitud
+convexa</b> de la vaguada: la distancia desde la divisoria en la que la ladera
+todavía es convexa, antes de inflexionar a su parte cóncava. <b>No</b> es un
+retranqueo: subcrestas y vaguadas salen las dos del cauce y suben las dos hasta
+la divisoria. Lo que convierte la vaguada en una depresión es que su longitud
+convexa es <b>más corta</b> que la de las subcrestas de al lado, así que con el
+mismo desnivel cae más deprisa y queda por debajo. La longitud convexa de la
+subcresta es 1.5 veces este valor. Un valor <b>menor</b> encaja más la vaguada y
+da una ladera más disecada; uno <b>mayor</b> aplana el contraste hasta que
+subcresta y vaguada se parecen. Los valores mayores que la propia ladera se
+recortan."""),
  ("Random scale factors on sinusoidal channel", """When on, the radius of curvature of each bend varies randomly inside the stable
 range (2.5–3.2 times the bankfull width), which makes the plan form look natural
 rather than machine-made. When off, every bend is identical: more regular, easier

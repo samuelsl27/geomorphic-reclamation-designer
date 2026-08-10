@@ -6,7 +6,45 @@ Versionado [SemVer](https://semver.org/lang/es/).
 Los códigos `B-0xx` remiten a [`context/04_bugs_resueltos.md`], los `ADR-0xx` a
 [`context/03_decisiones.md`] y los `P-xx` a [`context/08_pendiente.md`].
 
-## [No publicado]
+## [No publicado] — 1.0.20 en curso
+
+Ronda sobre **la forma del relieve de ladera**, que es lo que se ve en las
+curvas de nivel. La v1.0.19 arregló el perfil del cauce; esta arregla lo que
+cuelga de él.
+
+### Corregido
+- 🔴 **La traza y las cotas de una divisoria salían de objetos distintos**
+  (B-028). `_perfil_cresta` invierte su copia de los puntos cuando el perfil
+  viene al revés, y `generar_crestas` emparejaba el array de cotas con los
+  puntos **sin invertir**: la mitad de las divisorias iba a `crestas_3d` con
+  **las cotas del revés**, y las laderas que toman de ahí su cota de coronación
+  heredaban la del OTRO extremo. Ahora `ridges.traza_y_cotas()` deriva las dos
+  cosas de la misma polilínea.
+- 🔴 **`maximum distance from ridgeline to swale head` se interpretaba como un
+  retranqueo** (B-032, ADR-019). Es la **longitud convexa de la vaguada**
+  [LIBRO p. 191]: *«option 1 — specify swale convex length»*. Se le amputaban
+  24 m al final de cada vaguada, que quedaban a 44.0 m del cauce cuando las
+  subcrestas llegaban a 63.4 (el original: 62.4 y 65.1). Ahora las dos suben a
+  la divisoria, y lo que hunde la vaguada es que su tramo convexo es **más
+  corto** que el de las subcrestas vecinas [LIBRO fig. 8-11, p. 204]: con el
+  mismo desnivel cae hasta 1.28 m más a media ladera.
+- **La cota de coronación la fijaba la línea que preguntaba**, no el filo. Como
+  `Δz = s_max·(D − lc/2 − lf/2)` crece al menguar `lc`, al quitar el retranqueo
+  las vaguadas habrían coronado **más alto** que las subcrestas (medido: 15.68 m
+  frente a 12.71 m). `ridges._z_ladera` calcula ahora la longitud convexa por su
+  cuenta, con la de la subcresta.
+
+### Añadido
+- `ridges.convexo_vaguada()` y `ridges.traza_y_cotas()`.
+- 6 pruebas nuevas en `tests/test_ladera.py`, con la cita del libro en el
+  docstring.
+
+### Cambiado
+- El texto de la guía sobre *Maximum distance from ridgeline to swale head*
+  describía literalmente el comportamiento erróneo («how far below the divide
+  each swale starts»). Reescrito con el modelo del libro.
+- `hillslopes._recortar_cola()` se conserva **desconectada**, como
+  `divides._rehacer_laderas()`, con el aviso de por qué no debe volver a usarse.
 
 ## [1.0.19] — 2026-08-10
 

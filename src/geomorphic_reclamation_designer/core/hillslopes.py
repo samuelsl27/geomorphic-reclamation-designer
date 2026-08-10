@@ -27,7 +27,7 @@ from . import setup_tools as st
 from .compat import attrs
 from .ridges import (
     PASO_CRESTA, PASO_MARCHA, perfil_trapezoidal, convexo_subcresta,
-    _geoms_ejes, _z_ladera,
+    convexo_vaguada, _geoms_ejes, _z_ladera,
 )
 
 # ------------------------------------------------------- subcrestas y vaguadas
@@ -85,7 +85,17 @@ def _cruce_con_borde(p_in, p_out, g_lim, iters=10):
 
 
 def _recortar_cola(pts_xy, retranqueo):
-    """Recorta 'retranqueo' metros del final de la polilínea (en planta)."""
+    """NO SE USA. Recorta metros del final de una polilínea, en planta.
+
+    Se conserva desconectada, como `divides._rehacer_laderas()`, porque el bug
+    que provocó es fácil de reintroducir: se usaba para "retranquear" la
+    cabecera de las vaguadas `dist_cresta_swale_m` metros por debajo de la
+    divisoria. Ese ajuste NO es un retranqueo, es la longitud convexa de la
+    vaguada [LIBRO p. 191], y amputarla dejaba las vaguadas 19 m por debajo del
+    alcance de las subcrestas y demasiado tendidas (ver B-032 y ADR-019).
+
+    Si vuelves a necesitar recortar una cola, que no sea para esto.
+    """
     if retranqueo <= 0 or len(pts_xy) < 3:
         return list(pts_xy), 0.0
     largos = [math.hypot(b[0] - a[0], b[1] - a[1])
@@ -122,7 +132,7 @@ def _z_en_linea(geom_xy, zs, pt):
 def _trazar_ladera(origen, direccion, propio, geoms, g_lim, disenos, s_max,
                    convexo_m, z0, dem=None, lineas_previas=None,
                    factor_fin=1.0, contorno=None, banda_mezcla=0.0,
-                   forzar_bajo=False, crestas=None, retranqueo=0.0,
+                   forzar_bajo=False, crestas=None,
                    factor_dz=1.0, glob=None):
     """Marcha desde el borde del canal hacia la divisoria con dirección FIJA
     (todas las subcrestas/vaguadas del canal comparten el mismo ángulo con la
@@ -222,35 +232,27 @@ def _trazar_ladera(origen, direccion, propio, geoms, g_lim, disenos, s_max,
             z_divisoria = mejor[1]
             z_div = z_divisoria
     if z_div is None:
+        # sin `convexo`: la cota de coronacion la fija SIEMPRE la longitud
+        # convexa de la SUBCRESTA, no la de la linea que pregunta (si no, la
+        # vaguada coronaria mas alta que la subcresta vecina)
         z_div = _z_ladera(fin, disenos, geoms, s_max, dem, forzar_bajo,
                           contorno=contorno, banda_mezcla=banda_mezcla,
-                          convexo=convexo_m, glob=glob)
+                          glob=glob)
     if not toco_borde:
         z_div = max(z_div, z0 + 0.25)   # drenaje interior siempre hacia el canal
 
-    # --- retranqueo de cabecera ('Maximum distance from ridgeline to swale
-    # head'): la vaguada NO llega a la divisoria, arranca esa distancia por
-    # debajo, y su cota de cabecera es la de la LADERA en ese punto (no un
-    # porcentaje arbitrario del desnivel, que era lo que dejaba vaguadas
-    # excesivamente encajadas en la v1.0.9).
-    if retranqueo > 0 and not toco_borde:
-        # nunca más del 40 % de la ladera: con un valor absurdo (p. ej. 400 m
-        # en una ladera de 120 m) la vaguada desaparecería por completo
-        retranqueo = min(retranqueo, 0.40 * D)
-        pts_xy, retro = _recortar_cola(pts_xy, retranqueo)
-        if len(pts_xy) < 3:
-            return None
-        z_fin = z_div - perfil_trapezoidal(retro, D, z_div - z0, conv_total)
-        D = sum(math.hypot(b[0] - a[0], b[1] - a[1])
-                for a, b in zip(pts_xy[:-1], pts_xy[1:]))
-        if D < PASO_MARCHA:
-            return None
-        if callable(convexo_m):
-            conv_total = convexo_m(D)
-    else:
-        z_fin = z_div
-        if factor_fin < 1.0 and not toco_borde:
-            z_fin = max(z0 + factor_fin * (z_fin - z0), z0 + 0.25)
+    # NO se retranquea la cabecera. 'Maximum distance from ridgeline to swale
+    # head' NO es un retranqueo: es la LONGITUD CONVEXA de la vaguada
+    # [LIBRO p. 191], y ya está aplicada arriba, en `conv_total`. La vaguada
+    # muere en la divisoria igual que la subcresta [LIBRO p. 211]; lo que la
+    # hunde es que su tramo convexo es MÁS CORTO que el de las subcrestas
+    # vecinas [LIBRO fig. 8-11, p. 204], no que sea más corta.
+    # Amputarle esos metros la dejaba 19 m por debajo del alcance de las
+    # subcrestas (44.0 m frente a 63.4) y demasiado tendida (10.8 % frente al
+    # 24.0 % del original). Ver B-032 y ADR-019.
+    z_fin = z_div
+    if factor_fin < 1.0 and not toco_borde:
+        z_fin = max(z0 + factor_fin * (z_fin - z0), z0 + 0.25)
     dz_total = (z_fin - z0) * float(factor_dz)
 
     # --- perfil medido en el original: convexo lc / recto / cóncavo al pie ---
@@ -330,14 +332,14 @@ def generar_subcrestas(disenos, g_lim, glob, lm, dem=None, crestas=None,
         base = aj.get("crestas_pct" if tipo == "cresta" else "vaguadas_pct", 0.0)
         return 1.0 + float(base or 0.0) / 100.0
 
-    def _traza(d, k, lado, convexo, retranqueo=0.0, factor_dz=1.0):
+    def _traza(d, k, lado, convexo, factor_dz=1.0):
         return _linea_ladera_en(d, k, lado, ang, geoms, g_lim, disenos,
                                 s_max, convexo=convexo, dem=dem,
                                 lineas_previas=lineas_por_canal.get(d.nombre),
                                 contorno=contorno,
                                 banda_mezcla=banda_mezcla,
                                 forzar_bajo=glob.forzar_crestas_bajo_limite,
-                                crestas=crestas, retranqueo=retranqueo,
+                                crestas=crestas,
                                 factor_dz=factor_dz, glob=glob)
 
     def _registrar(d, linea):
@@ -367,13 +369,13 @@ def generar_subcrestas(disenos, g_lim, glob, lm, dem=None, crestas=None,
         # longitud convexa de subcresta (por canal o global; en modo 'pct'
         # depende de la longitud D de cada ladera → se pasa como función)
         conv_sub = lambda D, c=d.settings: convexo_subcresta(glob, c, D)
-        # vaguadas (swales): convexidad máxima propia si está activada;
-        # si no, casi todo cóncavo (convexo mínimo)
-        conv_vag = (lambda D: min(glob.convexo_swale_m, 0.9 * D)) \
-            if glob.convexo_swale_activo else (lambda D: 0.05 * D)
-        # 'Maximum distance from ridgeline to swale head': la cabecera de la
-        # vaguada se queda esa distancia por debajo de la divisoria/cresta.
-        retro = max(0.0, float(getattr(d.settings, "dist_cresta_swale_m", 24.0) or 0.0))
+        # VAGUADAS. 'Maximum distance from ridgeline to swale head' es la
+        # LONGITUD CONVEXA de la vaguada, no un retranqueo: ver
+        # `ridges.convexo_vaguada` y [LIBRO p. 191 y fig. 8-11 p. 204]. La
+        # depresión sale de que ese tramo convexo es MÁS CORTO que el de las
+        # subcrestas vecinas, no de acortar la línea.
+        _cv = convexo_vaguada(glob, d.settings)
+        conv_vag = lambda D, v=_cv: min(v, 0.9 * D)
 
         # 1) TODAS las subcrestas del canal primero: así cada vaguada nace
         #    donde encuentra una cresta ya trazada y hereda su cota (el punto
@@ -391,7 +393,7 @@ def generar_subcrestas(disenos, g_lim, glob, lm, dem=None, crestas=None,
                 _registrar(d, linea)
         # 2) VAGUADAS hacia la margen opuesta, desde el MISMO punto del canal
         for idx, (k, signo) in enumerate(elegidos):
-            linea_v = _traza(d, k, signo, conv_vag, retranqueo=retro,
+            linea_v = _traza(d, k, signo, conv_vag,
                              factor_dz=_factor('vaguada', d.nombre, idx))
             if linea_v:
                 f = QgsFeature(capa_v.fields())
@@ -429,7 +431,7 @@ def generar_subcrestas(disenos, g_lim, glob, lm, dem=None, crestas=None,
 def _linea_ladera_en(d, k, signo, ang, geoms, g_lim, disenos, s_max,
                      convexo=None, dem=None, lineas_previas=None,
                      factor_fin=1.0, contorno=None, banda_mezcla=0.0,
-                     forzar_bajo=False, crestas=None, retranqueo=0.0,
+                     forzar_bajo=False, crestas=None,
                      factor_dz=1.0, glob=None):
     """Construye la línea de ladera (subcresta o vaguada) que arranca del
     punto k del eje del canal d, hacia la margen 'signo', girada 'ang' hacia
@@ -447,6 +449,6 @@ def _linea_ladera_en(d, k, signo, ang, geoms, g_lim, disenos, s_max,
                            lineas_previas=lineas_previas,
                            factor_fin=factor_fin, contorno=contorno,
                            banda_mezcla=banda_mezcla, forzar_bajo=forzar_bajo,
-                           crestas=crestas, retranqueo=retranqueo,
+                           crestas=crestas,
                            factor_dz=factor_dz, glob=glob)
     return linea
