@@ -6,12 +6,22 @@ Versionado [SemVer](https://semver.org/lang/es/).
 Los códigos `B-0xx` remiten a [`context/04_bugs_resueltos.md`], los `ADR-0xx` a
 [`context/03_decisiones.md`] y los `P-xx` a [`context/08_pendiente.md`].
 
-## [No publicado] — 1.0.19 en curso
+## [No publicado]
+
+## [1.0.19] — 2026-08-10
 
 Ronda de calibración contra el **segundo ejemplo de referencia** (Rom_Pla, 6
 canales, 35.6 ha), que destapa escenarios que el primero (Potoya, 2 canales) no
 tenía: confluencias múltiples, tributarios cortos y empinados, y cauce por
 encima del perímetro.
+
+> ⚠️ **Versión de trabajo, no definitiva.** Las siete correcciones de geometría
+> entran con 117 pruebas en verde y con el efecto verificado ejecutando el motor
+> fuera de QGIS, pero **el diseño completo no se ha vuelto a medir en QGIS real**
+> todavía: falta regenerar los dos ejemplos y pasar `comparar_original.py` y
+> *Check Design*. Los umbrales que deben cumplirse y el orden de pasos están en
+> `context/08_pendiente.md`, P-17. Por eso el instalable lleva la fecha en el
+> nombre.
 
 ### Añadido
 - **`scripts/comparar_original.py`** (P-12): mide el diseño contra la salida del
