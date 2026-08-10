@@ -177,6 +177,26 @@ class _RegistroLaderas:
         return mejor
 
 
+def direccion_de_ladera(tx, ty, signo, ang):
+    """Dirección unitaria de una línea de ladera desde el cauce.
+
+    `(tx, ty)` es la tangente de la LÍNEA DE VALLE hacia aguas abajo, `signo`
+    la margen (+1 / −1) y `ang` el *sub-ridge angle* en radianes.
+
+    El ángulo se mide **desde la perpendicular al cauce, girando hacia aguas
+    arriba** [LIBRO glosario p. xxxiv: «the angle of a sub-ridge from a
+    perpendicular axis to the channel measured in the upstream direction»; y
+    el rótulo del ajuste, p. 190: «angle from sub-ridge to channel's
+    perpendicular, upstream»]. Con `ang = 0` sale la perpendicular pura.
+
+    Está aparte para poder fijar esa semántica con una prueba: es una de esas
+    cosas que se leen bien de dos maneras opuestas y que nadie vuelve a mirar.
+    """
+    nx, ny = -ty * signo, tx * signo            # normal hacia la margen
+    return (nx * math.cos(ang) - tx * math.sin(ang),
+            ny * math.cos(ang) - ty * math.sin(ang))
+
+
 def _z_en_linea(geom_xy, zs, pt):
     """Cota de la polilínea (geom_xy, zs) en el vértice más próximo a pt."""
     try:
@@ -512,10 +532,7 @@ def _linea_ladera_en(d, k, signo, ang, geoms, g_lim, disenos, s_max,
     respecto al cauce es el mismo para todas las líneas."""
     x, y, z, s_valle = d.puntos[k]
     tx, ty = _tangente_valle(d, s_valle)
-    nx, ny = -ty * signo, tx * signo            # normal hacia la margen 'signo'
-    # giro hacia aguas arriba: componente -t
-    dx = nx * math.cos(ang) - tx * math.sin(ang)
-    dy = ny * math.cos(ang) - ty * math.sin(ang)
+    dx, dy = direccion_de_ladera(tx, ty, signo, ang)
     linea = _trazar_ladera((x, y), (dx, dy), d.nombre, geoms, g_lim, disenos,
                            s_max, convexo, z, dem=dem,
                            lineas_previas=lineas_previas,

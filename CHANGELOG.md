@@ -28,6 +28,29 @@ cuelga de él.
   la divisoria, y lo que hunde la vaguada es que su tramo convexo es **más
   corto** que el de las subcrestas vecinas [LIBRO fig. 8-11, p. 204]: con el
   mismo desnivel cae hasta 1.28 m más a media ladera.
+- 🔴 **`fundir_con_divisorias` pegaba el último vértice** (B-033). Hacía
+  `pts[:-1] + [(sobre[0], sobre[1], z_req)]`: movía **siempre** el último
+  vértice —aunque la cabecera fuese el primero— y le clavaba la cota nueva sin
+  mezclar, con la divisoria hasta a 16 m en planta. Es la firma exacta de la
+  línea plana con un salto de veinte metros al final, la que `ajustar_extremo`
+  no producía por sí sola. Ahora reparte con `_sellar_extremo`.
+- 🔴 **La marcha de ladera se paraba en el aire** (B-034). La regla anti-cruce
+  rompía el bucle **sin añadir vértice**, así que la línea quedaba entre 2.8 y
+  6.8 m corta: el **38 %** de nuestros extremos altos no tocaba nada, con un
+  hueco mediano de 10.1 m (el original: 13 % y 2.3 m). Ahora termina **sobre**
+  la otra línea. Y se comprueban las de **todos** los canales, no solo las del
+  propio: la excepción solo servía para que dos laderas de canales distintos
+  pudieran cruzarse.
+- **El contador de sillas era acumulado** (B-035). `res["sillas"]` se sumaba a
+  lo largo del bucle de divisorias y se usaba como `monotona=(res["sillas"]==0)`:
+  en cuanto **una** divisoria generaba una silla, **todas las siguientes** del
+  mismo pase perdían la monotonía, tuvieran sillas o no. Ahora es local.
+- **La cita de las sillas apuntaba a una sección que no existe.** El texto
+  entrecomillado en `divides.py` **sí** es literal del libro, pero está en
+  **§9.11.2, p. 259**, no en 9.4 (que es *Reference area observation*). Y el
+  libro **no da ninguna cifra** de profundidad: `prof_silla_pct = 25 %` es
+  decisión nuestra (ADR-020), no del método. Corregido en el código, en
+  `ai_context`, en el glosario y en `context/01`.
 - **La cota de coronación la fijaba la línea que preguntaba**, no el filo. Como
   `Δz = s_max·(D − lc/2 − lf/2)` crece al menguar `lc`, al quitar el retranqueo
   las vaguadas habrían coronado **más alto** que las subcrestas (medido: 15.68 m
@@ -36,8 +59,15 @@ cuelga de él.
 
 ### Añadido
 - `ridges.convexo_vaguada()` y `ridges.traza_y_cotas()`.
-- 6 pruebas nuevas en `tests/test_ladera.py`, con la cita del libro en el
-  docstring.
+- `hillslopes._RegistroLaderas`, con índice espacial: antes era un barrido
+  lineal completo en cada uno de los hasta 600 pasos de cada marcha.
+- `hillslopes.direccion_de_ladera()`, extraída para poder fijar con una prueba
+  que el *sub-ridge angle* se mide **desde la perpendicular al cauce, hacia
+  aguas arriba** [LIBRO glosario p. xxxiv y p. 190]. Se comprobó: **el motor lo
+  hacía bien**; la desviación que se había medido (51.9° frente a 60.5°) era de
+  la regla de medir, no del código, así que **no se ha tocado la constante**.
+- 16 pruebas nuevas (`test_ladera.py`, `test_checks.py` y el nuevo
+  `test_registro_laderas.py`), con la cita del libro en el docstring.
 
 ### Cambiado
 - El texto de la guía sobre *Maximum distance from ridgeline to swale head*

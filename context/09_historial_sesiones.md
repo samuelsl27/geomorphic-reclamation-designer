@@ -336,7 +336,7 @@ zanjas. Producía zanjas en otros casos. Revertido.
   `recortar_contra_corredor` por diferencia geométrica (B-010),
   `perfil_desde_control` con el orden correcto de etapas (B-014),
   `ajustar_extremo` con mezcla *smoothstep* (B-009).
-- **Sillas de cresta** (libro §9.4) y **recetario del capítulo 10** metido en el
+- **Sillas de cresta** (libro §9.11.2, p. 259) y **recetario del capítulo 10** metido en el
   prompt de optimización de IA.
 - Retirada la heurística `limite_de_ladera = 2 × media` (B-011).
 - Retirado `pendiente_max_pct` del perfil de las divisorias →

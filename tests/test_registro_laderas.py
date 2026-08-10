@@ -206,3 +206,35 @@ def test_el_tope_de_toque_no_es_mayor_que_el_paso_de_marcha():
     """Si `TOL_TOQUE` superara el paso, la marcha engancharia antes de haberse
     movido y ninguna linea llegaria a ninguna parte."""
     assert 0 < hs.TOL_TOQUE < hs.PASO_MARCHA
+
+
+# ------------------------------------------------- angulo de subcresta
+def test_el_angulo_se_mide_desde_la_PERPENDICULAR_al_cauce():
+    """[LIBRO glosario p. xxxiv] 'the angle of a sub-ridge from a PERPENDICULAR
+    axis to the channel measured in the UPSTREAM direction', y el rotulo del
+    ajuste (p. 190): 'angle from sub-ridge to channel's perpendicular,
+    upstream'. Con ang = 0 la linea sale perpendicular al cauce."""
+    tx, ty = 1.0, 0.0                       # valle hacia el este (aguas abajo)
+    for signo in (1.0, -1.0):
+        dx, dy = hs.direccion_de_ladera(tx, ty, signo, 0.0)
+        assert abs(dx) < 1e-12               # sin componente a lo largo del eje
+        assert abs(abs(dy) - 1.0) < 1e-12    # perpendicular pura
+        # margenes opuestas
+        assert (dy > 0) == (signo > 0)
+
+
+def test_el_giro_va_hacia_AGUAS_ARRIBA_en_las_dos_margenes():
+    tx, ty = 1.0, 0.0
+    ang = math.radians(20.0)
+    for signo in (1.0, -1.0):
+        dx, dy = hs.direccion_de_ladera(tx, ty, signo, ang)
+        assert dx < 0, "deberia apuntar aguas arriba"
+        # y el angulo con el eje del cauce es 90 - 20 = 70 grados
+        cos = abs(dx * tx + dy * ty) / math.hypot(dx, dy)
+        assert abs(math.degrees(math.acos(cos)) - 70.0) < 1e-9
+
+
+def test_la_direccion_es_unitaria():
+    for ang in (0.0, math.radians(10.0), math.radians(45.0)):
+        dx, dy = hs.direccion_de_ladera(0.6, 0.8, 1.0, ang)
+        assert abs(math.hypot(dx, dy) - 1.0) < 1e-12

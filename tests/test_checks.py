@@ -413,3 +413,18 @@ def test_el_sellado_mueve_el_extremo_que_toca_no_siempre_el_ultimo():
     assert abs(out[-1][2] - pts[-1][2]) < 1e-6      # el pie no se toca
     zs = [p[2] for p in out]
     assert zs == sorted(zs, reverse=True)
+
+
+def test_ninguna_separacion_sistematica_supera_la_tolerancia_que_la_salva():
+    """B-030. `dist_cresta_swale_m` (24 m) retranqueaba la cabecera de cada
+    vaguada, y el filtro de sillas la descartaba si quedaba a mas de
+    TOL_LLEGADA (20 m) de la divisoria: con laderas de mas de ~50 m NO se
+    generaba ni una silla, aunque `prof_silla_pct` estuviera al 25 %.
+
+    El retranqueo ya no existe (ADR-019), pero la leccion se codifica: una
+    separacion que el motor introduce a proposito no puede ser mayor que la
+    tolerancia que despues tiene que salvarla."""
+    assert _div.TOL_LLEGADA > topo.TOL_EMPALME, (
+        "TOL_LLEGADA tiene que ser mayor que TOL_EMPALME: si no, hay espolones "
+        "que topology prolonga hasta la divisoria y que divides ya no reajusta")
+    assert topo.TOL_FUSION < _div.TOL_LLEGADA

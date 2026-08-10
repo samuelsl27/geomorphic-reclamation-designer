@@ -839,12 +839,17 @@ def ajustar_divisorias(lm, disenos, glob, dem=None, g_lim=None, log=None):
         cabeceras.append((alto[0], alto[1], z_cab))
 
     # Cabeceras de VAGUADA: no levantan la divisoria, la hunden un poco. Es la
-    # 'silla' del capítulo 9.4 del libro: «the head of the swale depressions on
-    # the valley walls in natural landforms tend to form saddles between the
-    # sub-ridges to either side of the depression. In the design, incorporating
-    # dips in the ridgeline at these locations prevents runoff water from
-    # flowing down the ridgeline in tire ruts. Instead, it allows it to flow
-    # off the ridge and down the valley wall swales».
+    # 'silla' del libro, §9.11.2, p. 259 (NO 9.4, que es 'Reference area
+    # observation'; la palabra 'saddle' aparece UNA sola vez en todo el libro):
+    # «the head of the swale depressions on the valley walls in natural
+    # landforms tend to form saddles between the sub-ridges to either side of
+    # the depression. In the design, incorporating dips in the ridgeline at
+    # these locations prevents runoff water from flowing down the ridgeline in
+    # tire ruts. Instead, it allows it to flow off the ridge and down the
+    # valley wall swales».
+    # OJO: el libro dice POR QUE existen las sillas, pero NO da ninguna cifra
+    # de profundidad, ni absoluta ni relativa, y lo describe como una edicion
+    # manual del disenador. `prof_silla_pct` es decision NUESTRA (ADR-020).
     cab_vaguada = []
     if capa_vg is not None:
         for f in capa_vg.getFeatures():
@@ -896,6 +901,12 @@ def ajustar_divisorias(lm, disenos, glob, dem=None, g_lim=None, log=None):
         base = perfil_base(pts, z_alto, z_bajo, lc_cresta,
                            desde_inicio=desde_inicio)
         # --- sillas: la divisoria se hunde donde muere una vaguada ---
+        # El contador es LOCAL de esta divisoria. Era `res["sillas"]`, que se
+        # acumula a lo largo del bucle, y se usaba abajo como
+        # `monotona=(res["sillas"] == 0)`: en cuanto UNA divisoria generaba una
+        # silla, TODAS las siguientes del mismo pase perdian la monotonia,
+        # tuvieran sillas o no. Ver B-035.
+        n_sillas = 0
         pct = max(0.0, min(0.9, float(getattr(glob, "prof_silla_pct", 25.0))
                            / 100.0))
         if pct > 0:
@@ -911,8 +922,9 @@ def ajustar_divisorias(lm, disenos, glob, dem=None, g_lim=None, log=None):
                 if z_crest - zv <= 0.05:
                     continue
                 ctrl.append((sv, z_crest - pct * (z_crest - zv)))
-                res["sillas"] += 1
+                n_sillas += 1
             ctrl.sort()
+        res["sillas"] += n_sillas
         # Los dos extremos son anclajes de la curva base; solo se sueltan si
         # hay una cabecera de espolón pegada a ellos, porque entonces manda el
         # empalme.
@@ -930,7 +942,7 @@ def ajustar_divisorias(lm, disenos, glob, dem=None, g_lim=None, log=None):
         # divisoria natural sube a los espolones y baja a las vaguadas
         zs = perfil_desde_control(dens, base, ctrl, s_max,
                                   z_top=z_fin, z_bot=z_ini,
-                                  monotona=(res["sillas"] == 0))
+                                  monotona=(n_sillas == 0))
         if zs is None:
             continue
         cambios[f.id()] = [(x, y, z) for (x, y), z in zip(dens, zs)]

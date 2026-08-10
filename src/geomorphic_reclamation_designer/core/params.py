@@ -87,9 +87,12 @@ class GlobalSettings:
     # Las crestas y vaguadas de ladera mueren en el propio borde (holgura 0).
     holgura_divisoria_m: float = 4.5
     # Profundidad de la 'silla' que la divisoria forma donde muere una vaguada,
-    # en % del desnivel entre el filo y la cabecera de la vaguada. Libro 9.4:
-    # las sillas evitan que el agua corra por el filo de la cresta y la
-    # encauzan hacia las vaguadas. 0 = sin sillas (filo continuo).
+    # en % del desnivel entre el filo y la cabecera de la vaguada.
+    # El libro (§9.11.2, p. 259) explica POR QUE existen —evitan que el agua
+    # corra por el filo, abra roderas y las roderas se hagan carcavas— pero NO
+    # da ninguna cifra de profundidad y lo presenta como edicion manual del
+    # disenador. El 25 % es decision NUESTRA (ADR-020), no del libro.
+    # 0 = sin sillas (filo continuo).
     prof_silla_pct: float = 25.0
     tol_cruce_breaklines_m: float = 0.10          # dif. de cota admisible donde se cruzan dos líneas de rotura
     tol_cruce_canal_m: float = 1.00               # ídem dentro del corredor del cauce (orillas y eje)

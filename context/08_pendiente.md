@@ -275,7 +275,7 @@ seguridad (necesitan QGIS, así que solo correrían en local).
   y exportación a CSV
 - ✅ Conmutador de idioma de la guía (bug B-008)
 - ✅ Recorte de crestas contra el corredor por diferencia geométrica (B-010)
-- ✅ Sillas de cresta (libro §9.4)
+- ✅ Sillas de cresta (libro §9.11.2, p. 259 — el porcentaje es decisión nuestra)
 - ✅ Recetario del capítulo 10 en el prompt de optimización de IA
 - ✅ Marcador rojo en planta al deslizar sobre *View Longitudinal Profile*
 - ✅ Máscara del corredor para que las curvas no crucen el cauce (B-015)

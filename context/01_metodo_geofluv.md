@@ -260,8 +260,23 @@ el motor trazaba todas las laderas con la pendiente general y luego el *Error
 Log* avisaba de un incumplimiento que él mismo había provocado. Y el rumbo salía
 invertido para subcrestas y vaguadas, que se trazan del cauce hacia arriba.
 
-**Sillas de cresta** [LIBRO §9.4]: la cresta no es una línea de cota monótona;
-lleva rebajes entre culminaciones (`prof_silla_pct`, por defecto 25 %).
+**Sillas de cresta** [LIBRO §9.11.2, p. 259]: la cresta no es una línea de cota
+monótona; lleva rebajes donde muere cada vaguada. Cita literal, que es lo único
+que hay:
+
+> «The head of the swale depressions on the valley walls in natural landforms
+> tend to form **'saddles'** between the sub-ridges to either side of the
+> depression. In the design, **incorporating dips in the ridgeline at these
+> locations** prevents runoff water from flowing down the ridgeline in tire ruts.
+> Instead, it allows it to flow off the ridge and down the valley wall swales.»
+
+⚠️ El libro explica **por qué** existen, pero **no da ninguna cifra** de
+profundidad —ni absoluta, ni relativa— y lo presenta como una **edición manual
+del diseñador**. La palabra *saddle* aparece **una sola vez** en todo el libro.
+Nuestro `prof_silla_pct` (25 %) es por tanto **decisión nuestra**, no del método:
+ver ADR-020. Y ojo: hasta la v1.0.19 esta página y `core/divides.py` lo
+atribuían al «capítulo 9.4», que es *Reference area observation*. La cita del
+texto era buena; la sección, inventada.
 
 ---
 
@@ -360,7 +375,7 @@ legítimo, pero debe justificarse y medirse.
 | Ajuste | Por defecto | Para qué |
 |---|---|---|
 | `holgura_divisoria_m` | 4.5 m | Holgura al comprobar que una cresta llega a su divisoria |
-| `prof_silla_pct` | 25.0 % | Profundidad de las sillas de cresta [LIBRO §9.4] |
+| `prof_silla_pct` | 25.0 % | Profundidad de las sillas de cresta. **Decisión nuestra** (ADR-020): el libro las justifica (§9.11.2, p. 259) pero no da cifra |
 | `tol_cruce_breaklines_m` | 0.10 m | Tolerancia de cruce entre líneas de rotura |
 | `tol_cruce_canal_m` | 1.00 m | Tolerancia de cruce con el canal |
 | `long_max_lado_tin_m` | 50.0 m | Lado máximo de triángulo del TIN |

@@ -181,7 +181,7 @@ Editar el perfil del canal en el tramo afectado y su cota en la confluencia.
 Es iterativo: corregir un tramo suele mover el problema aguas abajo. El libro
 llegó a 1.90 lb/ft2 frente a un umbral de 2 tras varias iteraciones.
 
-### Sillas en la línea de cresta [9.4]
+### Sillas en la línea de cresta [9.11.2, p. 259]
 La cabecera de una vaguada forma una **silla** en la divisoria. Sin ella el
 agua corre por el filo de la cresta, hace roderas y acaba en cárcava. Aquí lo
 controla `prof_silla_pct`.

@@ -20,7 +20,7 @@ Esta tabla traduce entre los dos mundos.
 | cresta / divisoria | ridge / ridgeline / divide | Línea de máxima cota entre dos cuencas. `GRD_Ridges` |
 | subcresta | sub-ridge | Cresta secundaria en un ápice de meandro. `GRD_SubRidges` |
 | vaguada | swale | Línea de vaguada entre dos subcrestas. `GRD_Swales` |
-| silla | saddle | Rebaje de la cresta entre dos culminaciones (libro §9.4) |
+| silla | saddle | Rebaje de la cresta entre dos culminaciones (libro §9.11.2, p. 259; el libro NO da su profundidad) |
 | ladera | hillslope | Superficie entre el cauce y la divisoria |
 | pie de ladera | hillslope toe | Arranque de la ladera **junto al cauce** (¡no el punto bajo!) |
 | espolón | spur | Arranque de una subcresta sobre el cauce |
