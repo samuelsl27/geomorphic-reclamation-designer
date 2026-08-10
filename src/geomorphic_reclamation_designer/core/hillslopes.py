@@ -223,7 +223,8 @@ def _trazar_ladera(origen, direccion, propio, geoms, g_lim, disenos, s_max,
             z_div = z_divisoria
     if z_div is None:
         z_div = _z_ladera(fin, disenos, geoms, s_max, dem, forzar_bajo,
-                          contorno=contorno, banda_mezcla=banda_mezcla)
+                          contorno=contorno, banda_mezcla=banda_mezcla,
+                          convexo=convexo_m)
     if not toco_borde:
         z_div = max(z_div, z0 + 0.25)   # drenaje interior siempre hacia el canal
 

@@ -210,18 +210,39 @@ Fritsch–Carlson** — impide que el perfil se ondule entre puntos de control.
 ## 8. Perfil de ladera y cota de cresta
 
 **Perfil trapezoidal** [LIBRO, perfil de ladera de Horton]: convexo en cabeza
-(longitud `xc`), recto en el tramo medio, cóncavo al pie.
-`ridges.perfil_trapezoidal`, `ridges.perfil_ladera`.
-
-**Cota de la cresta**:
+(longitud `lc`), recto en el tramo medio, cóncavo al pie (longitud `lf`).
+`ridges.perfil_trapezoidal`. La pendiente del tramo recto, que es la máxima de
+todo el perfil, vale
 
 ```
-z_cresta = z_canal + (2/3) · s_max · D
+s_m = Δz / (D − lc/2 − lf/2)
 ```
 
-donde `D` es la distancia en planta del cauce a la divisoria y `s_max` la
-pendiente máxima de ladera. El perfil intermedio es *smoothstep*: cóncavo al
-pie, convexo en la cresta, con pendiente ≤ `s_max`.
+**Cota de la cresta**. Se obtiene igualando esa pendiente máxima a la máxima de
+Ajustes (*Maximum straight-line slopes*) y despejando el desnivel:
+
+```
+z_cresta = z_canal + Δz         con    Δz = s_max · (D − lc/2 − lf/2)
+```
+
+donde `D` es la distancia en planta del cauce a la divisoria, `s_max` la
+pendiente máxima de ladera, `lc` la porción convexa (`ridges.convexo_subcresta`)
+y `lf = min(lc, 0.30·D)`. `ridges.desnivel_de_ladera` y
+`ridges.tramos_de_ladera` — esta última existe para que la cota de cresta y el
+perfil dibujado **no puedan acotar los tramos de forma distinta**.
+
+`Δz` **no es un múltiplo fijo de `s_max·D`**: con `lc` y `lf` saturados en sus
+topes (0.6·D y 0.3·D) sale `0.55·s_max·D`; con `lc = 0.367·D` sale
+`(2/3)·s_max·D`; y con una cabeza convexa pequeña frente a la ladera tiende a
+`s_max·D`, que es la ladera recta. Con los ajustes de los dos ejemplos de
+referencia queda entre 0.55 y 0.75.
+
+⚠️ **Error histórico.** Hasta la v1.0.18 esta página y el docstring de
+`ridges.py` decían `(2/3)·s_max·D` mientras el código usaba `0.5·s_max·D`. Es el
+patrón de B-016 (documentación que contradice al código) aplicado a una
+constante del método. La corrección **no** ha sido escribir 2/3 en el código:
+ha sido despejarlo de la ecuación del perfil, porque cualquier constante vale
+para un caso y falla en otro. Ver B-024.
 
 **Sillas de cresta** [LIBRO §9.4]: la cresta no es una línea de cota monótona;
 lleva rebajes entre culminaciones (`prof_silla_pct`, por defecto 25 %).

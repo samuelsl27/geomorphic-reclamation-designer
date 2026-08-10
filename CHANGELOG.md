@@ -6,7 +6,51 @@ Versionado [SemVer](https://semver.org/lang/es/).
 Los códigos `B-0xx` remiten a [`context/04_bugs_resueltos.md`], los `ADR-0xx` a
 [`context/03_decisiones.md`] y los `P-xx` a [`context/08_pendiente.md`].
 
-## [No publicado]
+## [No publicado] — 1.0.19 en curso
+
+Ronda de calibración contra el **segundo ejemplo de referencia** (Rom_Pla, 6
+canales, 35.6 ha), que destapa escenarios que el primero (Potoya, 2 canales) no
+tenía: confluencias múltiples, tributarios cortos y empinados, y cauce por
+encima del perímetro.
+
+### Añadido
+- **`scripts/comparar_original.py`** (P-12): mide el diseño contra la salida del
+  programa original y emite inventario, canales (longitud, sinuosidad, cotas y
+  perfil longitudinal por deciles), líneas de relieve (espaciado, ángulo,
+  longitud, cota de coronación) y defectos de forma (peor pendiente de segmento,
+  líneas sobre el 100 %, líneas bajo el cauce, meseta más larga, vaivén).
+  Empareja los canales **por cota de cabecera, no por nombre**.
+- **`scripts/lector_gpkg.py`**: lee GeoPackage con `sqlite3` y un parser de WKB
+  propio, sin QGIS ni GDAL. Entiende `CompoundCurve` y `CircularString`, que es
+  como llegan las polilíneas del DXF del original; un lector que solo entienda
+  `LineString` devuelve **cero** entidades sin dar ningún error.
+- **`scripts/leer_geo.py`**: lee el proyecto nativo `.geo`/`.ggs` del programa
+  original y lo compara o lo fusiona **ajuste a ajuste** con un `.grd.json`.
+  Traduce las unidades (en el `.geo` tres globales van en fracción y en el
+  `.ggs` en tanto por ciento; la lluvia va en centímetros).
+- `PerfilLongitudinal.cabecera_convexa`, expuesto también en
+  `perfiles_efectivos` para el optimizador.
+- `ridges.tramos_de_ladera()` y `ridges.desnivel_de_ladera()`.
+- `tests/test_perfil_canal.py` (12) y `tests/test_ladera.py` (10).
+
+### Corregido
+- 🔴 **El perfil del cauce sacrificaba la pendiente de cabecera pedida**
+  (B-023, ADR-017). `disenar_perfil` exigía concavidad *estricta* y, cuando no
+  se cumplía, re-empinaba la cabecera con `s_cabecera = 2m − s_boca`. Ahora
+  solo se impone la monotonía (Fritsch–Carlson) y se admite **tramo convexo de
+  cabecera**, que es lo que hace el original. Medido en Rom_Pla: main L1 pasa de
+  −26.91 % a −15.40 % (pedida −15.4 %, original −16.16 %) y main R4 de −36.95 %
+  a −17.44 % (pedida −17.44 %, original −18.29 %).
+- **La cota de cresta no casaba con el perfil que se dibujaba** (B-024).
+  `_z_ladera` usaba `0.5·s_max·D` mientras el docstring del propio módulo y
+  `context/01_metodo_geofluv.md` decían `(2/3)·s_max·D`. Ahora se **despeja** de
+  `perfil_trapezoidal` (`Δz = s_max·(D − lc/2 − lf/2)`), así que no pueden
+  volver a desincronizarse. Retirada `ridges.perfil_ladera()`, que no se usaba
+  desde ninguna parte y cuyo docstring describía el perfil superado.
+
+### Documentación
+- `context/06_comparacion_original.md` decía que `scripts/comparar_original.py`
+  existía y no existía. Corregido, con el uso de los tres guiones nuevos.
 
 ## [1.0.18] — 2026-08-07
 

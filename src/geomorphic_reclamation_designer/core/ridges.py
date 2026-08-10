@@ -8,11 +8,18 @@
   canal y recortados al límite). Es la divisoria natural "equidistante" que
   el método materializa como crestas entre canales adyacentes.
 - CRESTAS PRINCIPALES: fronteras compartidas entre subcuencas (excluyendo el
-  propio límite GeoFluv). Cota de cresta: z del canal más próximo + desnivel
-  de ladera Δz = (2/3)·s_max·D, donde D es la distancia al canal y s_max la
-  pendiente recta máxima de Ajustes. (Con un perfil de ladera 'smoothstep'
-  —cóncavo al pie, convexo en la cresta— la pendiente máxima a media ladera
-  es 1.5·Δz/D, de modo que Δz = (2/3)·s_max·D garantiza no superar s_max.)
+  propio límite GeoFluv). Cota de cresta: z del canal más próximo + el desnivel
+  de ladera que da `desnivel_de_ladera()`, que NO es una constante: se despeja
+  de la propia ecuación del perfil que se va a dibujar (`perfil_trapezoidal`),
+  igualando la pendiente de su tramo recto a la pendiente máxima de Ajustes:
+
+      Δz = s_max · (D − lc/2 − lf/2)
+
+  con D la distancia al canal, lc la porción convexa de cabeza y lf la cóncava
+  del pie. Con los ajustes de los ejemplos de referencia eso queda entre
+  0.55·s_max·D y 0.75·s_max·D. Se despeja en vez de fijarse porque una
+  constante y una ecuación acaban desincronizándose: hasta la v1.0.18 este
+  docstring decía (2/3)·s_max·D y el código usaba 0.5·s_max·D (ver B-024).
 - SUBCRESTAS: en cada N-ésimo ápice de meandro (espaciado impar ⇒ márgenes
   alternas) nace una subcresta que sube desde el borde del canal hasta la
   divisoria, girada 'angulo_subcresta' hacia aguas arriba, con perfil de
@@ -41,6 +48,43 @@ def _smoothstep(u):
     return 3 * u * u - 2 * u ** 3
 
 
+def tramos_de_ladera(D, lc, lf=None):
+    """Longitudes (convexa de cabeza, cóncava de pie) ya acotadas.
+
+    Existe para que `perfil_trapezoidal` y `desnivel_de_ladera` no puedan
+    desincronizarse: la cota que se le pone a la cresta tiene que ser la que
+    produce el perfil que luego se dibuja, no una parecida.
+    """
+    if lf is None:
+        lf = min(lc, 0.30 * D)
+    lc = max(0.5, min(lc, 0.6 * D))
+    lf = max(0.5, min(lf, 0.9 * D - lc))
+    return lc, lf
+
+
+def desnivel_de_ladera(D, s_max, lc, lf=None):
+    """Desnivel de una ladera de longitud D cuya pendiente MÁXIMA es s_max.
+
+    En `perfil_trapezoidal` la pendiente del tramo central —que es la máxima de
+    todo el perfil— vale `s_m = dz / (D − lc/2 − lf/2)`. Igualarla a s_max y
+    despejar dz da el desnivel que agota justo la pendiente máxima de Ajustes
+    ('Maximum straight-line slopes') sin superarla:
+
+        Δz = s_max · (D − lc/2 − lf/2)
+
+    NO es un múltiplo fijo de s_max·D: depende de cuánta ladera se lleven los
+    tramos curvos. Con lc y lf saturados en sus topes (0.6·D y 0.3·D) sale
+    0.55·s_max·D; con lc = 0.367·D sale (2/3)·s_max·D; y con una cabeza convexa
+    pequeña frente a la ladera tiende a s_max·D, que es la ladera recta. Por
+    eso se despeja y no se tabula: cualquier constante vale para un caso y
+    falla en el resto.
+    """
+    if D <= 0:
+        return 0.0
+    lc, lf = tramos_de_ladera(D, lc, lf)
+    return s_max * max(0.0, D - lc / 2.0 - lf / 2.0)
+
+
 def perfil_trapezoidal(x_desde_cresta, D, dz, lc, lf=None):
     """Desnivel BAJO el extremo alto a distancia x de él, repartiendo el
     desnivel REAL dz (con signo) con la forma medida en el GeoFluv original
@@ -54,10 +98,7 @@ def perfil_trapezoidal(x_desde_cresta, D, dz, lc, lf=None):
     s_m = dz / (D − lc/2 − lf/2); la relación pendiente máx/media resulta
     ≈ 1.2–1.5 como en el original (la doble parábola anterior daba 2.0).
     dz puede ser negativo (línea que desciende hacia su empalme)."""
-    if lf is None:
-        lf = min(lc, 0.30 * D)
-    lc = max(0.5, min(lc, 0.6 * D))
-    lf = max(0.5, min(lf, 0.9 * D - lc))
+    lc, lf = tramos_de_ladera(D, lc, lf)
     s_m = dz / (D - lc / 2.0 - lf / 2.0)
     x = max(0.0, min(x_desde_cresta, D))
     if x <= lc:
@@ -68,31 +109,6 @@ def perfil_trapezoidal(x_desde_cresta, D, dz, lc, lf=None):
         y = x - (D - lf)
         drop = s_m * (lc / 2.0 + (D - lf - lc) + y - y * y / (2.0 * lf))
     return drop
-
-
-def perfil_ladera(x_desde_cresta, D, s_max, lc):
-    """Desnivel BAJO la cresta a distancia x de ella, en una ladera de longitud
-    D con pendiente recta máxima s_max y porción convexa de longitud lc junto
-    a la cresta ('Maximum convex portion of sub-ridge' del método):
-
-    - Tramo convexo (0 ≤ x ≤ lc): parábola con pendiente 0 en la cresta que
-      crece linealmente hasta s_max:      drop = s_max·x²/(2·lc)
-    - Tramo cóncavo (lc < x ≤ D): la pendiente decae linealmente de s_max a 0
-      en el canal: drop = s_max·lc/2 + s_max·[(D−lc)² − (D−x)²]/(2·(D−lc))
-
-    Altura total de la ladera H = s_max·D/2 (la pendiente máxima s_max solo se
-    alcanza en la unión de ambos tramos, garantizando 'Maximum straight-line
-    slopes'). Devuelve (drop, H).
-    """
-    lc = max(0.5, min(lc, 0.9 * D))
-    H = s_max * D / 2.0
-    x = max(0.0, min(x_desde_cresta, D))
-    if x <= lc:
-        drop = s_max * x * x / (2.0 * lc)
-    else:
-        drop = s_max * lc / 2.0 + \
-            s_max * ((D - lc) ** 2 - (D - x) ** 2) / (2.0 * (D - lc))
-    return drop, H
 
 
 def convexo_subcresta(glob, canal=None, D=None):
@@ -134,8 +150,13 @@ def _geoms_ejes(disenos):
 
 
 def _z_ladera(pt, disenos, geoms, s_max, dem=None, cap_dem=False,
-              contorno=None, banda_mezcla=0.0):
+              contorno=None, banda_mezcla=0.0, convexo=None):
     """Cota de diseño en un punto de ladera/cresta: canal más próximo + Δz.
+
+    `convexo` es la porción convexa de cabeza (m), o una función de la
+    distancia que la devuelva; sale de `convexo_subcresta()`. Con ella se
+    despeja el Δz de la ecuación del perfil (`desnivel_de_ladera`). Si no se
+    pasa, se supone ladera recta sin cabeza convexa (Δz ≈ s_max·D).
 
     Continuidad con el relieve existente: dentro de la banda de mezcla junto
     al límite GeoFluv la cota de diseño se funde progresivamente con la del
@@ -156,8 +177,9 @@ def _z_ladera(pt, disenos, geoms, s_max, dem=None, cap_dem=False,
     # resguardo mínimo: donde las divisorias mueren en las confluencias la
     # distancia tiende a 0; sin resguardo el muestreo puede dejar la cresta
     # por debajo del lecho y crear charcos espurios en el TIN.
-    # Altura de ladera H = s_max·D/2 (ver perfil_ladera).
-    z = z_ch + max(0.5 * s_max * dist, 0.25)
+    lc = convexo(dist) if callable(convexo) else (0.5 if convexo is None
+                                                  else convexo)
+    z = z_ch + max(desnivel_de_ladera(dist, s_max, lc), 0.25)
     # --- mezcla con el DEM junto al límite (continuidad de relieve) ---
     if dem is not None and contorno is not None and banda_mezcla > 0:
         d_borde = contorno.distance(g)
@@ -539,7 +561,7 @@ def _perfil_cresta(dens, disenos, geoms, s_max, dem, glob, contorno, anclaje=Non
 
     Es una cresta de DISEÑO, no una copia del terreno: su cota en cada punto
     es, como mínimo, la cota de cresta que corresponde a la ladera (canal más
-    próximo + altura de ladera H = s_max·D/2, ver perfil_ladera). Sobre esa
+    próximo + `desnivel_de_ladera`, despejado del perfil). Sobre esa
     envolvente se traza un perfil longitudinal monótono, con la forma
     convexo/recto/cóncavo de las laderas, entre las cotas de los dos extremos:
 
@@ -554,6 +576,12 @@ def _perfil_cresta(dens, disenos, geoms, s_max, dem, glob, contorno, anclaje=Non
     DEM: fundirlo hacía que la "cresta" copiase la topografía original y en
     muchos tramos no separase realmente las dos cuencas.
     """
+    # Porción convexa de la LADERA que sube hasta esta cresta (no la de la
+    # cresta misma): es la que hay que meter en `desnivel_de_ladera` para que
+    # la cota de coronación case con el perfil que dibujan las subcrestas.
+    def _conv_ladera(D_ladera):
+        return convexo_subcresta(glob, None, D_ladera)
+
     def z_extremo(pt):
         g = QgsGeometry.fromPointXY(QgsPointXY(*pt))
         if contorno is not None and contorno.distance(g) < 3.0 and dem is not None:
@@ -572,7 +600,8 @@ def _perfil_cresta(dens, disenos, geoms, s_max, dem, glob, contorno, anclaje=Non
                     key=lambda k: (d.puntos[k][0] - pt[0]) ** 2 +
                                   (d.puntos[k][1] - pt[1]) ** 2)
             return d.puntos[i][2] + 0.25, "confluencia"
-        return _z_ladera(pt, disenos, geoms, s_max, dem, False), "cresta"
+        return (_z_ladera(pt, disenos, geoms, s_max, dem, False,
+                          convexo=_conv_ladera), "cresta")
 
     zA, _ = z_extremo(dens[0])
     zB, _ = z_extremo(dens[-1])
@@ -593,7 +622,8 @@ def _perfil_cresta(dens, disenos, geoms, s_max, dem, glob, contorno, anclaje=Non
     D = max(s[-1], 1e-6)
     lc = min(1.5 * glob.max_dist_cresta_cabecera, 0.5 * D)
     # envolvente de cresta de diseño (sin mezcla con el DEM)
-    z_env = [_z_ladera((pt[0], pt[1]), disenos, geoms, s_max, dem, False)
+    z_env = [_z_ladera((pt[0], pt[1]), disenos, geoms, s_max, dem, False,
+                       convexo=_conv_ladera)
              for pt in dens]
     zs = []
     n = len(dens)

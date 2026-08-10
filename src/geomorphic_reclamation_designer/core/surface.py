@@ -45,7 +45,7 @@ def _puntos_limite(g_lim, dem, lm, disenos, glob, paso=15.0):
     """Capa temporal de puntos 3D sobre el límite con la cota del terreno
     (o, sin DEM, la cota de ladera de diseño)."""
     from qgis.core import QgsVectorLayer
-    from .ridges import _geoms_ejes, _z_ladera
+    from .ridges import _geoms_ejes, _z_ladera, convexo_subcresta
     crs = QgsProject.instance().crs().authid()
     lyr = QgsVectorLayer(f"PointZ?crs={crs}", "tmp_limite_z", "memory")
     anillo = g_lim.asPolygon()[0] if not g_lim.isMultipart() \
@@ -62,7 +62,8 @@ def _puntos_limite(g_lim, dem, lm, disenos, glob, paso=15.0):
             y = a.y() + t * (b.y() - a.y())
             z = st.cota_dem(dem, x, y) if dem is not None else None
             if z is None and geoms:
-                z = _z_ladera((x, y), disenos, geoms, s_max)
+                z = _z_ladera((x, y), disenos, geoms, s_max,
+                              convexo=lambda D: convexo_subcresta(glob, None, D))
             if z is None:
                 continue
             f = QgsFeature()
