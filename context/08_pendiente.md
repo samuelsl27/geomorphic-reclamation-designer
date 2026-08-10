@@ -150,12 +150,16 @@ Queda por decidir si se quita `experimental=True`, y en todo caso probar antes
 en **3.22, 3.34, 3.40 y 4.2** — sobre todo en 3.22, que es donde B-020 impedía
 cargar el complemento y donde nunca se ha ejecutado de verdad.
 
-### P-12 · `scripts/comparar_original.py`
+### P-12 · `scripts/comparar_original.py` ✅ (hecho 2026-08-10)
 
-Está referenciado en `context/06_comparacion_original.md` pero **aún no
-escrito**: hay que consolidar en un guion las medidas que se han venido haciendo
-a mano vía MCP (cotas de anclaje, gradientes, distancias al eje, Δz en cruces),
-para poder repetir la comparación completa con una sola ejecución.
+Escrito, junto con `scripts/lector_gpkg.py` (GeoPackage sin GDAL) y
+`scripts/leer_geo.py` (lee el proyecto nativo `.geo`/`.ggs` del original y
+compara ajuste a ajuste). Uso y salida, en `context/06_comparacion_original.md`.
+
+Queda fuera una medida que sí se hacía a mano: **Δz en los cruces curva de nivel
+/ cauce**. `GRD_Contours` pesa ~28 MB por ejemplo y cruzar 359 curvas contra los
+ejes multiplica por veinte el tiempo del guion, que hoy tarda 0.13 s. Merece un
+`--curvas` que lo active solo cuando se pida.
 
 ### P-14 · Endurecer el linter progresivamente
 

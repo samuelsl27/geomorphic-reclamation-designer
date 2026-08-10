@@ -76,28 +76,37 @@ protección local. Ver `context/08_pendiente.md`.
 
 ## Cómo repetir la comparación
 
-Con QGIS abierto y el MCP en marcha (`docs/MCP_QGIS.md`):
-
-```python
-# 1. capas de referencia y de diseño
-from qgis.core import QgsProject
-p = QgsProject.instance()
-orig = [c for c in p.mapLayers().values() if "origen" in c.name()]
-mio  = [c for c in p.mapLayers().values() if c.name().startswith("GRD_")]
-
-# 2. para cada línea de cresta: cota alta, cota baja, longitud, pendientes
-def resumen(capa):
-    for f in capa.getFeatures():
-        pts = [v for v in f.geometry().vertices()]
-        zs  = [v.z() for v in pts]
-        yield f.id(), max(zs), min(zs), f.geometry().length()
-
-# 3. distancia mínima de cada cresta al eje del cauce  → QgsSpatialIndex
-# 4. Δz en los cruces curva de nivel / cauce
+```bash
+python scripts/comparar_original.py RUTA_DEL_EJEMPLO
+python scripts/comparar_original.py RUTA_DEL_EJEMPLO --json informe.json
 ```
 
-El guion completo, con las medidas que generaron esta tabla, está en
-`scripts/comparar_original.py` (ejecutar **dentro** de QGIS o vía MCP).
+`RUTA_DEL_EJEMPLO` es la carpeta con `GRD_Files/` (lo nuestro) y
+`GeoFluv_origen/` (el GeoPackage importado del DXF del original). **No necesita
+QGIS ni GDAL**: lee los GeoPackage con `scripts/lector_gpkg.py`, que es
+`sqlite3` más un parser de WKB propio. Eso importa más de lo que parece: el DXF
+del original llega con arcos, así que sus polilíneas son `CompoundCurve` (tipo
+9) y no `LineString`; un lector que solo entienda el tipo 2 devuelve **cero**
+entidades y la comparación sale vacía sin dar ningún error.
+
+Emite cuatro bloques: inventario, canales (longitud, sinuosidad, cotas y perfil
+longitudinal por deciles), líneas de relieve (espaciado, ángulo, longitud, cota
+de coronación) y defectos de forma (peor pendiente de segmento, líneas por
+encima del 100 %, líneas por debajo del cauce, meseta más larga y vaivén).
+
+**Los canales se emparejan por COTA DE CABECERA, no por nombre.** En el Ej_2 los
+parámetros de los tributarios estaban tecleados en orden invertido, así que
+emparejar por nombre daba falsos negativos en todo. La cota de cabecera la fija
+el DEM en el extremo del fondo de valle, es la misma en los dos programas y
+coincide con menos de 0.1 m.
+
+Y para comparar los AJUSTES, no la geometría, cuando el ejemplo conserve el
+proyecto nativo del original (`.geo` / `.ggs`):
+
+```bash
+python scripts/leer_geo.py Ej_2_GeoFluv_File.geo --comparar GRD_x.grd.json
+python scripts/leer_geo.py Ej_2_GeoFluv_File.geo --fusionar GRD_x.grd.json
+```
 
 ## Reglas para interpretar una comparación
 
