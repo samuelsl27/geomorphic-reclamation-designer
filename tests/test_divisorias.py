@@ -646,3 +646,33 @@ def test_la_monotonia_sigue_activa_por_defecto():
     out = dv.ajustar_extremo(pts, 1071.5, en_inicio=False)
     zs = [p[2] for p in out]
     assert zs == sorted(zs)
+
+
+def test_remuestrear_no_deja_micro_segmentos():
+    """B-039. Los vertices que se conservan por forma se reinsertaban en su
+    propia estacion, y esa estacion puede caer a centimetros de una marca
+    regular. `remuestrear` es lo ULTIMO que toca la planta de una divisoria, asi
+    que ese segmento diminuto llegaba tal cual al fichero: medido en el Ej_2, el
+    4.3 % de los segmentos por debajo de 1 m —el mas corto de 0.43 m con un giro
+    de 119 grados— cuando el original no tiene NI UNO."""
+    # una recta con un racimo de quiebros espurios en medio
+    pts = [(float(i) * 6.0, 0.0, 100.0) for i in range(20)]
+    pts[9] = (54.0, 1.2, 100.0)
+    pts.insert(10, (54.4, 1.4, 100.0))
+    pts.insert(11, (54.9, 1.1, 100.0))
+    out = dv.remuestrear(pts, 6.1)
+    seg = [math.dist(out[i][:2], out[i + 1][:2]) for i in range(len(out) - 1)]
+    assert min(seg) > 1.0, "segmento de %.2f m" % min(seg)
+
+
+def test_remuestrear_se_queda_con_el_vertice_que_LLEVA_la_forma():
+    """De cada racimo se conserva el que MAS se desvia, no el primero: quedarse
+    con el primero se comia el apice de las curvas cerradas."""
+    pts = [(float(i) * 6.0, 0.0, 100.0) for i in range(12)]
+    # racimo con el apice en el del medio
+    pts.insert(6, (36.0, 0.6, 100.0))
+    pts.insert(7, (36.5, 3.0, 100.0))      # <- el apice
+    pts.insert(8, (37.0, 0.6, 100.0))
+    out = dv.remuestrear(pts, 6.1)
+    assert any(abs(q[1] - 3.0) < 1e-9 for q in out), \
+        "se ha perdido el apice: %s" % [round(q[1], 2) for q in out]

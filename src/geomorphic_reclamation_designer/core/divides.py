@@ -267,13 +267,46 @@ def remuestrear(pts, paso, tol=TOL_TRAZA_CRESTA):
     n = max(2, int(math.ceil(L / paso - 1e-9)))
     muestras = dict(_en(L * k / n) for k in range(n + 1))
     if tol > 0:
+        # Los vértices que se conservan por forma se reinsertan en su propia
+        # estación, y esa estación puede caer a centímetros de una marca
+        # regular. Esta función es lo ÚLTIMO que toca la planta de una
+        # divisoria, así que ese segmento diminuto llega tal cual al fichero:
+        # medido en el Ej_2, el 4.3 % de los segmentos por debajo de 1 m —el
+        # más corto de 0.43 m, con un giro de 119°— cuando el original no tiene
+        # NI UNO. Así que el que se reinserta DESPLAZA a la marca vecina en vez
+        # de amontonarse con ella. Ver B-039.
+        sep_min = 0.5 * paso
         marcas = sorted(muestras)
+        # dos pasadas: primero se decide QUIÉN se conserva, contra las marcas
+        # regulares intactas, y después se insertan. Decidirlo y borrar a la vez
+        # dejaba el índice de marcas desincronizado con el diccionario.
+        candidatos = []
         for si, p in zip(s, pts):
             j = bisect.bisect_left(marcas, si)
             a = marcas[max(0, j - 1)]
             b = marcas[min(j, len(marcas) - 1)]
-            if _dist_a_segmento(p, muestras[a], muestras[b]) > tol:
-                muestras[si] = tuple(p)
+            d = _dist_a_segmento(p, muestras[a], muestras[b])
+            if d > tol:
+                candidatos.append((si, tuple(p), a, b, d))
+        # …y tampoco se amontonan ENTRE ELLOS. Un quiebro espurio no aporta un
+        # vértice: aporta un RACIMO, y todos superan la tolerancia — los
+        # segmentos de 0.43 m medidos en el Ej_2 caían entre dos conservados,
+        # no entre un conservado y una marca. De cada racimo se queda el que
+        # MÁS se desvía, que es el que lleva la forma: quedarse con el primero
+        # se comía el ápice de las curvas cerradas.
+        conservar = []
+        for cand in candidatos:
+            if conservar and cand[0] - conservar[-1][0] < sep_min:
+                if cand[4] > conservar[-1][4]:
+                    conservar[-1] = cand
+                continue
+            conservar.append(cand)
+        for si, p, a, b, _d in conservar:
+            for vecina in (a, b):
+                # los dos extremos no se tocan nunca: son las anclas
+                if 0.0 < vecina < L and abs(vecina - si) < sep_min:
+                    muestras.pop(vecina, None)
+            muestras[si] = p
     return [muestras[k] for k in sorted(muestras)]
 
 
