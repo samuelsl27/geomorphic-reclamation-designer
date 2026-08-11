@@ -13,6 +13,7 @@ Dz = (2/3)*s_max*D y el codigo usaba 0.5*s_max*D—, que es el patron de B-016
 Se ejecuta el modulo REAL con QGIS simulado, en vez de copiar las funciones al
 test: una copia vuelve a desincronizarse, que es justo el fallo que se corrige.
 """
+import math
 import os
 import sys
 import types
@@ -708,3 +709,29 @@ def test_la_tangente_se_mide_por_LONGITUD_no_por_vertices():
                                                   for x in range(10, 60, 10)]
     tx, ty = rg._tangente(pts, False, largo=25.0)
     assert tx > 0.99 and abs(ty) < 0.05, (tx, ty)
+
+
+def test_la_mezcla_de_la_bisectriz_acaba_donde_se_le_pide():
+    """B-041. El rayo avanzaba PASO_CRESTA exactos por INDICE y la cadena entre
+    5 y 10 m, asi que la mezcla acababa en una estacion arbitraria —el indice 10
+    podia caer entre 50 y 100 m— y ahi se pegaba la traza cruda de golpe. En el
+    Ej_2 se midio un giro de 109 y 131 grados justo pasado ese punto."""
+    import random
+    random.seed(3)
+    pts = [(0.0, 0.0)]
+    for _ in range(30):                       # espaciado irregular, 5 a 10 m
+        pts.append((pts[-1][0] + random.uniform(5.0, 10.0),
+                    pts[-1][1] + random.uniform(-1.0, 1.0)))
+    bis = [{"xy": pts[0], "z": 100.0, "dirs": [(1.0, 0.0)],
+            "canal": "a", "padre": "b"}]
+    largo = 50.0
+    out = rg._salir_por_bisectriz(pts, ("ini", 100.0), bis,
+                                  largo=largo, radio=50.0)
+    # mas alla de `largo` metros de ARCO la traza queda intacta
+    s = 0.0
+    for i in range(1, len(pts)):
+        s += math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1])
+        if s > largo + 1e-6:
+            assert out[i] == pts[i], (i, s, out[i], pts[i])
+    # y dentro del tramo si se ha movido hacia la bisectriz
+    assert out[1] != pts[1]

@@ -851,12 +851,14 @@ def _salir_por_bisectriz(dens, anclaje, bisectrices, largo=None, radio=None):
     for b in bisectrices:
         if math.hypot(b["xy"][0] - ini[0], b["xy"][1] - ini[1]) > radio:
             continue
-        # hacia dónde va la cadena en sus primeros metros
-        j = min(len(puntos) - 1, max(1, int(largo / PASO_CRESTA)))
-        vx, vy = puntos[j][0] - ini[0], puntos[j][1] - ini[1]
-        L = math.hypot(vx, vy) or 1.0
+        # hacia dónde va la cadena en sus primeros metros. Por LONGITUD DE ARCO,
+        # no por índice: `int(largo / PASO_CRESTA)` suponía un espaciado de 5 m
+        # exactos que `_densificar_xy` no garantiza —deja entre 5 y 10— y que
+        # `_suavizar_xy` altera además de forma desigual. La dirección de prueba
+        # salía medida a una distancia que podía ser el doble de la pedida.
+        vx, vy = _tangente(puntos, False, largo)
         for dx, dy in b["dirs"]:
-            cos = (vx / L) * dx + (vy / L) * dy
+            cos = vx * dx + vy * dy
             if ref is None or cos > ref[0]:
                 ref = (cos, (dx, dy))
     # `ref[0]` es el coseno entre la traza y la bisectriz. La guarda era
@@ -866,17 +868,26 @@ def _salir_por_bisectriz(dens, anclaje, bisectrices, largo=None, radio=None):
     # legítimo de haber elegido la bisectriz o la confluencia equivocada.
     if ref is None or ref[0] <= 0.0:
         return dens
+    # La mezcla también va por LONGITUD DE ARCO. Aquí estaba el defecto de
+    # fondo: el rayo avanzaba `PASO_CRESTA` exactos por índice y la cadena entre
+    # 5 y 10 m, así que al mezclarlos por el mismo índice se restaban dos
+    # parametrizaciones distintas. Sus dos firmas son las que se midieron: el
+    # espaciado colapsaba a fracciones de metro en el centro del smoothstep, y
+    # con la cadena corriendo más que el rayo el avance se invertía. Con la
+    # estación real de cada vértice, el rayo y la traza hablan del mismo punto.
     dx, dy = ref[1]
-    n = max(2, int(largo / PASO_CRESTA))
+    s = [0.0]
+    for a, b in zip(puntos[:-1], puntos[1:]):
+        s.append(s[-1] + math.hypot(b[0] - a[0], b[1] - a[1]))
     nuevos = []
-    for i, pt in enumerate(puntos):
-        if i > n:
+    for si, pt in zip(s, puntos):
+        if si > largo:
             nuevos.append(pt)
             continue
-        w = i / n                       # 0 en la confluencia, 1 al final del tramo
+        w = si / largo              # 0 en la confluencia, 1 al final del tramo
         w = w * w * (3 - 2 * w)
-        rx = ini[0] + dx * PASO_CRESTA * i
-        ry = ini[1] + dy * PASO_CRESTA * i
+        rx = ini[0] + dx * si
+        ry = ini[1] + dy * si
         nuevos.append((rx * (1 - w) + pt[0] * w, ry * (1 - w) + pt[1] * w))
     return nuevos if extremo == "ini" else nuevos[::-1]
 
