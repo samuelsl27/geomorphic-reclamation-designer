@@ -360,11 +360,17 @@ def informe(carpeta, salida_json=None):
     L_ejes_n = sum(largo(p) for p in ejes_n_geom)
     L_ejes_o = sum(largo(p) for p in ejes_o_geom)
 
+    # El original mezcla divisorias y laderas en GF_Ridges. Aqui se comparan
+    # LADERAS con laderas: meterle sus divisorias al monton inflaba su longitud
+    # total y su linea mas larga (454 m es una divisoria, no una ladera), y era
+    # de donde salia el falso "nos falta un 20 % de relieve".
+    o_div, o_lad = (separar_relieve(o_relieve, ejes_o_geom) if ejes_o_geom
+                    else ([], list(o_relieve)))
+
     res["relieve"] = {}
     for cual, lst, rej, ejes, L_ejes in (
             ("nuestro", n_relieve, rej_n, ejes_n_geom, L_ejes_n),
-            ("original", [(a, p) for a, p in o_relieve], rej_o, ejes_o_geom,
-             L_ejes_o)):
+            ("original (solo laderas)", o_lad, rej_o, ejes_o_geom, L_ejes_o)):
         if not lst or not ejes:
             continue
         sobre, dist, largos, angs = [], [], [], []

@@ -1046,6 +1046,13 @@ def ajustar_divisorias(lm, disenos, glob, dem=None, g_lim=None, log=None):
             continue
         # con sillas el perfil YA NO es monótono por definición: una
         # divisoria natural sube a los espolones y baja a las vaguadas
+        #
+        # OJO (P-24): esto es un error de categoría latente —una silla en la
+        # estación 88 suelta los 346 m de perfil enteros—, pero NO se ha tocado
+        # porque medido en el Ej_2 apenas cambia nada: 95.37 → 94.30 m de vaivén
+        # sobre las 13 divisorias, y a cambio deja una meseta de 5 vértices en
+        # una de ellas. El vaivén no viene de aquí, viene de los propios puntos
+        # de control y del residuo. Solo hay 4 sillas en todo el ejemplo.
         zs = perfil_desde_control(dens, base, ctrl, s_max,
                                   z_top=z_fin, z_bot=z_ini,
                                   monotona=(n_sillas == 0))

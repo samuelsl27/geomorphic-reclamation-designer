@@ -296,6 +296,49 @@ en el original: **41 % de media, 73 % de máximo**. Por eso **no** se le aplica
 `pendiente_max_pct` (que es el máximo de *ladera*); solo actúa
 `MAX_PENDIENTE_FILO = 100 %` como cortapicos.
 
+Esto ya no descansa solo en la medida: el libro lo dice, y de paso dice **cuál
+es el mando de verdad** (p. 180, §7.4.3, verificado literal):
+
+> *«The units are percentages, **an approximate overall slope, not a specific
+> part of the complex slope profile**. Suppose the design has fixed channel
+> locations on either side of a ridge and ridge line elevations, and the slope
+> steepness target specifies a flatter slope on one side of the ridge. In that
+> case, **the ridgeline must move towards the valley on the other side of the
+> ridge** to reduce the slope. As the ridgeline moves towards the other valley,
+> the slopes on the other valley's side must become progressively steeper. The
+> Natural Regrade "maximum straight-line slopes" setting helps the designer
+> achieve the condition that as one side of the ridge reaches its slope
+> steepness target, the other side of the ridge does not become over-steepened
+> [9.11.2.].»*
+
+Dos consecuencias, y la segunda no la teníamos:
+
+1. Es una pendiente **media de ladera**, explícitamente «no una parte concreta
+   del perfil complejo»: aplicarla segmento a segmento al filo es un error de
+   categoría. Confirma ADR-009 con cita, no solo con medida.
+2. El ajuste se cumple **moviendo la divisoria en PLANTA**, no retocándole la
+   cota. Nosotros la colocamos por equidistancia y después le derivamos la
+   cota; el método la desplaza hacia el valle contrario hasta que las dos
+   laderas cumplen. Está sin implementar y sin anotar hasta ahora.
+
+Y el filo **demasiado empinado** el libro lo reconoce como defecto, sin darle
+cifra, con un remedio que **no** es recortar (p. 260, §9.11.2, única aparición
+de *blend percent* en todo el libro):
+
+> *«…the designer must also consider the effect on the ridgeline's north-to-south
+> slopes. The ridgeline profile in the Figure 9-28 example **has become
+> over-steepened** to the left of the vertical crosshair in the image.
+> **Increasing the 'blend percent' will reduce that over-steepened portion**, as
+> would slightly lessening the drop in the slope profile at the crosshairs; the
+> designer used both methods to result in a satisfactory edit.»*
+
+O sea: contra un filo empinado, **más mezcla longitudinal**, no un cortapicos
+más bajo. `MAX_PENDIENTE_FILO` seguirá siendo lo que dice su nombre.
+
+> ⚠️ La expresión *«ridge-to-toe»*, que circula en resúmenes del método, **no
+> aparece ni una vez en el libro**. Es del manual de Carlson (p. interna 1718).
+> No la cites como si fuera del libro.
+
 ---
 
 ## 10. Subcrestas y vaguadas

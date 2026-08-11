@@ -559,6 +559,18 @@ en ese caso, que es frecuente en el margen alto del perímetro.
 **Evidencia.** La divisoria del original desciende al **41 % de media y 73 % de
 máximo**. Aplicarle el máximo de ladera la dejaba 17 m colgada sobre el cauce.
 
+**Cita del libro (añadida en v1.0.21).** Hasta ahora esta ADR descansaba solo en
+una medida. El libro lo dice con todas las letras, p. 180, §7.4.3:
+
+> *«The units are percentages, **an approximate overall slope, not a specific
+> part of the complex slope profile**.»*
+
+Aplicar un porcentaje de pendiente **media de ladera** segmento a segmento al
+perfil longitudinal del filo es un error de categoría, no un ajuste discutible.
+La misma página añade que el mando para cumplir el objetivo es **mover la
+divisoria en planta** hacia el valle contrario, no retocarle la cota — ver
+`01_metodo_geofluv.md` §9 y P-23.
+
 **Reverificación (v1.0.21).** Se puso en duda al medir el Ej_2, donde las
 divisorias del original no pasan de 34 % teniendo `pendiente_max_pct` = 33 %, y
 además su segmento más empinado mide **33.000 % exacto**. Parecía un recorte.

@@ -219,6 +219,42 @@ def test_una_loma_con_el_extremo_anclado_abajo_no_deja_meseta_ni_acantilado():
     assert mayor <= 2, "meseta de %d vertices detras de la corona" % mayor
 
 
+def _vaiven(zs):
+    sube = sum(max(0.0, zs[i + 1] - zs[i]) for i in range(len(zs) - 1))
+    baja = sum(max(0.0, zs[i] - zs[i + 1]) for i in range(len(zs) - 1))
+    return sube + baja - abs(zs[0] - zs[-1])
+
+
+def test_una_silla_cabe_sin_soltar_el_resto_del_perfil():
+    """La monotonia por tramos de B-036 admite una silla de forma nativa: la
+    silla es uno de los puntos fijos, asi que el hoyo cabe —se baja hasta el y
+    se sube despues— sin tener que soltar la linea entera.
+
+    El motor todavia la apaga cuando hay sillas (`monotona = (n_sillas == 0)`,
+    ver P-24); esta prueba fija el comportamiento de la funcion, que es lo que
+    permitira quitar ese apagado cuando toque."""
+    dens = _dens_recta(61, 5.0)                       # 300 m
+    base = _base_lineal(dens, 1000.0, 1060.0)         # sube 60 m
+    ctrl = [(50.0, 1012.0), (150.0, 1028.0), (250.0, 1050.0)]
+    silla = (200.0, 1033.0)                           # hoyo: por debajo de 1050
+    zs = dv.perfil_desde_control(dens, base, sorted(ctrl + [silla]),
+                                 s_max=0.33, monotona=True)
+    s = dv._estaciones(dens)
+
+    def en(sc):
+        return zs[min(range(len(s)), key=lambda k: abs(s[k] - sc))]
+
+    # el hoyo esta, y esta por debajo de los dos controles que lo rodean
+    assert en(200.0) < en(150.0) or en(200.0) < en(250.0), "la silla se perdio"
+
+    # ...y el resto del perfil NO se ha soltado: el vaiven es el que piden los
+    # propios controles, sin invenciones
+    pedido = _vaiven([1012.0, 1028.0, 1033.0, 1050.0])
+    assert _vaiven(zs) <= pedido + 1.0, \
+        "vaiven %.2f m frente a los %.2f m que piden los controles" % (
+            _vaiven(zs), pedido)
+
+
 def test_anclaje_del_extremo_en_el_limite():
     dens = _dens_recta()
     base = _base_lineal(dens, 1060.0, 1090.0)

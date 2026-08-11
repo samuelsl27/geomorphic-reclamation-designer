@@ -12,6 +12,127 @@ Estado a **v1.0.21**. Actualiza esta página en cada sesión: mueve lo hecho a
 
 ## 🔴 Abierto — geometría
 
+### P-25 · La cota de la divisoria es una ENVOLVENTE; en el original es un DISEÑO 🔴 (nuevo, 2026-08-11)
+
+**Es el hallazgo de fondo de la v1.0.21, y lo apuntó Samuel mirando los perfiles
+en 3D antes de que ninguna medida lo dijera.**
+
+La traza en planta está bien. Comparadas las dos parejas que señaló, nuestra
+divisoria y la del original van casi por el mismo sitio:
+
+| | fid 13 vs 1829 | fid 15 vs 1788 |
+|---|---|---|
+| Separación en planta, p50 | **3.1 m** | **1.6 m** |
+| Pendiente media | 15.3 vs 14.1 % | 17.9 vs 15.5 % |
+| **Pendiente máxima** | **93.9 vs 19.5 %** | **74.4 vs 33.0 %** |
+| **Vaivén** | **12.49 vs 0.00 m** | **11.67 vs 0.00 m** |
+
+Las dos divisorias largas del original tienen vaivén **0.00 exacto**: son
+estrictamente monótonas. Las nuestras no. Sumando las 13 nuestras: **113 m de
+vaivén** frente a **15 m** de las 7 del original.
+
+**De dónde sale**, medido reproduciendo el motor fuera de QGIS
+(`scratchpad/banco.py` reconstruye el pipeline sin QGIS):
+
+| | m de vaivén |
+|---|---|
+| Lo piden los propios puntos de control (cabeceras de subcresta) | **41** |
+| Lo fabrica `base + residuo` y el anclaje de los extremos | **54** |
+| Total escrito | **95** |
+| Original | **15** |
+
+Y la causa es de arquitectura, no un bug puntual. `core/divides.py` lo dice en
+su propia cabecera como decisión deliberada:
+
+> *«La cota de una divisoria no es un dato: es una consecuencia… la cota de la
+> divisoria como ENVOLVENTE de lo que las laderas le piden.»*
+
+Cada subcresta calcula su cota de coronación por su cuenta
+(`z_cauce + desnivel_de_ladera(D)`, con su propio `D`), y la divisoria hereda
+**toda su dispersión**. El original va al revés — manual de Carlson, p. interna
+1706:
+
+> *«GeoFluv designs ridgelines between the channels **at elevations that create
+> side slopes less than a default 5:1 gradient** for the draft landform.»*
+
+O sea: primero una cota de divisoria **suave**, y las laderas se dibujan hasta
+ella. Nosotros promediamos ruido; ellos diseñan una curva.
+
+**Lo que ya está medido de los candidatos**, sobre las 13 divisorias reales:
+
+| | vaivén | pend. máx | meseta |
+|---|---|---|---|
+| Como está | 93.2 m | 95.2 % | 5 |
+| Soltar el anclaje si hay cabecera a < 6.1 m | 93.2 m | 95.2 % | 5 |
+| Manda la cabecera sobre el anclaje | 87.9 m | 95.2 % | 5 |
+| Manda el anclaje sobre la cabecera | 88.9 m | 95.2 % | 5 |
+| **Hacer monótona la secuencia de controles (PAVA)** | **42.8 m** | 100.0 % | 10 |
+| Original | **15.0 m** | **33.0 %** | **2** |
+
+Reconciliar los extremos **no sirve** (93 → 88). Hacer monótonos los controles
+antes de interpolar **es la mitad del camino** (93 → 43) y deja limpias fid 13,
+14, 15 y 3, pero empuja una línea al 100 % y una meseta a 10 vértices: no se
+puede meter tal cual.
+
+**Dirección respaldada por el libro**, p. 260 (§9.11.2), contra un filo
+demasiado empinado:
+
+> *«Increasing the "blend percent" will reduce that over-steepened portion.»*
+
+Es decir: **ajustar y suavizar, no interpolar exacto ni recortar**. Encaja con
+que el original tolera hasta 5.43 m entre sus cabeceras de ladera y su
+divisoria, mientras nosotros las clavamos a 0.89 m (p90).
+
+**Antes de tocar nada** hay que decidir el modelo, porque es un cambio de fondo
+y afecta a `perfil_desde_control`, a `_restaurar_control` y a cómo las laderas
+toman su cota de coronación.
+
+### P-26 · Nuestras divisorias se quedan ~100 m cortas por abajo 🟠 (nuevo, 2026-08-11)
+
+Las dos parejas comparadas: 346 m frente a 454, y 290 frente a 397. Y acaban más
+altas: z=292 frente a 281, z=288 frente a 279. Con la boca del cauce a 275, el
+original baja mucho más cerca de la confluencia.
+
+Sospechosos: `holgura_divisoria_m` (4.5 m), `recortar_contra_corredor` y
+`min_divisoria`. No confundir con P-22 (que va de cuántas divisorias hay, no de
+cuánto miden).
+
+### P-24 · `monotona = (n_sillas == 0)` es un error de categoría latente 🟢 (nuevo, 2026-08-11)
+
+Una sola silla apaga la monotonía de la divisoria **entera** — 346 m de perfil
+sueltos por un hoyo en la estación 88. Es la misma familia que B-036.
+
+**No se ha tocado, y conviene saber por qué.** Se llegó a cambiar y se revirtió:
+medido sobre el Ej_2 el efecto es de 95.37 → 94.30 m de vaivén (un 1 %) y a
+cambio deja una meseta de 5 vértices donde había 1. En todo el ejemplo hay
+**4 sillas**, no las 12 que una primera cuenta mal hecha sugirió (le faltaba el
+filtro `base[i] − z_vaguada > 0.05` que aplica el motor). El vaivén no viene de
+aquí.
+
+La prueba `test_una_silla_cabe_sin_soltar_el_resto_del_perfil` ya fija el
+comportamiento de `_monotonizar` que permitirá quitar el apagado cuando se
+reescriba el perfil (P-25).
+
+### P-23 · La divisoria se coloca en PLANTA para cumplir la pendiente 🟠 (nuevo, 2026-08-11)
+
+El libro (p. 180, §7.4.3, citado entero en `01_metodo_geofluv.md` §9) dice que
+*maximum straight-line slopes* se cumple **desplazando la divisoria en planta**:
+
+> *«…the ridgeline must move towards the valley on the other side of the ridge
+> to reduce the slope. As the ridgeline moves towards the other valley, the
+> slopes on the other valley's side must become progressively steeper.»*
+
+Nosotros la colocamos por **equidistancia** (Voronoi de los ejes) y después le
+derivamos la cota. Nunca la movemos para equilibrar las dos laderas. El manual
+de Carlson (p. interna 1706) lo formula por el otro lado —*«GeoFluv designs
+ridgelines between the channels at elevations that create side slopes less than
+a default 5:1 gradient»*—, o sea que la cota es una **variable derivada** del
+objetivo de ladera, que es justo lo que hace `perfil_desde_control`.
+
+Lo que falta es el grado de libertad en planta. No es una corrección de bug: es
+una pieza del método sin implementar. Antes de meterse hay que medir cuánto se
+apartan de la equidistancia las divisorias del original.
+
 ### P-21 · El Ej_1 no es comparable: le falta un canal 🔴 (nuevo, 2026-08-11)
 
 Nuestro diseño del Ej_1 (Potoya) tiene **2 canales** y el original **3**. Se ve
