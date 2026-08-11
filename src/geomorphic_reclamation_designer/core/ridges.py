@@ -212,15 +212,115 @@ def _geoms_ejes(disenos):
             for n, d in disenos.items()}
 
 
+def proyectar_en_eje(puntos, x, y):
+    """(distancia, cota) del punto más próximo del eje, INTERPOLANDO.
+
+    La versión anterior tomaba el vértice más próximo muestreando uno de cada
+    dos (`range(0, len(puntos), 2)`): la distancia salía exacta y la cota no,
+    que son dos criterios distintos sobre el mismo punto y una fuente de
+    escalones de por sí."""
+    mejor = (float("inf"), None)
+    for i in range(len(puntos) - 1):
+        ax, ay, az = puntos[i][0], puntos[i][1], puntos[i][2]
+        bx, by, bz = puntos[i + 1][0], puntos[i + 1][1], puntos[i + 1][2]
+        dx, dy = bx - ax, by - ay
+        den = dx * dx + dy * dy
+        t = 0.0 if den < 1e-12 else max(0.0, min(
+            1.0, ((x - ax) * dx + (y - ay) * dy) / den))
+        d = math.hypot(x - (ax + t * dx), y - (ay + t * dy))
+        if d < mejor[0]:
+            mejor = (d, az + t * (bz - az))
+    if mejor[1] is None and puntos:
+        p = puntos[0]
+        return math.hypot(x - p[0], y - p[1]), p[2]
+    return mejor
+
+
+def techo_de_ladera(lados, lf=None, resguardo=0.25):
+    """Cota MÁXIMA de un filo, evaluada con TODOS los cauces que lo flanquean.
+
+    `lados` = [(D, z_lecho, s, lc), …]. Devuelve
+    `min(z_lecho + desnivel_de_ladera(D, s, lc))`.
+
+    **Es un techo, no un suelo**, y ese es el sentido del método: el ajuste se
+    llama *Maximum straight-line slopes* y el manual dice que las crestas se
+    colocan *«at elevations that create side slopes **less than** a default 5:1
+    gradient»* (p. 1706); el ejercicio del libro (pp. 270 y 272) **baja** la
+    cresta de 120 a 80 ft para suavizar la ladera del 40 % al 20 %. Despejado
+    del propio perfil que dibujamos: la pendiente del tramo recto vale
+    `dz/(D − lc/2 − lf/2)`, así que exigirle `≤ s` es exactamente
+    `dz ≤ desnivel_de_ladera(D, s, lc)`.
+
+    **Y con TODOS los lados, no con el más próximo.** Una divisoria de Voronoi
+    es equidistante de dos ejes, así que «el más próximo» se alterna por
+    milímetros: medido en el Ej_2, cambia en el **21.2 %** de los pasos de
+    vértice a vértice, y con él la cota de lecho de referencia salta 4.15 m de
+    mediana y hasta **29.96 m**. El `min` de dos funciones continuas es
+    continuo: donde antes se alternaba el ganador ahora `D_A = D_B` y los dos
+    candidatos coinciden, así que el salto desaparece por construcción y no por
+    promediado. Es además lo que dice el libro (p. 180): el ajuste sirve para
+    que *«as one side of the ridge reaches its slope steepness target, the
+    other side of the ridge does not become over-steepened»* — mira los dos
+    lados a la vez.
+
+    Lejos de una divisoria degrada solo: el cauce lejano tiene `D` grande, así
+    que su término es el mayor y el `min` se queda con el cercano."""
+    if not lados:
+        return None
+    return min(z + max(desnivel_de_ladera(D, s, lc, lf), resguardo)
+               for D, z, s, lc in lados)
+
+
+def lados_de_un_punto(pt, disenos, geoms, s_max, glob=None, convexo=None, n=2):
+    """[(D, z_lecho, s, lc)] de los `n` cauces más próximos a `pt`.
+
+    Todo se calcula **por lado**, y a propósito: `s` porque la ladera de cada
+    lado tiene su propia orientación y puede caerle `pendiente_NE_pct`
+    (ADR-018), y `lc` porque sale de los ajustes de SU canal. Tomar el `lc` del
+    lado más próximo volvería a meter un salto cada vez que cambia el ganador,
+    que es justo lo que se viene a quitar."""
+    g = QgsGeometry.fromPointXY(QgsPointXY(pt[0], pt[1]))
+    cand = sorted((ge.distance(g), nombre) for nombre, ge in geoms.items())
+    salida = []
+    for _d, nombre in cand[:max(1, n)]:
+        d = disenos[nombre]
+        dist, z_ch = proyectar_en_eje(d.puntos, pt[0], pt[1])
+        if convexo is not None:
+            lc = convexo(dist) if callable(convexo) else convexo
+        elif glob is not None:
+            lc = convexo_subcresta(glob, getattr(d, "settings", None), dist)
+        else:
+            lc = 0.5
+        s = s_max
+        if glob is not None:
+            # la ladera desciende de `pt` hacia el cauce: ese es su rumbo
+            i = min(range(len(d.puntos)),
+                    key=lambda k, _p=pt: (d.puntos[k][0] - _p[0]) ** 2
+                    + (d.puntos[k][1] - _p[1]) ** 2)
+            s = pendiente_max_ladera(
+                glob, rumbo_de_ladera([(pt[0], pt[1], z_ch + 1.0),
+                                       (d.puntos[i][0], d.puntos[i][1], z_ch)]))
+        salida.append((dist, z_ch, s, lc))
+    return salida
+
+
 def _z_ladera(pt, disenos, geoms, s_max, dem=None, cap_dem=False,
-              contorno=None, banda_mezcla=0.0, convexo=None, glob=None):
-    """Cota de diseño en un punto de ladera/cresta: canal más próximo + Δz.
+              contorno=None, banda_mezcla=0.0, convexo=None, glob=None,
+              n_lados=2):
+    """Cota TECHO en un punto de ladera/cresta, con los `n_lados` cauces que lo
+    flanquean: `min(z_lecho + Δz)`. Ver `techo_de_ladera`.
+
+    Hasta la v1.0.21 esto devolvía la cota del **canal más próximo** y se usaba
+    como **suelo** (`max(z, z_env)` en `_perfil_cresta`). Las dos cosas estaban
+    mal: el ajuste es un máximo de pendiente, así que acota por arriba; y «el
+    más próximo» se alterna sobre una divisoria equidistante y metía saltos de
+    hasta 29.96 m. Ver B-0xx y la ADR de la v1.0.22.
 
     `glob` activa el segundo objetivo de pendiente del método ('North or East
     straight-line slopes'): la ladera que sube desde el cauce hasta `pt`
-    desciende hacia el canal más próximo, así que su orientación se conoce aquí
-    sin necesidad de haberla trazado, y si mira al norte o al este se usa
-    `pendiente_NE_pct` en lugar de `pendiente_max_pct`.
+    desciende hacia su cauce, así que su orientación se conoce aquí sin
+    necesidad de haberla trazado, y si mira al norte o al este se usa
+    `pendiente_NE_pct` en lugar de `pendiente_max_pct`. Se evalúa **por lado**.
 
     La porción convexa que se usa para despejar el Δz es **siempre la de la
     SUBCRESTA**, se lo pregunte quien se lo pregunte. La cota de coronación es
@@ -243,33 +343,15 @@ def _z_ladera(pt, disenos, geoms, s_max, dem=None, cap_dem=False,
     al límite GeoFluv la cota de diseño se funde progresivamente con la del
     DEM, de modo que en el propio límite la cresta coincide con el terreno
     (sin escalones entre lo diseñado y lo existente)."""
-    g = QgsGeometry.fromPointXY(QgsPointXY(*pt))
-    mejor = None
-    for n, ge in geoms.items():
-        dist = ge.distance(g)
-        if mejor is None or dist < mejor[0]:
-            mejor = (dist, n)
-    dist, n = mejor
-    d = disenos[n]
-    # z del canal en el punto más próximo
-    i = min(range(0, len(d.puntos), 2),
-            key=lambda k: (d.puntos[k][0] - pt[0]) ** 2 + (d.puntos[k][1] - pt[1]) ** 2)
-    z_ch = d.puntos[i][2]
-    # resguardo mínimo: donde las divisorias mueren en las confluencias la
-    # distancia tiende a 0; sin resguardo el muestreo puede dejar la cresta
+    # El resguardo mínimo de 0.25 m es porque donde las divisorias mueren en
+    # las confluencias la distancia tiende a 0, y sin él la cresta puede quedar
     # por debajo del lecho y crear charcos espurios en el TIN.
-    if convexo is None and glob is not None:
-        lc = convexo_subcresta(glob, getattr(d, "settings", None), dist)
-    else:
-        lc = convexo(dist) if callable(convexo) else (0.5 if convexo is None
-                                                      else convexo)
-    s = s_max
-    if glob is not None:
-        # la ladera desciende de `pt` hacia el cauce: ese es su rumbo
-        s = pendiente_max_ladera(
-            glob, rumbo_de_ladera([(pt[0], pt[1], z_ch + 1.0),
-                                   (d.puntos[i][0], d.puntos[i][1], z_ch)]))
-    z = z_ch + max(desnivel_de_ladera(dist, s, lc), 0.25)
+    lados = lados_de_un_punto(pt, disenos, geoms, s_max, glob=glob,
+                              convexo=convexo, n=n_lados)
+    z = techo_de_ladera(lados)
+    if z is None:
+        return None
+    g = QgsGeometry.fromPointXY(QgsPointXY(pt[0], pt[1]))
     # --- mezcla con el DEM junto al límite (continuidad de relieve) ---
     if dem is not None and contorno is not None and banda_mezcla > 0:
         d_borde = contorno.distance(g)

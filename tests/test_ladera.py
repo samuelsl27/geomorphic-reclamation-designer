@@ -466,3 +466,49 @@ def test_la_cota_de_coronacion_la_fija_la_SUBCRESTA_no_quien_pregunta():
     dz_sub = rg.desnivel_de_ladera(D, s_max, rg.convexo_subcresta(g, c, D))
     dz_vag = rg.desnivel_de_ladera(D, s_max, rg.convexo_vaguada(g, c))
     assert dz_vag > dz_sub, (dz_vag, dz_sub)     # la trampa que se evita
+
+
+# ------------------------------------ el TECHO de ladera (v1.0.22, fase 1)
+def test_proyectar_en_eje_interpola_la_cota():
+    """Antes se tomaba el vertice mas proximo muestreando uno de cada dos: la
+    distancia salia exacta y la cota no, que son dos criterios distintos sobre
+    el mismo punto y una fuente de escalones de por si."""
+    eje = [(0.0, 0.0, 100.0), (10.0, 0.0, 110.0)]
+    d, z = rg.proyectar_en_eje(eje, 3.0, 4.0)
+    assert abs(d - 4.0) < 1e-9
+    assert abs(z - 103.0) < 1e-9
+
+
+def test_el_techo_manda_el_lado_mas_restrictivo():
+    """`min`, no `max`: la cresta tiene que cumplir la pendiente por LOS DOS
+    lados, asi que la ata el lado que menos permite."""
+    lados = [(100.0, 200.0, 0.33, 30.0), (100.0, 180.0, 0.33, 30.0)]
+    t = rg.techo_de_ladera(lados)
+    assert abs(t - (180.0 + rg.desnivel_de_ladera(100.0, 0.33, 30.0))) < 1e-9
+    assert rg.techo_de_ladera([]) is None
+
+
+def test_el_techo_es_CONTINUO_donde_se_alterna_el_canal_mas_proximo():
+    """El corazon de la fase 1. Sobre una divisoria equidistante, «el canal mas
+    proximo» cambia por milimetros y con el saltaba la cota de referencia: 21.2 %
+    de los pasos en el Ej_2, con saltos de hasta 29.96 m. El `min` de dos
+    funciones continuas es continuo, asi que el salto desaparece por
+    construccion."""
+    zA, zB, lc, s = 200.0, 230.0, 30.0, 0.33
+
+    def techo(d_a):                       # el punto se desplaza de A hacia B
+        return rg.techo_de_ladera([(d_a, zA, s, lc), (200.0 - d_a, zB, s, lc)])
+
+    def solo_el_mas_proximo(d_a):
+        D, z = ((d_a, zA) if d_a <= 200.0 - d_a else (200.0 - d_a, zB))
+        return z + max(rg.desnivel_de_ladera(D, s, lc), 0.25)
+
+    # justo a los dos lados de la equidistancia (d_a = 100)
+    salto_nuevo = abs(techo(100.5) - techo(99.5))
+    salto_viejo = abs(solo_el_mas_proximo(100.5) - solo_el_mas_proximo(99.5))
+    # el techo nuevo cambia a la VELOCIDAD SUAVE de la propia ladera, s por
+    # metro recorrido: eso es continuidad, no un salto
+    assert abs(salto_nuevo - s * 1.0) < 0.05, salto_nuevo
+    # el viejo salta la diferencia de cota entre los dos lechos, de golpe
+    assert salto_viejo > 25.0, salto_viejo
+    assert salto_viejo > 50 * salto_nuevo

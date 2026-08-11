@@ -399,6 +399,26 @@ def test_monotonizar_no_deja_que_el_perfil_se_salga_entre_dos_fijos():
     assert min(out) >= 0.0 and max(out) <= 10.0
 
 
+def test_extremo_alto_manda_la_distancia_al_cauce_no_la_cota():
+    """P-19. Donde el cauce va sobre RELLENO, la ladera baja de el y su extremo
+    mas alto es el PIE. Decidirlo por cota elige el extremo equivocado, y en
+    cuanto se mueven las cotas de las divisorias el sintoma es inexplicable."""
+    # pie pegado al cauce (x=0) y a cota ALTA; cabecera lejos y mas BAJA
+    pts = [(0.0, 0.0, 1100.0), (30.0, 0.0, 1095.0), (60.0, 0.0, 1090.0)]
+    dist = lambda x, _y: abs(x)                       # noqa: E731
+    assert dv.extremo_alto(pts, dist) == len(pts) - 1, "la cabecera es la lejana"
+    # sin invocable, respaldo por cota: elige el otro, y por eso hace falta el
+    # criterio geometrico
+    assert dv.extremo_alto(pts) == 0
+
+
+def test_extremo_alto_con_la_linea_al_reves():
+    pts = [(60.0, 0.0, 1090.0), (30.0, 0.0, 1095.0), (0.0, 0.0, 1100.0)]
+    dist = lambda x, _y: abs(x)                       # noqa: E731
+    assert dv.extremo_alto(pts, dist) == 0
+    assert dv.extremo_alto([(0.0, 0.0, 1.0)], dist) == 0      # linea degenerada
+
+
 def test_remuestrear_respeta_la_traza_y_los_extremos():
     """'m_fMaxDistOnRidges' del original (6.1 m en el Ej_2). Los puntos se toman
     SOBRE la polilinea, asi que la traza no se desplaza."""

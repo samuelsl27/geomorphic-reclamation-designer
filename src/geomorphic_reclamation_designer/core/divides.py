@@ -286,6 +286,30 @@ def _dist_a_segmento(p, a, b):
     return math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy))
 
 
+def extremo_alto(pts, dist=None):
+    """Índice del extremo ALTO —la cabecera— de una línea de ladera: 0 o −1.
+
+    El criterio es la **distancia al cauce**, no la cota: la cabecera es el
+    extremo LEJANO. Por cota falla donde el cauce va sobre relleno, porque
+    entonces la ladera BAJA de él y el extremo más alto resulta ser el pie
+    (B-018, B-027, ADR-010).
+
+    `dist` es un invocable `(x, y) → distancia al cauce`; cada módulo inyecta el
+    suyo (`Corredor._cerca`, los ejes de `GRD_Channels`, los diseños) sin crear
+    dependencias nuevas. Sin él se cae a la cota, que es un **respaldo**, no un
+    criterio: en cuanto se toca la cota de las divisorias, decidir por cota hace
+    que estas funciones elijan el otro extremo y el síntoma es inexplicable.
+    Ver P-19."""
+    if len(pts) < 2:
+        return 0
+    if dist is not None:
+        d0 = dist(pts[0][0], pts[0][1])
+        d1 = dist(pts[-1][0], pts[-1][1])
+        if d0 is not None and d1 is not None and abs(d0 - d1) > 1e-9:
+            return 0 if d0 > d1 else len(pts) - 1
+    return 0 if pts[0][2] > pts[-1][2] else len(pts) - 1
+
+
 def _proyectar(pts, x, y):
     """(distancia, estación, z interpolada) del punto más próximo de la
     polilínea. La estación es la que hace falta para colocar el punto de
@@ -917,12 +941,18 @@ def ajustar_divisorias(lm, disenos, glob, dem=None, g_lim=None, log=None):
                   else g_lim.asMultiPolygon()[0][0])
         contorno = QgsGeometry.fromPolylineXY([QgsPointXY(p) for p in anillo])
 
+    # Distancia al cauce, para decidir cuál es el extremo ALTO de una línea de
+    # ladera. NUNCA por cota: donde el cauce va sobre relleno la ladera baja de
+    # él y el extremo más alto es el pie. Ver `extremo_alto` y P-19.
+    def d_cauce(x, y):
+        return corr_ladera._cerca(x, y)[1]
+
     cabeceras = []          # [(x, y, z)] de las subcrestas
     for f in capa_sr.getFeatures():
         pts = _pts3(f)
         if len(pts) < 2:
             continue
-        alto = pts[-1] if pts[-1][2] >= pts[0][2] else pts[0]
+        alto = pts[extremo_alto(pts, d_cauce)]
         if contorno is not None:
             dl = contorno.distance(
                 QgsGeometry.fromPointXY(QgsPointXY(alto[0], alto[1])))
@@ -958,7 +988,7 @@ def ajustar_divisorias(lm, disenos, glob, dem=None, g_lim=None, log=None):
             pts = _pts3(f)
             if len(pts) < 2:
                 continue
-            alto = pts[-1] if pts[-1][2] >= pts[0][2] else pts[0]
+            alto = pts[extremo_alto(pts, d_cauce)]
             if contorno is not None and contorno.distance(
                     QgsGeometry.fromPointXY(
                         QgsPointXY(alto[0], alto[1]))) < MARGEN_LIMITE:
@@ -1073,7 +1103,7 @@ def ajustar_divisorias(lm, disenos, glob, dem=None, g_lim=None, log=None):
             f"silla(s) donde muere una vaguada")
 
     # ---------- 3a. ninguna ladera cruza la divisoria ----------
-    res["cortadas_div"] = _cortar_en_divisorias(lm)
+    res["cortadas_div"] = _cortar_en_divisorias(lm, d_cauce)
     if res["cortadas_div"]:
         log(f"   · {res['cortadas_div']} línea(s) de ladera cortada(s) en la "
             f"divisoria: una subcresta muere sobre ella, no la atraviesa")
@@ -1091,8 +1121,9 @@ def ajustar_divisorias(lm, disenos, glob, dem=None, g_lim=None, log=None):
             pts = _pts3(f)
             if len(pts) < 2:
                 continue
-            en_inicio = pts[0][2] > pts[-1][2]      # ¿la cabecera es el primero?
-            alto = pts[0] if en_inicio else pts[-1]
+            k_alto = extremo_alto(pts, d_cauce)     # por distancia, no por cota
+            en_inicio = k_alto == 0
+            alto = pts[k_alto]
             mejor = (float("inf"), None)
             for dpts in divs:
                 dd, _, zz = _proyectar(dpts, alto[0], alto[1])
@@ -1163,7 +1194,7 @@ def _puntos_de(g):
     return v[:1] + v[-1:] if v else []
 
 
-def _cortar_en_divisorias(lm):
+def _cortar_en_divisorias(lm, d_cauce=None):
     """Una subcresta muere SOBRE la divisoria; no la atraviesa.
 
     Es la definición del libro: *«sub-ridge … extends from the inside of a
@@ -1203,8 +1234,9 @@ def _cortar_en_divisorias(lm):
             if not cerca or not any(g.crosses(dg) for dg in cerca):
                 continue
             pts = _pts3(f)
-            # recorrer desde el PIE (extremo más bajo) hacia la cabecera
-            invertida = pts[0][2] > pts[-1][2]
+            # recorrer desde el PIE hacia la cabecera. El pie es el extremo
+            # CERCANO al cauce, no el más bajo: ver `extremo_alto` y P-19.
+            invertida = extremo_alto(pts, d_cauce) == 0
             seq = list(reversed(pts)) if invertida else pts
             nuevos = [seq[0]]
             corte = None
