@@ -183,6 +183,66 @@ def vaiven(pts):
     return sube + baja - abs(z[0] - z[-1])
 
 
+def giro_extremo(pts, largo=20.0):
+    """Giro acumulado (grados) en los `largo` metros finales de cada extremo.
+
+    Es la medida de P-27, el 'gancho': nuestras divisorias giran sobre si mismas
+    al morir junto a una confluencia (hasta 104 grados) y las del original
+    llegan rectas (33 como maximo). Devuelve el peor de los dos extremos."""
+    def _giro(tramo):
+        g = 0.0
+        for i in range(1, len(tramo) - 1):
+            a = math.atan2(tramo[i][1] - tramo[i - 1][1],
+                           tramo[i][0] - tramo[i - 1][0])
+            b = math.atan2(tramo[i + 1][1] - tramo[i][1],
+                           tramo[i + 1][0] - tramo[i][0])
+            d = abs(math.degrees(b - a))
+            g += min(d, 360.0 - d)
+        return g
+
+    def _corte(seq):
+        acc, out = 0.0, [seq[0]]
+        for i in range(1, len(seq)):
+            acc += math.dist(seq[i - 1][:2], seq[i][:2])
+            out.append(seq[i])
+            if acc >= largo:
+                break
+        return out
+
+    if len(pts) < 3:
+        return 0.0
+    return max(_giro(_corte(pts)), _giro(_corte(pts[::-1])))
+
+
+def pendiente_de_ladera(pts, ejes, n=2):
+    """[(pendiente %, lado)] desde cada vertice a los `n` cauces mas proximos.
+
+    Es la pendiente que el ajuste `Maximum straight-line slopes` acota, medida
+    donde de verdad se produce: de la divisoria al cauce, no a lo largo del
+    filo. El original no pasa de 48 % con objetivo 33; nosotros llegamos a 124."""
+    out = []
+    for q in pts:
+        lados = []
+        for e in ejes:
+            mejor = (float("inf"), None)
+            for i in range(len(e) - 1):
+                ax, ay, az = e[i]
+                bx, by, bz = e[i + 1]
+                dx, dy = bx - ax, by - ay
+                den = dx * dx + dy * dy
+                t = 0.0 if den < 1e-12 else max(0.0, min(
+                    1.0, ((q[0] - ax) * dx + (q[1] - ay) * dy) / den))
+                d = math.hypot(q[0] - (ax + t * dx), q[1] - (ay + t * dy))
+                if d < mejor[0]:
+                    mejor = (d, az + t * (bz - az))
+            lados.append(mejor)
+        lados.sort()
+        for k, (d, z) in enumerate(lados[:n]):
+            if d > 2.0 and z is not None:
+                out.append(((q[2] - z) / d * 100.0, k))
+    return out
+
+
 def angulo(pts, ejes_rejilla, ejes):
     """Angulo (grados) entre el arranque de la linea y el eje del cauce."""
     _, q = ejes_rejilla.cercano(pts[0])
@@ -419,7 +479,8 @@ def informe(carpeta, salida_json=None):
             print("   AVISO: el clasificador falla sobre nuestros propios "
                   "datos; las cifras del original que siguen NO son fiables")
         o_div, o_lad = separar_relieve(o_relieve, ejes_o_geom)
-        for cual, lst in (("nuestro", n_divisorias), ("original", o_div)):
+        for cual, lst, ejes in (("nuestro", n_divisorias, ejes_n_geom),
+                                ("original", o_div, ejes_o_geom)):
             if not lst:
                 continue
             largos = [largo(p) for _at, p in lst]
@@ -427,6 +488,11 @@ def informe(carpeta, salida_json=None):
             ps.sort()
             seg = [math.dist(p[i][:2], p[i + 1][:2])
                    for _at, p in lst for i in range(len(p) - 1)]
+            vv = sorted(vaiven(p) for _at, p in lst)
+            gir = sorted(giro_extremo(p) for _at, p in lst)
+            lad = pendiente_de_ladera([q for _at, p in lst for q in p], ejes)
+            la = sorted(x for x, k in lad if k == 0)
+            lb = sorted(x for x, k in lad if k == 1)
             d = {"n": len(lst), "longitud_total": sum(largos),
                  "pend_p50": ps[len(ps) // 2] if ps else None,
                  "pend_p90": ps[int(len(ps) * .9)] if ps else None,
@@ -435,7 +501,13 @@ def informe(carpeta, salida_json=None):
                                   if ps else None),
                  "espaciado_vertices": resumen(seg),
                  "meseta_max": max(meseta(p) for _at, p in lst),
-                 "vaiven_p50": sorted(vaiven(p) for _at, p in lst)[len(lst) // 2]}
+                 "vaiven_total": sum(vv), "vaiven_p50": vv[len(vv) // 2],
+                 "vaiven_max": vv[-1],
+                 "giro_p50": gir[len(gir) // 2], "giro_max": gir[-1],
+                 "ladera_A_max": la[-1] if la else None,
+                 "ladera_B_max": lb[-1] if lb else None,
+                 "ladera_A_p90": la[int(len(la) * .9)] if la else None,
+                 "ladera_B_p90": lb[int(len(lb) * .9)] if lb else None}
             res["divisorias"][cual] = d
             print("   --- %s ---" % cual)
             print("     lineas / longitud total             %d / %.0f m"
@@ -445,8 +517,16 @@ def informe(carpeta, salida_json=None):
                   "MAX=%.1f" % (d["pend_p50"], d["pend_p90"], d["pend_max"]))
             print("     tramos por encima del 33 %%          %.2f %%"
                   % d["pct_sobre_33"])
-            print("     meseta mas larga / vaiven p50       %d vert. / %.1f m"
-                  % (d["meseta_max"], d["vaiven_p50"]))
+            print("     meseta mas larga                    %d vert."
+                  % d["meseta_max"])
+            print("     VAIVEN total / p50 / max            %.1f / %.1f / %.1f m"
+                  % (d["vaiven_total"], d["vaiven_p50"], d["vaiven_max"]))
+            print("     GIRO en los ultimos 20 m  p50/max   %.1f / %.1f grados"
+                  % (d["giro_p50"], d["giro_max"]))
+            if la and lb:
+                print("     PENDIENTE DE LADERA a los dos lados p90=%.1f/%.1f "
+                      "MAX=%.1f/%.1f %%" % (d["ladera_A_p90"], d["ladera_B_p90"],
+                                            d["ladera_A_max"], d["ladera_B_max"]))
             print("     espaciado entre vertices            %s"
                   % d["espaciado_vertices"])
         print("   resto del original (lineas de ladera): %d, %.0f m"
