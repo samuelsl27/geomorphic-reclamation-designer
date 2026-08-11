@@ -6,7 +6,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from guia_datos import PESTANAS
 
-VER = "1.0.23"
+VER = "1.0.24"
 
 CSS = """
 :root{--tinta:#1d2b36;--suave:#5a6b78;--linea:#dfe6ec;--acento:#0b6ea8;

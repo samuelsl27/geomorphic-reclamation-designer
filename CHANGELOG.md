@@ -8,6 +8,54 @@ Los códigos `B-0xx` remiten a [`context/04_bugs_resueltos.md`], los `ADR-0xx` a
 
 ## [No publicado]
 
+## [1.0.24] — 2026-08-11
+
+**La red de divisorias deja de emitirse troceada.** Con el perfil ya resuelto en
+la v1.0.23, Samuel señaló que el problema estaba en la forma **en planta**, sobre
+todo en los extremos de las crestas. Y el diagnóstico resultó más simple de lo
+que parecía: la red era topológicamente la misma que la del original, solo que
+partida en pedazos.
+
+> ⚠️ **Versión de trabajo.** 164 pruebas en verde y el efecto medido
+> reproduciendo el motor fuera de QGIS, pero **el diseño completo no se ha
+> vuelto a generar en QGIS**. Por eso el instalable lleva la fecha.
+
+### Corregido
+- 🔴 **Diez de nuestros veintiséis extremos de divisoria morían en el aire**
+  (B-040) — ni en el límite, ni en una confluencia — cuando el original no tiene
+  **ninguno**. Coincidían exactamente con el extremo de otra divisoria, en
+  cuatro nudos donde se juntan dos o tres. La causa: `generar_crestas` compara
+  las subcuencas **por parejas** y emite cada frontera como entidad, así que un
+  punto donde se tocan tres se calcula en tres iteraciones distintas sin
+  comunicación entre ellas.
+
+  Ahora el bucle solo recoge los arcos y `encadenar_arcos` los cose, siguiendo
+  en cada nudo por la pareja **más enfrentada**. El filtro de longitud pasa a
+  aplicarse a la cadena. Medido: **13 arcos → 7 cadenas**, con las longitudes
+  del original (461/454, 399/397, 389/384, 325/325…), y **0 extremos en el
+  aire**.
+
+  De paso arregla un defecto que no se había medido: en el nudo de grado 3, los
+  tres arcos le daban al **mismo punto** las cotas 289.09, 299.35 y 286.01 —
+  **13.34 m de discrepancia** en una línea de rotura del TIN.
+
+  **Cierra P-22 y P-26**: los dos muñones de 46 m que caen con el filtro son los
+  brazos sobrantes de los nudos, que es lo que se llevaba tres rondas midiendo
+  sin saber qué era.
+- 🟠 **La salida de la confluencia se mezclaba por índice** (B-041). El original
+  llega **perfectamente recto** (p50 0.0° de giro) y nosotros doblamos 35.5°.
+  `_salir_por_bisectriz` mezclaba un rayo de paso fijo por índice con una cadena
+  de paso variable, así que el final de la mezcla caía en una estación
+  arbitraria y ahí se pegaba la traza cruda de golpe: 109° y 131° medidos justo
+  pasado ese punto. Ahora todo va por longitud de arco.
+
+### Medido
+- La **dirección** de salida de la confluencia ya era correcta en **7 de 9**
+  casos, a menos de 4° de la del original: el defecto era el pegado, no la
+  bisectriz.
+- **El borde GeoFluv ya estaba bien** y no se ha tocado: 1.5° de giro contra
+  1.1° del original, y 69° de ángulo de llegada contra 63°.
+
 ## [1.0.23] — 2026-08-11
 
 **Las divisorias vuelven a ser crestas.** Samuel miró los perfiles 3D de la

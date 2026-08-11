@@ -1,12 +1,36 @@
 # Backlog — lo que falta y lo que está a medias
 
-Estado a **v1.0.23**. Actualiza esta página en cada sesión: mueve lo hecho a
+Estado a **v1.0.24**. Actualiza esta página en cada sesión: mueve lo hecho a
 `09_historial_sesiones.md` y añade lo nuevo.
 
 > **Numeración**: el proyecto sigue en **1.0.x** mientras no haya nada
 > definitivo. Aunque una versión cambie rótulos visibles, se numera como parche.
 > El salto a 1.1 se reserva para cuando la geometría se dé por estable y el
 > complemento deje de ser `experimental`.
+
+---
+
+## 🟢 Resuelto en la v1.0.24
+
+- **La red de divisorias estaba troceada en los nudos** (B-040). 13 arcos de
+  pareja → 7 cadenas, con las longitudes del original y **cero extremos en el
+  aire**. Arregla de paso la cota triple del nudo (13.34 m de discrepancia en
+  una línea de rotura del TIN).
+- **Cierra P-22 y P-26**: las divisorias de 46 m que «sobraban» y la longitud
+  mediana de 116 m contra 325 eran el mismo defecto, y son los brazos sobrantes
+  de los nudos triples.
+- **La salida de la confluencia se mezclaba por índice** (B-041), así que el
+  final de la mezcla caía en una estación arbitraria.
+
+### Pendiente de confirmar en la regeneración
+
+- **El giro en la confluencia**: hoy 35.5° de mediana contra 0.0° del original.
+  La reparametrización debería bajarlo, pero medida sobre cadenas sintéticas
+  `_salir_por_bisectriz` **añade** giro cuando la traza no viene alineada. Si no
+  baja, hay que desactivarla.
+- **La forma del perfil**: con cadenas enteras `lc/L` baja de 0.5 a ~0.07, así
+  que la forma cambiará. Hoy p50 −0.087 contra −0.175 del original.
+- **El balance corte/relleno**: hay que rehacer la tabla de `context/06`.
 
 ---
 

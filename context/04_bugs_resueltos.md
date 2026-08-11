@@ -6,6 +6,102 @@
 
 ---
 
+## B-040 · La red de divisorias se emitía TROCEADA en los nudos 🔴
+
+**Síntoma.** Samuel señaló que el problema estaba ya en la forma **en planta**,
+sobre todo en los extremos de las crestas. Medido:
+
+| Extremos de divisoria | En el LÍMITE | En una CONFLUENCIA | **EN EL AIRE** |
+|---|---|---|---|
+| Original (14) | 7 (50 %) | 7 (50 %) | **0** |
+| Nuestro (26) | 7 (27 %) | 9 (35 %) | **10 (38 %)** |
+
+Los diez extremos en el aire coinciden **exactamente (0.0 m)** con el extremo de
+otra divisoria, y se agrupan en **cuatro nudos**. Y la prueba de que solo estaba
+troceada: fundiéndolas por sus extremos salen **siete cadenas** con las
+longitudes del original.
+
+```
+NUESTRO fusionado:  461  399  389  325  234  197  116
+ORIGINAL:           454  397  384  325  238  188  118
+```
+
+**Causa raíz.** `generar_crestas` compara las subcuencas **por parejas** y emite
+cada frontera como entidad, todo dentro del doble bucle. Un punto donde se tocan
+tres subcuencas es un **vértice del diagrama de Voronoi**, y ahí **termina** cada
+una de las tres aristas — calculadas en tres iteraciones distintas, sin
+comunicación entre ellas. Desde dentro del bucle no hay forma de saber que son
+el mismo nudo.
+
+**Y un efecto que no se había medido: la cota del nudo era triple.** Los tres
+arcos clasifican ese punto como extremo LIBRE y cada uno le resuelve **su**
+cota. En el nudo de grado 3 del Ej_2:
+
+```
+289.09   299.35   286.01      ->  13.34 m de discrepancia en el MISMO punto
+```
+
+`GRD_Ridges` es línea de rotura del TIN, así que ahí la triangulación no puede
+salir bien.
+
+**Corrección.** El doble bucle solo **recoge** los arcos, y `encadenar_arcos`
+los cose. En un nudo de grado 3 continúa la pareja cuyas tangentes están **más
+enfrentadas** —una divisoria no gira 120° en un nudo—, que es el mismo criterio
+de coseno que ya usaba `_salir_por_bisectriz`. La tangente se mide por **longitud
+de arco**, no por número de vértices.
+
+`QgsGeometry.mergeLines()` no vale: solo funde nodos de grado 2 y en un punto
+triple deja los tres arcos.
+
+**El filtro de longitud pasa a la CADENA**, y eso importa por dos motivos:
+descartar un arco corto antes de encadenar partiría la cadena por el medio y
+dejaría dos extremos nuevos en el aire; y aplicado a la cadena cae solo el brazo
+sobrante de cada nudo triple. **Sin ningún umbral nuevo**: el `0.5·long_min`
+existía porque una rama es un fragmento, y al emitir cadenas se aplica el
+umbral completo.
+
+```
+13 arcos -> 9 cadenas -> filtro long_min (50 m) -> 7 cadenas
+extremos en el aire: 10 -> 0
+```
+
+**Cierra P-22 y P-26.** Los dos muñones de 46 m que caen son los brazos
+sobrantes de los nudos: hace tres rondas se midió que «generamos divisorias de
+46, 46 y 52 m que el original no tiene» sin saber qué eran.
+
+---
+
+## B-041 · La salida de la confluencia se mezclaba por ÍNDICE 🟠
+
+**Síntoma.** El original llega a la confluencia **perfectamente recto** (p50
+**0.0°** de giro en sus últimos 20 m, máx 16°) y nosotros doblamos **35.5° de
+mediana y hasta 92°**.
+
+**Causa raíz.** `_salir_por_bisectriz` mezclaba un rayo sintético que avanza
+`PASO_CRESTA` **exactos por índice** con una cadena cuyo paso real está entre 5
+y 10 m (`_densificar_xy` reparte en `floor(d/paso)` trozos) y que
+`_suavizar_xy` altera además de forma desigual. Restar dos parametrizaciones
+distintas del mismo índice tiene dos firmas, y las dos se midieron: el espaciado
+colapsa en el centro del smoothstep, y **el final de la mezcla cae en una
+estación arbitraria** — con `largo` = 50 m, el índice 10 podía estar entre 50 y
+100 m, y ahí se pegaba la traza cruda de golpe. En la fid=7 se midieron **109° y
+131°** justo pasado ese punto.
+
+**Corrección.** La dirección de prueba y la mezcla van las dos por **longitud de
+arco**.
+
+**Lo que además se midió**: la **dirección** de salida ya era correcta en **7 de
+nuestras 9 confluencias**, a menos de 4° de la del original. O sea que el
+defecto no era elegir mal la bisectriz, sino el pegado.
+
+> ⚠️ **Queda por confirmar en la regeneración.** Medida sobre cadenas
+> sintéticas, la función **añade** giro en todos los casos en que la traza no
+> viene ya alineada con la bisectriz (20° → 15.1, 45° → 42.3, 89° → 98.4, contra
+> 0.9, 2.6 y 6.3 sin ella). Si tras regenerar el giro no baja hacia el 0.0° del
+> original, la función hay que **desactivarla**.
+
+---
+
 ## B-038 · El suelo tumbaba la divisoria, y su docstring decía lo contrario 🔴
 
 **Síntoma.** Samuel miró los perfiles 3D de la v1.0.22 y dijo que las divisorias
