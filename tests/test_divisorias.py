@@ -32,7 +32,7 @@ _ruta = os.path.join(_DIR, "divides.py")
 _src = open(_ruta, encoding="utf-8").read().replace(
     "from .compat import attrs, indices_datos",
     "attrs = lambda capa, v: v\nindices_datos = lambda capa: []").replace(
-    "from .ridges import convexo_subcresta", "convexo_subcresta = None")
+    "from .ridges import convexo_cresta", "convexo_cresta = None")
 dv = types.ModuleType("gfq_divides")
 exec(compile(_src, _ruta, "exec"), dv.__dict__)
 

@@ -33,7 +33,7 @@ import math
 from qgis.core import QgsGeometry, QgsPointXY, QgsPoint, QgsSpatialIndex, QgsFeature
 
 from .compat import attrs, indices_datos
-from .ridges import convexo_cresta, convexo_subcresta
+from .ridges import convexo_cresta
 
 
 TOL_LLEGADA = 20.0     # m, distancia a la que la cabecera de una ladera se

@@ -283,7 +283,7 @@ _fdiv = os.path.join(_DIR, "divides.py")
 _srcd = open(_fdiv, encoding="utf-8").read().replace(
     "from .compat import attrs, indices_datos",
     "attrs = lambda capa, v: v\nindices_datos = lambda capa: []").replace(
-    "from .ridges import convexo_subcresta", "convexo_subcresta = None")
+    "from .ridges import convexo_cresta", "convexo_cresta = None")
 _div = types.ModuleType("grd_divides_para_topology")
 exec(compile(_srcd, _fdiv, "exec"), _div.__dict__)
 sys.modules["grd_divides_para_topology"] = _div
