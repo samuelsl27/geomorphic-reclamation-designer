@@ -566,3 +566,30 @@ def test_el_suelo_de_cresta_es_el_lecho_mas_alto():
     lados = [(80.0, 200.0, 0.33, 30.0), (60.0, 213.0, 0.33, 30.0)]
     assert abs(rg.suelo_de_cresta(lados, 0.25) - 213.25) < 1e-9
     assert rg.suelo_de_cresta([]) is None
+
+
+# =============== el gancho de la confluencia (v1.0.22, fase 4)
+def test_la_confluencia_no_se_inserta_en_la_planta():
+    """P-27. Se sustituia el vertice de MINIMA DISTANCIA por el punto de
+    confluencia; como ese vertice es el pie de la perpendicular, el segmento
+    nuevo salia perpendicular a la traza y podia medir hasta `tol`. Ahora la
+    cadena se PARTE ahi —que es lo que da las dos crestas de ADR-003— y la
+    confluencia se conserva solo como ancla de cota."""
+    dens = [(float(i) * 10.0, 0.0) for i in range(21)]      # recta de 200 m
+    conf = [(100.0, 40.0, 55.0)]                            # a 40 m DE LADO
+    ramas = rg._partir_en_confluencias(dens, conf, tol=50.0)
+    assert len(ramas) == 2, ramas
+    for rama, anclaje in ramas:
+        assert anclaje is not None and abs(anclaje[1] - 55.0) < 1e-9
+        # ni un solo vertice fuera de la recta original: no se ha metido el
+        # punto de confluencia, que esta a y = 40
+        assert all(abs(y) < 1e-9 for _x, y in rama), rama
+
+
+def test_las_dos_ramas_siguen_saliendo_de_la_confluencia():
+    """ADR-003 intacto: lo que da las DOS crestas es el corte, no el punto."""
+    dens = [(float(i) * 10.0, 0.0) for i in range(21)]
+    ramas = rg._partir_en_confluencias(dens, [(100.0, 2.0, 55.0)], tol=50.0)
+    assert [a[0] for _r, a in ramas] == ["fin", "ini"]
+    # y las dos comparten el vertice del corte
+    assert ramas[0][0][-1] == ramas[1][0][0]

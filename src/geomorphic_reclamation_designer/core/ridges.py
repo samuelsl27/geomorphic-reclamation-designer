@@ -574,8 +574,18 @@ def _partir_en_confluencias(dens, confluencias, tol):
     margen = max(2, int(0.08 * len(dens)))
     # --- la confluencia cae en el INTERIOR: la cadena se PARTE en dos crestas
     if margen <= i <= len(dens) - 1 - margen:
-        rama_a = list(dens[:i]) + [(cx, cy)]
-        rama_b = [(cx, cy)] + list(dens[i + 1:])
+        # OJO: la confluencia NO se inserta en la planta. Aquí se hacía
+        # `dens[:i] + [(cx, cy)]`, y como `i` es el vértice de MÍNIMA DISTANCIA
+        # —o sea el pie de la perpendicular—, el segmento nuevo salía
+        # perpendicular a la traza y podía medir hasta `tol` = 50 m. Eso es el
+        # gancho de P-27: medido en el Ej_2, nuestras divisorias giraban hasta
+        # 104° en sus últimos 20 m y las del original no pasan de 33°.
+        # Lo que da las DOS crestas de ADR-003 es el CORTE, no el punto
+        # insertado; la confluencia se conserva como ancla de COTA, que es para
+        # lo que hace falta. Y esos metros los recorta después
+        # `divides.recortar_contra_corredor` de todas formas.
+        rama_a = list(dens[:i + 1])
+        rama_b = list(dens[i:])
         salida = []
         # cada rama se vuelve a examinar por si hay más puntos de anclaje
         # (una cadena larga puede cruzar varios cauces)
@@ -590,11 +600,12 @@ def _partir_en_confluencias(dens, confluencias, tol):
             else:
                 salida.extend(sub)
         return salida or [(dens, None)]
-    # --- la confluencia cae junto a un extremo: solo se engancha ese extremo
+    # --- la confluencia cae junto a un extremo: solo se ancla la COTA de ese
+    # extremo, y tampoco aquí se inserta el punto en la planta (mismo motivo)
     if i <= len(dens) / 2:
-        nueva = [(cx, cy)] + list(dens[i + 1:])
+        nueva = list(dens[i:])
         return [(nueva if len(nueva) >= 3 else dens, ("ini", cz))]
-    nueva = list(dens[:i]) + [(cx, cy)]
+    nueva = list(dens[:i + 1])
     return [(nueva if len(nueva) >= 3 else dens, ("fin", cz))]
 
 
@@ -653,7 +664,7 @@ def bisectrices_confluencia(disenos, radio=6.0):
     return salida
 
 
-def _salir_por_bisectriz(dens, anclaje, bisectrices, largo=30.0):
+def _salir_por_bisectriz(dens, anclaje, bisectrices, largo=None, radio=None):
     """Rehace el arranque de una cresta anclada en una confluencia para que
     salga por la bisectriz, y lo funde con el resto de la cadena.
 
@@ -663,13 +674,21 @@ def _salir_por_bisectriz(dens, anclaje, bisectrices, largo=30.0):
     bisectriz más próxima y se mezcla con la traza original."""
     if not anclaje or not bisectrices or len(dens) < 4:
         return dens
+    # `largo` y `radio` eran 30.0 y 3.0*PASO_CRESTA, dos constantes sin cita.
+    # Se atan a la distancia cresta-cabecera de canal (xrh), que es el ajuste
+    # del método que gobierna esta escala [LIBRO p. 189] y que el llamante ya
+    # usa para `tol_conf` y `long_min`.
+    if largo is None:
+        largo = 30.0
+    if radio is None:
+        radio = 3.0 * PASO_CRESTA
     extremo, _z = anclaje
     puntos = list(dens) if extremo == "ini" else list(dens)[::-1]
     ini = puntos[0]
     # bisectriz de la confluencia más próxima y con la dirección más parecida
     ref = None
     for b in bisectrices:
-        if math.hypot(b["xy"][0] - ini[0], b["xy"][1] - ini[1]) > 3.0 * PASO_CRESTA:
+        if math.hypot(b["xy"][0] - ini[0], b["xy"][1] - ini[1]) > radio:
             continue
         # hacia dónde va la cadena en sus primeros metros
         j = min(len(puntos) - 1, max(1, int(largo / PASO_CRESTA)))
@@ -679,7 +698,12 @@ def _salir_por_bisectriz(dens, anclaje, bisectrices, largo=30.0):
             cos = (vx / L) * dx + (vy / L) * dy
             if ref is None or cos > ref[0]:
                 ref = (cos, (dx, dy))
-    if ref is None or ref[0] < 0.2:
+    # `ref[0]` es el coseno entre la traza y la bisectriz. La guarda era
+    # `< 0.2`, y cos(90°) = 0 < 0.2: descartaba EXACTAMENTE los arranques a
+    # noventa grados que esta función existe para enderezar. Ahora solo se
+    # rinde si la cadena va en sentido CONTRARIO a la bisectriz, que es el caso
+    # legítimo de haber elegido la bisectriz o la confluencia equivocada.
+    if ref is None or ref[0] <= 0.0:
         return dens
     dx, dy = ref[1]
     n = max(2, int(largo / PASO_CRESTA))
@@ -767,7 +791,10 @@ def generar_crestas(disenos, subcuencas, g_lim, glob, dem, lm):
                                   for a, b in zip(rama[:-1], rama[1:]))
                     if largo_r < 0.5 * long_min:
                         continue
-                    rama = _salir_por_bisectriz(rama, anclaje, bisectrices)
+                    rama = _salir_por_bisectriz(
+                        rama, anclaje, bisectrices,
+                        largo=glob.max_dist_cresta_cabecera,
+                        radio=tol_conf)
                     linea, _zs, diag = _perfil_cresta(
                         rama, disenos, geoms, s_max, dem, glob, contorno,
                         anclaje=anclaje)
