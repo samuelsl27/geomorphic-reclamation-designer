@@ -87,6 +87,30 @@ divisoria, mientras nosotros las clavamos a 0.89 m (p90).
 y afecta a `perfil_desde_control`, a `_restaurar_control` y a cómo las laderas
 toman su cota de coronación.
 
+### P-27 · La divisoria hace un GANCHO al morir 🔴 (nuevo, 2026-08-11)
+
+Es lo que se ve rodeado en morado en las capturas de Samuel: la línea roja gira
+sobre sí misma junto al cauce. Medido, el giro acumulado en los últimos 20 m de
+cada extremo:
+
+| | p50 | p90 | máx |
+|---|---|---|---|
+| Nuestro | 26.1° | 85.7° | **104.3°** |
+| Original | **5.7°** | **27.5°** | **33.3°** |
+
+El original llega **recto**: no pasa de 33° ni una vez. Y pasa más lejos del
+cauce (p10 de 19.9 m contra nuestros 13.1; mínimo 3.6 contra 5.3, pero el 5.9 %
+de nuestros vértices quedan a menos de 10 m del eje contra el 3.6 % suyo).
+
+Primer sitio donde mirar: `ridges._partir_en_confluencias` y ADR-003 («la
+divisoria es una V que PASA por la confluencia»). Si de la confluencia salen dos
+crestas, cada una debería llegar recta; un giro de 104° dice que en alguna parte
+se está doblando una sola línea en vez de partirla, o que el recorte contra el
+corredor deja un muñón torcido.
+
+Va junto con P-26 (se quedan cortas por abajo): las dos son defectos del
+**extremo bajo** de la divisoria y probablemente comparten causa.
+
 ### P-26 · Nuestras divisorias se quedan ~100 m cortas por abajo 🟠 (nuevo, 2026-08-11)
 
 Las dos parejas comparadas: 346 m frente a 454, y 290 frente a 397. Y acaban más
