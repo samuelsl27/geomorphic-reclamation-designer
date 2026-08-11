@@ -577,7 +577,12 @@ def fundir_con_divisorias(lm, log=None, tol=TOL_FUSION):
         div = divisorias[fid]
         s_div = _estaciones(div)
         k = min(range(len(div)), key=lambda i: _dist(div[i], sobre))
-        z_req = max(alto[2], sobre[2])
+        # Manda la DIVISORIA: la ladera cuelga de ella. Era
+        # `max(alto[2], sobre[2])`, y ese `max` es el eslabón que cerraba el
+        # bucle — la cabecera se quedaba con la cota de la divisoria cuando
+        # esta era más alta, y `divides` la leía después como si fuera un dato
+        # independiente para volver a derivar la divisoria de ella.
+        z_req = sobre[2]
         # --- IDEMPOTENCIA ---
         # Una fusión ya resuelta no debe volver a "aplicarse": si no, fusión y
         # sellado se realimentan (la fusión levanta la divisoria, el sellado
@@ -588,8 +593,9 @@ def fundir_con_divisorias(lm, log=None, tol=TOL_FUSION):
         sep = _dist((alto[0], alto[1], 0), (sobre[0], sobre[1], 0))
         w = peso_l / (peso_l + _peso(div))
         desvio_previsto = min(sep * w, DESVIO_MAX)
-        sube = z_req - sobre[2]
-        if sube <= EPS_Z and desvio_previsto <= EPS_XY:
+        # La divisoria ya no se mueve en cota, así que lo único que puede
+        # quedar por corregir es el desvío en planta o la cota de la ladera.
+        if desvio_previsto <= EPS_XY and abs(z_req - alto[2]) <= EPS_Z:
             continue
         encuentros.setdefault(fid, []).append(
             (s_div[k], z_req, (alto[0], alto[1]), peso_l))
@@ -641,26 +647,14 @@ def fundir_con_divisorias(lm, log=None, tol=TOL_FUSION):
                 xs[i] += ux * desvio * g
                 ys[i] += uy * desvio * g
             n_fus += 1
-        # --- perfil: pasar por las cotas de encuentro y seguir monótono ---
-        restr = [(0.0, zs[0])] + [(e, z) for e, z, _p, _w in lista] \
-            + [(s[-1], zs[-1])]
-        restr.sort(key=lambda t_: t_[0])
-        creciente = zs[-1] >= zs[0]
-        vals = [z for _e, z in restr]
-        for i in range(1, len(vals)):
-            vals[i] = max(vals[i], vals[i - 1]) if creciente \
-                else min(vals[i], vals[i - 1])
-        restr = [(restr[i][0], vals[i]) for i in range(len(restr))]
-        nuevos_z = []
-        for si, z0 in zip(s, zs):
-            z_lin = z0
-            for (ea, za), (eb, zb) in zip(restr[:-1], restr[1:]):
-                if ea <= si <= eb:
-                    t_ = (si - ea) / (eb - ea) if eb > ea else 0.0
-                    z_lin = za + t_ * (zb - za)
-                    break
-            nuevos_z.append(max(z_lin, z0))
-        cambios_div[fid] = list(zip(xs, ys, nuevos_z))
+        # --- la COTA de la divisoria no se toca ---
+        # Aquí había un `nuevos_z.append(max(z_lin, z0))`: un trinquete que
+        # solo permitía SUBIR la divisoria, repetido en cada una de las hasta
+        # 30 pasadas de `revisar`. Junto con el `z_req = max(...)` de arriba y
+        # con `divides.py`, cerraba el bucle en el que la divisoria acababa
+        # preguntándose su propia cota anterior. La divisoria tiene su curva
+        # (`ridges._perfil_cresta`) y es la ladera la que se ajusta a ella.
+        cambios_div[fid] = list(zip(xs, ys, zs))
 
     if cambios_div:
         capa_div.startEditing()
@@ -677,8 +671,8 @@ def fundir_con_divisorias(lm, log=None, tol=TOL_FUSION):
         capa_sr.commitChanges()
         capa_sr.triggerRepaint()
     log(f"   · {n_fus} cresta(s) de ladera fundida(s) con la divisoria: la "
-        "divisoria se ha levantado a la cota del encuentro y desviado en planta "
-        "según el orden de cada una")
+        "ladera se ha llevado a la cota de la divisoria y la divisoria se ha "
+        "desviado en planta según el orden de cada una")
     return n_fus
 
 

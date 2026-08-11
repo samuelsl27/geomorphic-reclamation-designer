@@ -33,7 +33,6 @@ import math
 from qgis.core import QgsGeometry, QgsPointXY, QgsPoint, QgsSpatialIndex, QgsFeature
 
 from .compat import attrs, indices_datos
-from .ridges import convexo_cresta
 
 
 TOL_LLEGADA = 20.0     # m, distancia a la que la cabecera de una ladera se
@@ -572,8 +571,16 @@ def puntos_de_control(dens, cabeceras, tol=TOL_LLEGADA,
         k = round(s, 2)
         if k not in ctrl or z > ctrl[k]:
             ctrl[k] = z
+    return puntos_de_control_ordenados(list(ctrl.items()), separacion)
+
+
+def puntos_de_control_ordenados(pares, separacion=SEPARACION_CONTROL):
+    """Ordena por estación y funde los que caen a menos de `separacion`,
+    quedándose con el MÁS ALTO. Extraído de `puntos_de_control` porque las
+    sillas necesitan exactamente lo mismo y lo hacían a mano con otra ventana
+    (`abs(c[0] - sv) < 6.0`), que es el patrón nº 10 del catálogo."""
     fundidos, s0 = [], None
-    for s, z in sorted(ctrl.items()):
+    for s, z in sorted(pares):
         # la ventana se mide contra el ARRANQUE del grupo, no contra el último
         # que entró: si no, una hilera de cabeceras separadas 4.9 m se iría
         # encadenando y acabaría fundiendo cincuenta metros de divisoria en un
@@ -1005,46 +1012,23 @@ def ajustar_divisorias(lm, disenos, glob, dem=None, g_lim=None, log=None):
         paso_v = float(getattr(glob, "max_dist_vertices_cresta", 6.1))
         pts = remuestrear(pts, paso_v)
         dens = [(x, y) for x, y, _ in pts]
-        ctrl = list(puntos_de_control(dens, cabeceras, separacion=paso_v))
         s = _estaciones(dens)
-        L = s[-1]
-        # --- cotas de los dos extremos ---
-        # en el límite GeoFluv manda el DEM (empalme con el terreno existente);
-        # en el extremo truncado contra un cauce, el techo de cresta.
-        z_ext = [None, None]
-        for j, extremo in enumerate((0, len(pts) - 1)):
-            x, y, z = pts[extremo]
-            gp = QgsGeometry.fromPointXY(QgsPointXY(x, y))
-            if contorno is not None and contorno.distance(gp) < MARGEN_LIMITE:
-                if dem is not None:
-                    from . import setup_tools as st
-                    zd = st.cota_dem(dem, x, y)
-                    if zd is not None:
-                        z = zd
-            else:
-                techo = corr_div.techo_cresta(x, y, s_max, dem)
-                if techo is not None:
-                    z = min(z, techo)
-            z_ext[j] = z
-        # --- perfil de partida: la ECUACIÓN, no un muestreo punto a punto ---
-        # El manual describe el perfil de una cresta igual que el de un canal:
-        # curva vertical entre las cotas de los dos extremos, con la cabeza
-        # convexa de longitud xc. Muestrear `_z_ladera` vértice a vértice daba
-        # un filo ondulado que no es la forma del método.
-        desde_inicio = z_ext[0] >= z_ext[1]
-        z_alto, z_bajo = max(z_ext), min(z_ext)
-        # misma fuente que `ridges._perfil_cresta`: eran dos expresiones
-        # distintas para la misma cosa y se iban a desincronizar
-        lc_cresta = convexo_cresta(glob, L)
-        base = perfil_base(pts, z_alto, z_bajo, lc_cresta,
-                           desde_inicio=desde_inicio)
+        # --- la CURVA ya viene hecha, y sobrevive al recorte ---
+        # `ridges._perfil_cresta` le dio a esta divisoria su curva vertical
+        # entre dos anclas. `_limpiar_vertices` y `remuestrear` interpolan las
+        # TRES componentes, y `recortar_contra_corredor` también, así que
+        # recortar y remuestrear RESTRINGEN la curva a lo que sobrevive: no la
+        # destruyen. Lo que la destruía era recalcularla aquí desde las
+        # cabeceras de ladera, que es el paso que cerraba el bucle — esas
+        # cabeceras habían tomado su cota de esta misma divisoria.
+        base = [z for _x, _y, z in pts]
         # --- sillas: la divisoria se hunde donde muere una vaguada ---
-        # El contador es LOCAL de esta divisoria. Era `res["sillas"]`, que se
-        # acumula a lo largo del bucle, y se usaba abajo como
-        # `monotona=(res["sillas"] == 0)`: en cuanto UNA divisoria generaba una
-        # silla, TODAS las siguientes del mismo pase perdian la monotonia,
-        # tuvieran sillas o no. Ver B-035.
+        # Único ajuste de cota que queda aquí, y es una decisión NUESTRA, no del
+        # método: el libro (pp. 259-260) describe las sillas como una edición
+        # MANUAL del diseñador con *Edit Longitudinal Profile*, y no da ninguna
+        # magnitud. Ver ADR-020.
         n_sillas = 0
+        ctrl = []
         pct = max(0.0, min(0.9, float(getattr(glob, "prof_silla_pct", 25.0))
                            / 100.0))
         if pct > 0:
@@ -1052,42 +1036,24 @@ def ajustar_divisorias(lm, disenos, glob, dem=None, g_lim=None, log=None):
                 dd, sv, _ = _proyectar(dens, xv, yv)
                 if dd > TOL_LLEGADA:
                     continue
-                # una subcresta pegada manda: ahí hay filo, no silla
-                if any(abs(c[0] - sv) < 6.0 for c in ctrl):
-                    continue
                 i = min(range(len(s)), key=lambda k: abs(s[k] - sv))
                 z_crest = base[i]
                 if z_crest - zv <= 0.05:
                     continue
                 ctrl.append((sv, z_crest - pct * (z_crest - zv)))
                 n_sillas += 1
-            ctrl.sort()
+            ctrl = puntos_de_control_ordenados(ctrl, paso_v)
         res["sillas"] += n_sillas
-        # Los dos extremos son anclajes de la curva base; solo se sueltan si
-        # hay una cabecera de espolón pegada a ellos, porque entonces manda el
-        # empalme.
-        z_ini, z_fin = z_ext[0], z_ext[1]
-        if ctrl and ctrl[0][0] < 2.0:
-            z_ini = None
-        if ctrl and ctrl[-1][0] > L - 2.0:
-            z_fin = None
         if not ctrl:
-            # sin espolones que la modifiquen, la curva base ES el perfil
+            # sin sillas, la curva de `ridges` ES el perfil
             cambios[f.id()] = [(x, y, z) for (x, y), z in zip(dens, base)]
             res["divisorias"] += 1
             continue
-        # con sillas el perfil YA NO es monótono por definición: una
-        # divisoria natural sube a los espolones y baja a las vaguadas
-        #
-        # OJO (P-24): esto es un error de categoría latente —una silla en la
-        # estación 88 suelta los 346 m de perfil enteros—, pero NO se ha tocado
-        # porque medido en el Ej_2 apenas cambia nada: 95.37 → 94.30 m de vaivén
-        # sobre las 13 divisorias, y a cambio deja una meseta de 5 vértices en
-        # una de ellas. El vaivén no viene de aquí, viene de los propios puntos
-        # de control y del residuo. Solo hay 4 sillas en todo el ejemplo.
-        zs = perfil_desde_control(dens, base, ctrl, s_max,
-                                  z_top=z_fin, z_bot=z_ini,
-                                  monotona=(n_sillas == 0))
+        # Las sillas son hoyos LOCALES sobre una curva que ya es monótona, así
+        # que la monotonía global no aplica y se apaga a propósito: es su
+        # definición. `monotona=(n_sillas == 0)` era el error de categoría de
+        # P-24, y aquí desaparece solo.
+        zs = perfil_desde_control(dens, base, ctrl, s_max, monotona=False)
         if zs is None:
             continue
         cambios[f.id()] = [(x, y, z) for (x, y), z in zip(dens, zs)]

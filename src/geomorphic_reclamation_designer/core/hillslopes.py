@@ -300,19 +300,29 @@ def _trazar_ladera(origen, direccion, propio, geoms, g_lim, disenos, s_max,
         # nace sobre una cresta ya trazada: hereda SU cota en ese punto
         z_div = _z_en_linea(linea_tocada[0], linea_tocada[1], fin)
     # --- cota de la CRESTA DIVISORIA en el extremo, si hay una cerca ---
-    # Solo como RESPALDO, cuando esta ladera no tiene otra forma de saber a qué
-    # cota muere. Hasta la v1.0.16 la cota de la divisoria actuaba además como
-    # SUELO, y eso era un error de orden: la divisoria tenía un perfil propio,
-    # empujaba a las laderas hacia arriba, y después `topology` volvía a
-    # empujarla a ella hacia las laderas. De ese tira y afloja salían espolones
-    # que suben y se hunden antes de morir, y divisorias con escalones de
-    # metros. Ahora la ladera manda —su cota la fijan el perfil del cauce y los
-    # parámetros de ladera, que es la física— y la divisoria se calcula después
-    # como envolvente de las cabeceras que llegan a ella (`core/divides.py`).
+    # **Es la fuente legítima, no un respaldo**: la ladera CUELGA de la
+    # divisoria. Ese es el orden del método —cauces, después la cresta
+    # divisoria, después las subcrestas y vaguadas de cada subcuenca (manual de
+    # Carlson p. 1722; patente US7596418B2, FIG. 17)—, y la cota de la cresta
+    # es la variable que se ajusta para que la ladera cumpla su pendiente
+    # objetivo (manual p. 1706; el libro lo plantea como ejercicio numérico en
+    # las pp. 270 y 272, donde la cota de la cresta es LA INCÓGNITA).
+    #
+    # Aquí decía lo contrario —«la ladera manda… y la divisoria se calcula
+    # después como envolvente de las cabeceras»—, y esa doctrina es la que
+    # cerraba el bucle: la ladera tomaba su cota de la divisoria y después
+    # `divides` volvía a derivar la divisoria de la ladera. Ver la ADR de la
+    # v1.0.22.
     z_divisoria = None
     if crestas and z_div is None:
         g_fin = QgsGeometry.fromPointXY(QgsPointXY(fin[0], fin[1]))
         mejor = None
+        # OJO: 24 m aquí y `divides.TOL_LLEGADA` = 20 m allí son dos constantes
+        # para la misma idea —«esta cabecera llega a la divisoria»— y deberían
+        # ser una sola. No se unifica en esta ronda porque el símbolo vive en
+        # `divides`, importarlo desde aquí obliga a tocar tres bancos de prueba
+        # que parchean las líneas de importación por cadena exacta, y la
+        # diferencia de 4 m no tiene ningún síntoma medido. Anotado en P-19.
         radio = 6.0 * PASO_MARCHA
         for geom_cr, zs_cr in crestas:
             dcr = geom_cr.distance(g_fin)
