@@ -1257,7 +1257,7 @@ class GeoFluvDock(QDockWidget):
         try:
             crs = QgsProject.instance().crs().authid()
             sub = ridges.generar_subcuencas(self.diseno, gl, self.lm, crs)
-            n_cr, crestas3d = ridges.generar_crestas(
+            n_cr, crestas3d, exc_cr = ridges.generar_crestas(
                 self.diseno, sub, gl, self.proyecto.settings, self.dem_layer,
                 self.lm)
             n_sc, n_vg, avisos_l = ridges.generar_subcrestas(
@@ -1281,6 +1281,12 @@ class GeoFluvDock(QDockWidget):
                                       log=lambda m: self._msg(m.strip(), 0))
             self._msg(f"Preview: {len(self.diseno)} channels, {n_cr} ridges, "
                       f"{n_sc} sub-ridges, {n_vg} swales.", 3)
+            if exc_cr > 0.5:
+                self._msg(
+                    f"A ridgeline sits {exc_cr:.1f} m above the elevation its "
+                    f"valley-wall slope target allows. The design lever for "
+                    f"this is to move the ridgeline in plan towards the "
+                    f"opposite valley, or to lower the slope target.", 1)
             for a in avisos_l:
                 self._msg(a, 1)
         except Exception as e:
@@ -1482,7 +1488,7 @@ class GeoFluvDock(QDockWidget):
             self._generar_diseno()          # re-write banks with chosen line count
             crs = QgsProject.instance().crs().authid()
             sub = ridges.generar_subcuencas(self.diseno, gl, self.lm, crs)
-            n_cr, crestas3d = ridges.generar_crestas(
+            n_cr, crestas3d, exc_cr = ridges.generar_crestas(
                 self.diseno, sub, gl, self.proyecto.settings, self.dem_layer,
                 self.lm)
             n_sc, n_vg, avisos_l = ridges.generar_subcrestas(
@@ -1506,6 +1512,12 @@ class GeoFluvDock(QDockWidget):
                                       log=lambda m: self._msg(m.strip(), 0))
             self._msg(f"Design lines: {n_cr} ridges, {n_sc} sub-ridges, "
                       f"{n_vg} swales, {len(sub)} sub-watersheds.", 0)
+            if exc_cr > 0.5:
+                self._msg(
+                    f"A ridgeline sits {exc_cr:.1f} m above the elevation its "
+                    f"valley-wall slope target allows. The design lever for "
+                    f"this is to move the ridgeline in plan towards the "
+                    f"opposite valley, or to lower the slope target.", 1)
             for a in avisos_l:
                 self._msg(a, 1)
             if contornear:

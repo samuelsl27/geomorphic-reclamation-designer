@@ -354,7 +354,7 @@ def test_la_traza_y_las_cotas_salen_del_MISMO_objeto():
     # asi que `_perfil_cresta` tiene que invertir (zB > zA)
     rama = [(float(i) * 10.0, 50.0) for i in range(16)]     # x 0..150, y 50
 
-    linea, zs = rg._perfil_cresta(rama, disenos, geoms, 0.33, None,
+    linea, zs, _diag = rg._perfil_cresta(rama, disenos, geoms, 0.33, None,
                                   _AjustesCresta(), contorno)
 
     # el caso discrimina: ha invertido y las dos cotas extremas son distintas
@@ -379,7 +379,7 @@ def test_el_perfil_de_cresta_desciende_de_un_extremo_al_otro():
     contorno = _Geom([(-500.0, -500.0), (500.0, -500.0),
                       (500.0, 500.0), (-500.0, 500.0), (-500.0, -500.0)])
     dens = [(float(i) * 10.0, 50.0) for i in range(16)]
-    _linea, zs = rg._perfil_cresta(dens, disenos, geoms, 0.33, None,
+    _linea, zs, _diag = rg._perfil_cresta(dens, disenos, geoms, 0.33, None,
                                    _AjustesCresta(), contorno)
     assert zs[0] > zs[-1], zs          # orientada de ALTO a bajo
 
@@ -512,3 +512,57 @@ def test_el_techo_es_CONTINUO_donde_se_alterna_el_canal_mas_proximo():
     # el viejo salta la diferencia de cota entre los dos lechos, de golpe
     assert salto_viejo > 25.0, salto_viejo
     assert salto_viejo > 50 * salto_nuevo
+
+
+# =============== el perfil de la divisoria es UNA curva (v1.0.22, fase 2)
+def test_el_perfil_es_lineal_en_el_desnivel():
+    """Es lo que permite despejar el extremo libre en FORMA CERRADA, sin
+    iterar: `perfil_trapezoidal(x, L, dz, lc) / dz` no depende de dz."""
+    L, lc = 346.0, 75.0
+    for x in (0.0, 12.0, 87.0, 173.0, 300.0, 346.0):
+        base = rg.perfil_trapezoidal(x, L, 1.0, lc)
+        for dz in (1.0, 5.0, 20.0, -13.0):
+            assert abs(rg.perfil_trapezoidal(x, L, dz, lc) - dz * base) < 1e-9
+
+
+def test_el_extremo_libre_se_resuelve_para_no_rebasar_el_techo():
+    L, lc = 300.0, 60.0
+    s = [L * k / 60.0 for k in range(61)]
+    f = [rg.perfil_trapezoidal(x, L, 1.0, lc) for x in s]
+    z_bajo = 100.0
+    # techo IRREGULAR a proposito, con un diente de 30 m en medio
+    techo = [160.0 + 0.05 * x for x in s]
+    techo[30] = 118.0
+    z_alto = rg.resolver_extremo_libre(f, techo, z_bajo, libre_es_alto=True)
+    zs = [z_alto * (1.0 - fk) + z_bajo * fk for fk in f]
+    for z, t in zip(zs, techo):
+        assert z <= t + 1e-6, (z, t)
+    # y toca el techo en algun punto: no se queda corta por si acaso
+    assert min(t - z for z, t in zip(zs, techo)) < 1e-6
+
+
+def test_un_diente_de_30_m_en_el_techo_no_escribe_un_escalon():
+    """La prueba que fija la doctrina nueva. Antes el techo era un SUELO
+    aplicado vertice a vertice y REIMPUESTO despues de suavizar, asi que cada
+    salto de la envolvente quedaba clavado en el perfil. Ahora el techo entra
+    por un `min` sobre la linea entera, y un salto en el techo no puede
+    escribir un salto en la cresta."""
+    L, lc = 300.0, 60.0
+    s = [L * k / 60.0 for k in range(61)]
+    f = [rg.perfil_trapezoidal(x, L, 1.0, lc) for x in s]
+    techo = [160.0 + 0.05 * x for x in s]
+    techo[30] = 118.0                       # diente de 30 m
+    z_alto = rg.resolver_extremo_libre(f, techo, 100.0, libre_es_alto=True)
+    zs = [z_alto * (1.0 - fk) + 100.0 * fk for fk in f]
+    saltos = [abs(zs[i + 1] - zs[i]) for i in range(len(zs) - 1)]
+    assert max(saltos) < 1.0, max(saltos)
+    # y el perfil sigue siendo MONOTONO: vaiven exactamente cero
+    sube = sum(max(0.0, zs[i + 1] - zs[i]) for i in range(len(zs) - 1))
+    baja = sum(max(0.0, zs[i] - zs[i + 1]) for i in range(len(zs) - 1))
+    assert abs(sube + baja - abs(zs[0] - zs[-1])) < 1e-9
+
+
+def test_el_suelo_de_cresta_es_el_lecho_mas_alto():
+    lados = [(80.0, 200.0, 0.33, 30.0), (60.0, 213.0, 0.33, 30.0)]
+    assert abs(rg.suelo_de_cresta(lados, 0.25) - 213.25) < 1e-9
+    assert rg.suelo_de_cresta([]) is None

@@ -213,7 +213,7 @@ class Evaluador:
         disenos = b.construir(g_lim_forzado=g_lim)
         crs = QgsProject.instance().crs().authid()
         sub = ridges.generar_subcuencas(disenos, g_lim, self.lm, crs)
-        _, cr3 = ridges.generar_crestas(disenos, sub, g_lim,
+        _, cr3, _exc = ridges.generar_crestas(disenos, sub, g_lim,
                                         proyecto.settings, self.dem, self.lm)
         ridges.generar_subcrestas(disenos, g_lim, proyecto.settings, self.lm,
                                   dem=self.dem, crestas=cr3,

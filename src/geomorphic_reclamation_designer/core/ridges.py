@@ -212,6 +212,53 @@ def _geoms_ejes(disenos):
             for n, d in disenos.items()}
 
 
+def convexo_cresta(glob, L):
+    """Longitud convexa de una DIVISORIA. Fuente única para `ridges` y
+    `divides`: eran dos expresiones distintas y se iban a desincronizar, que es
+    el patrón nº 10 del catálogo de bugs."""
+    return min(convexo_subcresta(glob, None, L), 0.5 * max(L, 1e-6))
+
+
+def suelo_de_cresta(lados, resguardo=0.25):
+    """Cota MÍNIMA de un filo: por encima del lecho de TODOS sus cauces.
+
+    Una divisoria por debajo de un lecho no separa nada, drena al revés y deja
+    charcos en el TIN. Es `max` de funciones continuas, así que es continuo y no
+    escribe escalones."""
+    if not lados:
+        return None
+    return max(z for _D, z, _s, _lc in lados) + resguardo
+
+
+def resolver_extremo_libre(f, techo, z_fijo, libre_es_alto):
+    """Cota del extremo LIBRE que hace que la curva no rebase el techo.
+
+    `perfil_trapezoidal` es exactamente **lineal en `dz`** (está comprobado en
+    `test_el_perfil_es_lineal_en_el_desnivel`), así que con
+    `f(x) = perfil_trapezoidal(x, L, 1, lc)` la curva es la combinación convexa
+
+        z(x) = z_alto·(1 − f(x)) + z_bajo·f(x),   f monótona de 0 a 1
+
+    e imponer `z(x) ≤ techo(x)` para todo `x` se despeja de una vez:
+
+        z_alto ≤ min_x [ (techo(x) − z_bajo·f(x)) / (1 − f(x)) ]
+
+    Una pasada, sin iterar y sin recortar el perfil contra una función que no
+    es monótona —que es lo que producía los dientes—."""
+    mejor = None
+    for fk, tk in zip(f, techo):
+        if tk is None:
+            continue
+        peso = (1.0 - fk) if libre_es_alto else fk
+        if peso <= 1e-9:
+            continue          # ahí manda el extremo fijo, no el libre
+        otro = (z_fijo * fk) if libre_es_alto else (z_fijo * (1.0 - fk))
+        cand = (tk - otro) / peso
+        if mejor is None or cand < mejor:
+            mejor = cand
+    return mejor
+
+
 def proyectar_en_eje(puntos, x, y):
     """(distancia, cota) del punto más próximo del eje, INTERPOLANDO.
 
@@ -654,11 +701,18 @@ def generar_crestas(disenos, subcuencas, g_lim, glob, dem, lm):
 
     Dos cuencas contiguas solo pueden estar separadas por una CRESTA: lo que
     cae en una ladera va a un canal y lo que cae en la otra al otro. Por eso
-    esta línea no se adapta al terreno original: es una divisoria de diseño,
-    continua desde la confluencia hasta el límite GeoFluv, cuya cota nunca baja
-    de la cota de cresta de diseño (canal + altura de ladera). Solo el extremo
-    que muere en el límite empalma exactamente con el DEM, para que no haya
-    escalón con el relieve existente.
+    esta línea no se adapta al terreno original: es una divisoria de DISEÑO,
+    continua desde la confluencia hasta el límite GeoFluv.
+
+    Su cota es una curva vertical entre las cotas de sus dos extremos, acotada
+    por arriba por la pendiente de ladera que dejan sus DOS cauces y por abajo
+    por sus lechos. Hasta la v1.0.21 era al revés —la cota «nunca bajaba» de la
+    de cresta de diseño, o sea un SUELO—, y eso convertía el perfil en la
+    envolvente superior de una función a trozos. Ver `_perfil_cresta`.
+
+    Devuelve `(n, crestas_3d, peor_exceso)`, donde `peor_exceso` es cuánto
+    rebasa el techo de ladera la peor cresta: con los dos extremos anclados la
+    curva está determinada y el exceso se INFORMA, no se recorta.
     """
     s_max = glob.pendiente_max_pct / 100.0
     geoms = _geoms_ejes(disenos)
@@ -670,6 +724,7 @@ def generar_crestas(disenos, subcuencas, g_lim, glob, dem, lm):
     banda_limite = contorno.buffer(0.5, 4)
     # longitud mínima de una divisoria con sentido físico
     long_min = max(4.0 * PASO_CRESTA, glob.max_dist_cresta_cabecera)
+    peor_exceso = 0.0       # cuánto rebasa el techo de ladera la peor cresta
     confluencias = puntos_confluencia(disenos)
     bisectrices = bisectrices_confluencia(disenos)
     tol_conf = max(3.0 * PASO_CRESTA, glob.max_dist_cresta_cabecera)
@@ -713,8 +768,11 @@ def generar_crestas(disenos, subcuencas, g_lim, glob, dem, lm):
                     if largo_r < 0.5 * long_min:
                         continue
                     rama = _salir_por_bisectriz(rama, anclaje, bisectrices)
-                    linea, _zs = _perfil_cresta(rama, disenos, geoms, s_max, dem,
-                                               glob, contorno, anclaje=anclaje)
+                    linea, _zs, diag = _perfil_cresta(
+                        rama, disenos, geoms, s_max, dem, glob, contorno,
+                        anclaje=anclaje)
+                    if diag["exceso_techo"] > peor_exceso:
+                        peor_exceso = diag["exceso_techo"]
                     f = QgsFeature(capa.fields())
                     f.setGeometry(QgsGeometry.fromPolyline(linea))
                     f.setAttributes(attrs(capa, [
@@ -724,7 +782,7 @@ def generar_crestas(disenos, subcuencas, g_lim, glob, dem, lm):
                     crestas_3d.append(traza_y_cotas(linea))
     capa.dataProvider().addFeatures(feats)
     capa.updateExtents(); capa.triggerRepaint()
-    return len(feats), crestas_3d
+    return len(feats), crestas_3d, peor_exceso
 
 
 def _perfil_cresta(dens, disenos, geoms, s_max, dem, glob, contorno, anclaje=None):
@@ -768,50 +826,77 @@ def _perfil_cresta(dens, disenos, geoms, s_max, dem, glob, contorno, anclaje=Non
         return (_z_ladera(pt, disenos, geoms, s_max, dem, False,
                           glob=glob), "cresta")
 
-    zA, _ = z_extremo(dens[0])
-    zB, _ = z_extremo(dens[-1])
+    zA, tipoA = z_extremo(dens[0])
+    zB, tipoB = z_extremo(dens[-1])
     # extremo anclado a una confluencia: manda la cota del cauce en ese punto
     if anclaje:
         donde, z_conf = anclaje
         if donde == "ini":
-            zA = z_conf
+            zA, tipoA = z_conf, "confluencia"
         else:
-            zB = z_conf
+            zB, tipoB = z_conf, "confluencia"
     # orientar del extremo ALTO al bajo para el perfil
     if zB > zA:
         dens = dens[::-1]
         zA, zB = zB, zA
+        tipoA, tipoB = tipoB, tipoA
     s = [0.0]
     for a, b in zip(dens[:-1], dens[1:]):
         s.append(s[-1] + math.hypot(b[0] - a[0], b[1] - a[1]))
     D = max(s[-1], 1e-6)
-    lc = min(1.5 * glob.max_dist_cresta_cabecera, 0.5 * D)
-    # envolvente de cresta de diseño (sin mezcla con el DEM)
-    z_env = [_z_ladera((pt[0], pt[1]), disenos, geoms, s_max, dem, False,
-                       glob=glob)
+    lc = convexo_cresta(glob, D)
+
+    # --- techo y suelo de ladera, continuos, con los DOS cauces de cada punto
+    lados = [lados_de_un_punto((pt[0], pt[1]), disenos, geoms, s_max,
+                               glob=glob)
              for pt in dens]
-    zs = []
-    n = len(dens)
-    for k, si in enumerate(s):
-        z = zA - perfil_trapezoidal(si, D, zA - zB, lc)
-        if k == 0:
-            z = zA
-        elif k == n - 1:
-            z = zB
-        else:
-            z = max(z, z_env[k])
-        zs.append(z)
-    # suavizado del perfil (media móvil) conservando extremos: evita que los
-    # saltos de la envolvente dejen dientes en la cresta
-    for _ in range(2):
-        nuevo = [zs[0]]
-        for k in range(1, n - 1):
-            nuevo.append((zs[k - 1] + 2.0 * zs[k] + zs[k + 1]) / 4.0)
-        nuevo.append(zs[-1])
-        zs = [max(z, z_env[k]) if 0 < k < n - 1 else z
-              for k, z in enumerate(nuevo)]
+    techo = [techo_de_ladera(ld) for ld in lados]
+    suelo = [suelo_de_cresta(ld) for ld in lados]
+
+    # --- forma: UNA curva vertical, `f` de 0 a 1 del extremo alto al bajo
+    # (LIBRO p. 156 «any yellow MAIN- or sub-ridge polylines… complex slopes»;
+    # MANUAL p. 1752 «constructing a vertical curve»). `perfil_trapezoidal` es
+    # lineal en el desnivel, así que la curva es la combinación convexa de las
+    # dos cotas extremas y el extremo libre se despeja de una vez.
+    f = [perfil_trapezoidal(si, D, 1.0, lc) for si in s]
+
+    # --- un extremo LIBRE se resuelve contra el techo; uno anclado manda
+    if tipoA == "cresta" and tipoB != "cresta":
+        cand = resolver_extremo_libre(f, techo, zB, libre_es_alto=True)
+        if cand is not None:
+            zA = min(zA, cand)
+    elif tipoB == "cresta" and tipoA != "cresta":
+        cand = resolver_extremo_libre(f, techo, zA, libre_es_alto=False)
+        if cand is not None:
+            zB = min(zB, cand)
+    elif tipoA == "cresta" and tipoB == "cresta":
+        if techo[0] is not None:
+            zA = min(zA, techo[0])
+        if techo[-1] is not None:
+            zB = min(zB, techo[-1])
+    if zB > zA:                       # la resolución puede invertir el sentido
+        zA, zB = zB, zA
+        dens, f, techo, suelo = dens[::-1], [1.0 - x for x in f[::-1]], \
+            techo[::-1], suelo[::-1]
+
+    zs = [zA * (1.0 - fk) + zB * fk for fk in f]
+
+    # El SUELO sí se aplica: una divisoria por debajo del lecho de uno de sus
+    # cauces no separa nada. Es `max` de funciones continuas, así que no
+    # escribe escalones.
+    zs = [z if su is None else max(z, su) for z, su in zip(zs, suelo)]
+
+    # Con los dos extremos anclados la curva está DETERMINADA: si aun así
+    # rebasa el techo, se informa y NO se recorta. El mando del método para eso
+    # es mover la divisoria en planta (LIBRO p. 180 §7.4.3), no retocarle la
+    # cota; recortarla contra una función no monótona es lo que dejaba dientes.
+    peor = 0.0
+    for z, tk in zip(zs, techo):
+        if tk is not None and z - tk > peor:
+            peor = z - tk
+    diag = {"exceso_techo": peor, "anclas": (tipoA, tipoB), "L": D}
     linea = [QgsPoint(pt[0], pt[1], z) for pt, z in zip(dens, zs)]
-    return linea, zs
+    return linea, zs, diag
 
 
 def _densificar_xy(pts, paso):

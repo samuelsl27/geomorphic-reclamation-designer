@@ -33,7 +33,7 @@ import math
 from qgis.core import QgsGeometry, QgsPointXY, QgsPoint, QgsSpatialIndex, QgsFeature
 
 from .compat import attrs, indices_datos
-from .ridges import convexo_subcresta
+from .ridges import convexo_cresta, convexo_subcresta
 
 
 TOL_LLEGADA = 20.0     # m, distancia a la que la cabecera de una ladera se
@@ -1033,7 +1033,9 @@ def ajustar_divisorias(lm, disenos, glob, dem=None, g_lim=None, log=None):
         # un filo ondulado que no es la forma del método.
         desde_inicio = z_ext[0] >= z_ext[1]
         z_alto, z_bajo = max(z_ext), min(z_ext)
-        lc_cresta = convexo_subcresta(glob, None, L)
+        # misma fuente que `ridges._perfil_cresta`: eran dos expresiones
+        # distintas para la misma cosa y se iban a desincronizar
+        lc_cresta = convexo_cresta(glob, L)
         base = perfil_base(pts, z_alto, z_bajo, lc_cresta,
                            desde_inicio=desde_inicio)
         # --- sillas: la divisoria se hunde donde muere una vaguada ---
