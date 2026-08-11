@@ -49,6 +49,21 @@ partida en pedazos.
   arbitraria y ahí se pegaba la traza cruda de golpe: 109° y 131° medidos justo
   pasado ese punto. Ahora todo va por longitud de arco.
 
+### Generalidad (regla de oro nº 2)
+Auditadas las constantes de las tres últimas versiones, porque un cambio que
+solo funcione en el ejemplo con el que se depura no sirve:
+- `largo_tangente` y `tol` del encadenado eran **metros absolutos**; ahora van
+  atados a `PASO_CRESTA`. Medido: el resultado es **idéntico** variando el
+  primero entre 10 y 100 m y el segundo entre 0.5 y 5 m.
+- El margen que decide si una confluencia parte la cadena era una fracción del
+  **número de vértices**: con arcos sueltos eran 10-20 m y con cadenas pasaba a
+  40-80, con lo que podía descartar decenas de metros de divisoria buena. Ahora
+  se mide en longitud de arco y no crece.
+- Casos límite comprobados: sin arcos (un solo canal), dos que no se tocan, un
+  nudo de **grado 4**, un **ciclo** cerrado y arcos degenerados. Y sobre 200
+  redes aleatorias, **ningún arco se pierde ni se duplica**.
+- En el **Ej_1**, que no tiene nudos, el encadenado **no cambia nada**.
+
 ### Medido
 - La **dirección** de salida de la confluencia ya era correcta en **7 de 9**
   casos, a menos de 4° de la del original: el defecto era el pegado, no la
