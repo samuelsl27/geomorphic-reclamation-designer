@@ -590,12 +590,41 @@ def cortes_con_cauces(dens, disenos, geoms):
     return cortes
 
 
-def _tangente(pts, desde_el_final, largo=25.0):
+LARGO_TANGENTE = 5.0 * PASO_CRESTA   # m sobre los que se mide la dirección de
+                                     # salida de un arco. Atado al paso de
+                                     # vértices y no a un número de metros: lo
+                                     # que hay que promediar es el ruido del
+                                     # densificado, que `_densificar_xy` deja
+                                     # entre PASO_CRESTA y 2·PASO_CRESTA, y
+                                     # `_suavizar_xy` mueve sobre ±2 vértices.
+TOL_NUDO = 0.4 * PASO_CRESTA         # m para dar dos extremos por coincidentes.
+                                     # En un nudo son literalmente el mismo
+                                     # vértice de Voronoi, así que basta con
+                                     # absorber el ruido de las operaciones
+                                     # geométricas intermedias.
+
+
+MARGEN_CONFLUENCIA = 4.0 * PASO_CRESTA   # m desde un extremo por debajo de los
+                                         # cuales una confluencia no parte la
+                                         # cadena, solo la recorta
+
+
+def _indice_a(pts, largo):
+    """Primer índice que queda a `largo` metros de ARCO del inicio."""
+    acc = 0.0
+    for k in range(1, len(pts)):
+        acc += math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1])
+        if acc >= largo:
+            return k
+    return max(1, len(pts) - 1)
+
+
+def _tangente(pts, desde_el_final, largo=LARGO_TANGENTE):
     """Dirección con la que un arco SALE de uno de sus extremos.
 
     Se mide sobre `largo` metros de arco, no sobre un número de vértices: el
-    espaciado real de una frontera de Voronoi va de 5 a 10 m y contar vértices
-    da direcciones que dependen de dónde cayeron."""
+    espaciado real de una frontera de Voronoi va de `PASO_CRESTA` a el doble, y
+    contar vértices da direcciones que dependen de dónde cayeron."""
     seq = pts[::-1] if desde_el_final else pts
     acc = 0.0
     j = len(seq) - 1
@@ -609,7 +638,7 @@ def _tangente(pts, desde_el_final, largo=25.0):
     return dx / L, dy / L
 
 
-def encadenar_arcos(arcos, tol=2.0, largo_tangente=25.0):
+def encadenar_arcos(arcos, tol=TOL_NUDO, largo_tangente=LARGO_TANGENTE):
     """Cose los arcos de frontera que comparten extremo en CADENAS continuas.
 
     Las subcuencas se comparan por parejas, así que un punto donde se tocan tres
@@ -732,7 +761,16 @@ def _partir_en_confluencias(dens, confluencias, tol):
     if mejor is None:
         return [(dens, None)]
     _, i, (cx, cy, cz) = mejor
-    margen = max(2, int(0.08 * len(dens)))
+    # Margen para decidir si la confluencia cae «en el interior» —y entonces se
+    # PARTE en dos crestas— o «junto a un extremo» —y entonces se recorta—.
+    # Era `max(2, int(0.08 * len(dens)))`, una fracción del NÚMERO DE VÉRTICES:
+    # con los arcos sueltos de antes eran dos vértices, o sea 10-20 m, pero al
+    # emitir cadenas enteras (B-040) las líneas son cuatro veces más largas y
+    # ese 8 % pasaba a valer 40-80 m, con lo que una confluencia legítima cerca
+    # del arranque hacía descartar decenas de metros de divisoria buena. En
+    # longitud de arco no crece con la cadena.
+    margen = _indice_a(dens, MARGEN_CONFLUENCIA)
+    margen = max(2, min(margen, (len(dens) - 1) // 2))
     # --- la confluencia cae en el INTERIOR: la cadena se PARTE en dos crestas
     if margen <= i <= len(dens) - 1 - margen:
         # OJO: la confluencia NO se inserta en la planta. Aquí se hacía

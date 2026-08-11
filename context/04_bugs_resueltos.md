@@ -1208,6 +1208,12 @@ Ver `context/07_entorno_qgis_mcp.md`.
     B-037. `techo_cresta` valía `s_max·d` y lo que quería acotar valía
     `s_max·(d − lc/2 − lf/2)`. Si un filtro no rechaza nunca nada, mide otra
     cosa.
+23. **Un umbral relativo al NÚMERO DE VÉRTICES deja de valer si cambias la
+    longitud de las líneas** → B-040. `margen = 0.08·len(dens)` significaba
+    10-20 m mientras las divisorias eran arcos sueltos, y pasó a 40-80 m al
+    emitirlas encadenadas. Si un umbral tiene que expresar una DISTANCIA,
+    exprésalo en metros de arco: contar vértices lo ata al espaciado, que es
+    justo lo que cambia.
 23. **«`min` de continuas es continuo» no salva a `max`** → B-038. El argumento
     que hace continuo al techo NO vale para el suelo, aunque la fórmula se le
     parezca: lo que cambia no son las funciones, es **el conjunto** sobre el que

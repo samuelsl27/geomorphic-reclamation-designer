@@ -735,3 +735,70 @@ def test_la_mezcla_de_la_bisectriz_acaba_donde_se_le_pide():
             assert out[i] == pts[i], (i, s, out[i], pts[i])
     # y dentro del tramo si se ha movido hacia la bisectriz
     assert out[1] != pts[1]
+
+
+# ============ generalidad del encadenado: regla de oro nº 2 (AGENTS.md)
+def test_encadenar_aguanta_los_casos_limite():
+    """Tiene que funcionar en TODOS los escenarios, no solo en el ejemplo con el
+    que se depura: un solo canal (sin arcos), dos canales (sin nudos), un nudo de
+    grado 4, un ciclo cerrado y arcos degenerados."""
+    casos = {
+        "sin arcos": [],
+        "un solo arco": [[(0., 0.), (10., 0.), (20., 0.)]],
+        "dos que no se tocan": [[(0., 0.), (10., 0.)],
+                                [(100., 100.), (110., 100.)]],
+        "arco degenerado": [[(0., 0.)], [(0., 0.), (10., 0.)]],
+        "nudo de grado 4": [[(-20., 0.), (0., 0.)], [(0., 0.), (20., 0.)],
+                            [(0., 0.), (0., 20.)], [(0., 0.), (0., -20.)]],
+        "ciclo puro": [[(0., 0.), (10., 17.)], [(10., 17.), (20., 0.)],
+                       [(20., 0.), (0., 0.)]],
+    }
+    for nombre, arcos in casos.items():
+        cad = rg.encadenar_arcos(arcos)
+        assert isinstance(cad, list), nombre
+        # ni bucle infinito ni vertices inventados
+        assert sum(len(c) for c in cad) <= sum(len(a) for a in arcos) + 2, nombre
+
+
+def test_encadenar_no_pierde_ni_duplica_ningun_arco():
+    """El invariante que de verdad importa: cada arco de entrada aparece una vez
+    y solo una en el resultado. Se comprueba sobre 200 redes aleatorias."""
+    import random
+    random.seed(5)
+    for _ in range(200):
+        n = random.randint(1, 7)
+        arcos = []
+        for _k in range(n):
+            x0, y0 = random.choice([(0., 0.), (50., 0.), (0., 50.), (25., 25.)])
+            arcos.append([(x0, y0), (x0 + random.uniform(-40, 40),
+                                     y0 + random.uniform(-40, 40))])
+        cad = rg.encadenar_arcos(arcos)
+        assert sum(len(c) - 1 for c in cad) == n
+
+
+def test_el_encadenado_no_depende_de_afinar_sus_constantes():
+    """Si el resultado cambiara al mover `tol` o `largo_tangente`, estarian
+    ajustadas al ejemplo con el que se depuro."""
+    izq = [(-60., 0.), (-30., 0.), (0., 0.)]
+    der = [(0., 0.), (30., 0.), (60., 0.)]
+    ramal = [(0., 0.), (15., 30.), (30., 60.)]
+    base = len(rg.encadenar_arcos([izq, der, ramal]))
+    for lt in (10.0, 25.0, 50.0, 100.0):
+        for tl in (0.5, 2.0, 5.0):
+            assert len(rg.encadenar_arcos([izq, der, ramal], tol=tl,
+                                          largo_tangente=lt)) == base, (lt, tl)
+
+
+def test_el_margen_de_confluencia_no_crece_con_la_cadena():
+    """Era `0.08 * numero de vertices`. Con los arcos sueltos eran 10-20 m, pero
+    al emitir CADENAS enteras (B-040) pasaba a 40-80 m, y ese margen decide si
+    una confluencia parte la linea o le recorta el brazo corto: podia tirar
+    decenas de metros de divisoria buena."""
+    anchos = []
+    for L in (100.0, 350.0, 800.0):
+        n = int(L / 6) + 1
+        pts = [(L * k / (n - 1), 0.0) for k in range(n)]
+        i = rg._indice_a(pts, rg.MARGEN_CONFLUENCIA)
+        anchos.append(i * L / (n - 1))
+    assert max(anchos) - min(anchos) < 3.0, anchos
+    assert all(abs(a - rg.MARGEN_CONFLUENCIA) < 6.0 for a in anchos), anchos
