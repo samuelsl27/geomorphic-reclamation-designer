@@ -411,35 +411,14 @@ class Corredor:
         r, d = self.radio_y_distancia(x, y)
         return d < r
 
-    def techo_cresta(self, x, y, s_max, dem=None):
-        """Cota MÁXIMA que puede tener una cresta en ese punto.
-
-        Dos condiciones, y vale la más permisiva:
-
-        * la geometría de ladera: desde el cauce más próximo, subir a la
-          pendiente recta máxima de diseño da `z_lecho + s_max · d`. Una cresta
-          por encima de eso exigiría una ladera más empinada que el ajuste
-          `Maximum straight-line slopes`;
-        * el terreno existente: si el suelo ya está más alto —un talud de
-          corta, un cerro que no se toca— la cresta puede estar ahí sin que
-          nadie tenga que excavar para conseguirlo.
-
-        Sirve para dos cosas a la vez: fijar la cota del extremo truncado de
-        una divisoria (a 6.6 m del cauce da 1062.8, y el original acaba en
-        1062.97) y filtrar las cabeceras que piden una cota imposible, que es
-        lo que pasa cuando un pase anterior le pegó a un espolón la cota de la
-        propia divisoria y esta se la vuelve a preguntar a sí misma.
-        """
-        k, dist, s = self._cerca(x, y)
-        if k is None:
-            return None
-        z = self._interp(self.ejes[k][4], s, 2) + s_max * dist
-        if dem is not None:
-            from . import setup_tools as st
-            zt = st.cota_dem(dem, x, y)
-            if zt is not None:
-                z = max(z, zt)
-        return z
+    # `techo_cresta` vivía aquí. Se ha borrado: era `z_lecho + s_max·d`, que es
+    # la ladera RECTA, mientras que la coronación que produce el perfil que de
+    # verdad se dibuja vale `z_lecho + s_max·(d − lc/2 − lf/2)` — entre un 31 %
+    # y un 45 % menos. O sea que el filtro «contra cotas imposibles» estaba
+    # siempre por encima de lo que pretendía filtrar, y encima tomaba
+    # `max(…, z_DEM)`, que lo aflojaba más. No podía morder nunca. Su papel lo
+    # hace ahora `ridges.techo_de_ladera`, despejado del propio perfil y
+    # evaluado con los DOS cauces.
 
     def cota_borde(self, x, y):
         """Cota del BORDE del corredor en el punto: lecho del cauce más el
@@ -954,28 +933,16 @@ def ajustar_divisorias(lm, disenos, glob, dem=None, g_lim=None, log=None):
     def d_cauce(x, y):
         return corr_ladera._cerca(x, y)[1]
 
-    cabeceras = []          # [(x, y, z)] de las subcrestas
-    for f in capa_sr.getFeatures():
-        pts = _pts3(f)
-        if len(pts) < 2:
-            continue
-        alto = pts[extremo_alto(pts, d_cauce)]
-        if contorno is not None:
-            dl = contorno.distance(
-                QgsGeometry.fromPointXY(QgsPointXY(alto[0], alto[1])))
-            if dl < MARGEN_LIMITE:
-                continue        # muere en el límite, no en la divisoria
-        # La cota que el espolón IMPONE es la de su propio filo, no la del
-        # último vértice: si un pase anterior le pegó una cola descendente
-        # hasta la divisoria vieja, tomar ese último valor sería preguntarle a
-        # la divisoria por su propia cota anterior y no arreglar nada. Y se
-        # acota por el techo de cresta, para que un valor heredado de una
-        # pasada anterior no pueda pedir una cota imposible.
-        z_cab = max(z for _, _, z in pts)
-        techo = corr_div.techo_cresta(alto[0], alto[1], s_max, dem)
-        if techo is not None:
-            z_cab = min(z_cab, techo)
-        cabeceras.append((alto[0], alto[1], z_cab))
+    # Aquí se recogían las cabeceras de subcresta para DERIVAR de ellas la cota
+    # de la divisoria (`z_cab = max(z de toda la línea)`, acotado por
+    # `techo_cresta`). Ese era el eslabón que cerraba el bucle: esas cabeceras
+    # habían tomado su cota de esta misma divisoria en `hillslopes` y en
+    # `topology`, así que la divisoria se preguntaba su propia cota anterior. Y
+    # el filtro previsto para romperlo, `techo_cresta`, era vacuo por
+    # construcción. Ver la ADR de la v1.0.22.
+    #
+    # Ahora la divisoria trae su curva de `ridges._perfil_cresta` y aquí solo se
+    # la recorta, se la remuestrea y se le añaden las sillas.
 
     # Cabeceras de VAGUADA: no levantan la divisoria, la hunden un poco. Es la
     # 'silla' del libro, §9.11.2, p. 259 (NO 9.4, que es 'Reference area

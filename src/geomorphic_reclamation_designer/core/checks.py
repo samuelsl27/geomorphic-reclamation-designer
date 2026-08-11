@@ -410,7 +410,15 @@ def pendientes_de_ladera(lm, glob):
     salida = []
     lim = float(glob.pendiente_max_pct)
     lim_ne = float(glob.pendiente_NE_pct)
-    for nombre, capa in _capas(lm, ["GRD_SubRidges", "GRD_Swales", "GRD_Ridges"]):
+    # OJO: aquí estaba también "GRD_Ridges", y era un error de categoría. A una
+    # divisoria se le medía la pendiente recta de extremo a extremo, que es su
+    # perfil LONGITUDINAL, y se comparaba contra un objetivo de LADERA. El libro
+    # lo dice expresamente (p. 180, §7.4.3): esos porcentajes son «an
+    # approximate overall slope, NOT a specific part of the complex slope
+    # profile», y la pendiente que acotan es la de la cresta al cauce, no la del
+    # filo. Ver ADR-009. La pendiente de ladera de una divisoria se mide a sus
+    # DOS cauces, no a lo largo de ella.
+    for nombre, capa in _capas(lm, ["GRD_SubRidges", "GRD_Swales"]):
         for f in capa.getFeatures():
             pts = _pts3(f.geometry())
             p = _pendiente_recta_pct(pts)
