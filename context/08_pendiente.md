@@ -1,6 +1,6 @@
 # Backlog — lo que falta y lo que está a medias
 
-Estado a **v1.0.21**. Actualiza esta página en cada sesión: mueve lo hecho a
+Estado a **v1.0.22**. Actualiza esta página en cada sesión: mueve lo hecho a
 `09_historial_sesiones.md` y añade lo nuevo.
 
 > **Numeración**: el proyecto sigue en **1.0.x** mientras no haya nada
@@ -10,106 +10,47 @@ Estado a **v1.0.21**. Actualiza esta página en cada sesión: mueve lo hecho a
 
 ---
 
+## 🟢 Resuelto en la v1.0.22
+
+- **P-25 · La cota de la divisoria era una envolvente.** Invertida la
+  causalidad: la divisoria tiene su propia curva vertical y las laderas cuelgan
+  de ella. Ver **ADR-022** y **B-037**.
+- **P-27 · El gancho de la confluencia.** Se insertaba el punto de confluencia
+  en la planta, en sustitución del vértice de mínima distancia, o sea
+  perpendicular a la traza. Ya no se inserta: se parte y se ancla solo la cota.
+- **P-24 · `monotona = (n_sillas == 0)`.** Desaparece solo: las sillas son ahora
+  hoyos locales sobre una curva ya monótona, así que `monotona=False` es su
+  definición y no un apagado global.
+- **P-19 · El criterio de «extremo alto».** `divides.extremo_alto(pts, dist)`
+  decide por **distancia al cauce**, y se hizo ANTES de mover ninguna cota
+  precisamente para que un cambio de Z no hiciera que cuatro funciones eligieran
+  el otro extremo. Queda un cabo suelto anotado en el código: el radio de
+  `hillslopes` (24 m) y `divides.TOL_LLEGADA` (20 m) siguen siendo dos
+  constantes para la misma idea; no se unifican porque el símbolo vive en
+  `divides` y tres bancos de prueba parchean las líneas de importación por
+  cadena exacta.
+
+---
+
 ## 🔴 Abierto — geometría
 
-### P-25 · La cota de la divisoria es una ENVOLVENTE; en el original es un DISEÑO 🔴 (nuevo, 2026-08-11)
+### P-28 · ¿Qué pasa con las sillas ahora? 🟠 (nuevo, 2026-08-11)
 
-**Es el hallazgo de fondo de la v1.0.21, y lo apuntó Samuel mirando los perfiles
-en 3D antes de que ninguna medida lo dijera.**
+Con el bucle cortado, la cabecera de vaguada toma su cota de la divisoria, así
+que `z_crest − z_vaguada → 0` y la condición `> 0.05` que crea la silla **casi
+no se dispara**. En la práctica las sillas desaparecen del borrador.
 
-La traza en planta está bien. Comparadas las dos parejas que señaló, nuestra
-divisoria y la del original van casi por el mismo sitio:
+Eso es lo que describe el libro (pp. 259-260 y manual p. 1749): las sillas son
+una **edición manual** del diseñador con *Edit Longitudinal Profile*, no algo
+que salga del algoritmo. Pero es un cambio de comportamiento que hay que **medir
+y decidir**, y Samuel lo dejó explícitamente para después de medir.
 
-| | fid 13 vs 1829 | fid 15 vs 1788 |
-|---|---|---|
-| Separación en planta, p50 | **3.1 m** | **1.6 m** |
-| Pendiente media | 15.3 vs 14.1 % | 17.9 vs 15.5 % |
-| **Pendiente máxima** | **93.9 vs 19.5 %** | **74.4 vs 33.0 %** |
-| **Vaivén** | **12.49 vs 0.00 m** | **11.67 vs 0.00 m** |
+Si se quieren conservar automáticas, hace falta un referente **no circular**
+para la profundidad: el actual (`pct` de la diferencia entre el filo y la
+cabecera de vaguada) se degenera. Candidato: `pct` del relieve local de la
+divisoria sobre la coronación de orilla (`Corredor.cota_borde`). La magnitud
+sigue siendo decisión nuestra (ADR-020): el libro no da ninguna cifra.
 
-Las dos divisorias largas del original tienen vaivén **0.00 exacto**: son
-estrictamente monótonas. Las nuestras no. Sumando las 13 nuestras: **113 m de
-vaivén** frente a **15 m** de las 7 del original.
-
-**De dónde sale**, medido reproduciendo el motor fuera de QGIS
-(`scratchpad/banco.py` reconstruye el pipeline sin QGIS):
-
-| | m de vaivén |
-|---|---|
-| Lo piden los propios puntos de control (cabeceras de subcresta) | **41** |
-| Lo fabrica `base + residuo` y el anclaje de los extremos | **54** |
-| Total escrito | **95** |
-| Original | **15** |
-
-Y la causa es de arquitectura, no un bug puntual. `core/divides.py` lo dice en
-su propia cabecera como decisión deliberada:
-
-> *«La cota de una divisoria no es un dato: es una consecuencia… la cota de la
-> divisoria como ENVOLVENTE de lo que las laderas le piden.»*
-
-Cada subcresta calcula su cota de coronación por su cuenta
-(`z_cauce + desnivel_de_ladera(D)`, con su propio `D`), y la divisoria hereda
-**toda su dispersión**. El original va al revés — manual de Carlson, p. interna
-1706:
-
-> *«GeoFluv designs ridgelines between the channels **at elevations that create
-> side slopes less than a default 5:1 gradient** for the draft landform.»*
-
-O sea: primero una cota de divisoria **suave**, y las laderas se dibujan hasta
-ella. Nosotros promediamos ruido; ellos diseñan una curva.
-
-**Lo que ya está medido de los candidatos**, sobre las 13 divisorias reales:
-
-| | vaivén | pend. máx | meseta |
-|---|---|---|---|
-| Como está | 93.2 m | 95.2 % | 5 |
-| Soltar el anclaje si hay cabecera a < 6.1 m | 93.2 m | 95.2 % | 5 |
-| Manda la cabecera sobre el anclaje | 87.9 m | 95.2 % | 5 |
-| Manda el anclaje sobre la cabecera | 88.9 m | 95.2 % | 5 |
-| **Hacer monótona la secuencia de controles (PAVA)** | **42.8 m** | 100.0 % | 10 |
-| Original | **15.0 m** | **33.0 %** | **2** |
-
-Reconciliar los extremos **no sirve** (93 → 88). Hacer monótonos los controles
-antes de interpolar **es la mitad del camino** (93 → 43) y deja limpias fid 13,
-14, 15 y 3, pero empuja una línea al 100 % y una meseta a 10 vértices: no se
-puede meter tal cual.
-
-**Dirección respaldada por el libro**, p. 260 (§9.11.2), contra un filo
-demasiado empinado:
-
-> *«Increasing the "blend percent" will reduce that over-steepened portion.»*
-
-Es decir: **ajustar y suavizar, no interpolar exacto ni recortar**. Encaja con
-que el original tolera hasta 5.43 m entre sus cabeceras de ladera y su
-divisoria, mientras nosotros las clavamos a 0.89 m (p90).
-
-**Antes de tocar nada** hay que decidir el modelo, porque es un cambio de fondo
-y afecta a `perfil_desde_control`, a `_restaurar_control` y a cómo las laderas
-toman su cota de coronación.
-
-### P-27 · La divisoria hace un GANCHO al morir 🔴 (nuevo, 2026-08-11)
-
-Es lo que se ve rodeado en morado en las capturas de Samuel: la línea roja gira
-sobre sí misma junto al cauce. Medido, el giro acumulado en los últimos 20 m de
-cada extremo:
-
-| | p50 | p90 | máx |
-|---|---|---|---|
-| Nuestro | 26.1° | 85.7° | **104.3°** |
-| Original | **5.7°** | **27.5°** | **33.3°** |
-
-El original llega **recto**: no pasa de 33° ni una vez. Y pasa más lejos del
-cauce (p10 de 19.9 m contra nuestros 13.1; mínimo 3.6 contra 5.3, pero el 5.9 %
-de nuestros vértices quedan a menos de 10 m del eje contra el 3.6 % suyo).
-
-Primer sitio donde mirar: `ridges._partir_en_confluencias` y ADR-003 («la
-divisoria es una V que PASA por la confluencia»). Si de la confluencia salen dos
-crestas, cada una debería llegar recta; un giro de 104° dice que en alguna parte
-se está doblando una sola línea en vez de partirla, o que el recorte contra el
-corredor deja un muñón torcido.
-
-Va junto con P-26 (se quedan cortas por abajo): las dos son defectos del
-**extremo bajo** de la divisoria y probablemente comparten causa.
 
 ### P-26 · Nuestras divisorias se quedan ~100 m cortas por abajo 🟠 (nuevo, 2026-08-11)
 
@@ -120,22 +61,6 @@ original baja mucho más cerca de la confluencia.
 Sospechosos: `holgura_divisoria_m` (4.5 m), `recortar_contra_corredor` y
 `min_divisoria`. No confundir con P-22 (que va de cuántas divisorias hay, no de
 cuánto miden).
-
-### P-24 · `monotona = (n_sillas == 0)` es un error de categoría latente 🟢 (nuevo, 2026-08-11)
-
-Una sola silla apaga la monotonía de la divisoria **entera** — 346 m de perfil
-sueltos por un hoyo en la estación 88. Es la misma familia que B-036.
-
-**No se ha tocado, y conviene saber por qué.** Se llegó a cambiar y se revirtió:
-medido sobre el Ej_2 el efecto es de 95.37 → 94.30 m de vaivén (un 1 %) y a
-cambio deja una meseta de 5 vértices donde había 1. En todo el ejemplo hay
-**4 sillas**, no las 12 que una primera cuenta mal hecha sugirió (le faltaba el
-filtro `base[i] − z_vaguada > 0.05` que aplica el motor). El vaivén no viene de
-aquí.
-
-La prueba `test_una_silla_cabe_sin_soltar_el_resto_del_perfil` ya fija el
-comportamiento de `_monotonizar` que permitirá quitar el apagado cuando se
-reescriba el perfil (P-25).
 
 ### P-23 · La divisoria se coloca en PLANTA para cumplir la pendiente 🟠 (nuevo, 2026-08-11)
 
@@ -193,30 +118,6 @@ color o por capa, si el original los distingue; (b) mirar los tres filtros a la
 vez, porque se pisan — `ridges.long_min` (50 m en el Ej_2, y usa `xrh`, que es
 una distancia divisoria-cabecera, como longitud mínima de divisoria) y
 `divides.min_divisoria` (25 m).
-
-### P-19 · Unificar el criterio de «extremo alto» 🔴 (nuevo, 2026-08-10)
-
-Conviven **tres** criterios para decidir cuál es el extremo alto de una línea de
-ladera, y uno de ellos incumple la regla de oro nº 3:
-
-| Sitio | Criterio |
-|---|---|
-| `divides.py:759-762`, `1168-1170` | distancia al cauce ✅ |
-| `divides.py:823`, `854`, `969` | **cota** ❌ |
-| `checks.py` (`laderas_que_no_vierten`) | **cota** ❌ |
-| `topology._extremo_hacia_divisoria` | proyección sobre la divisoria ✅ |
-
-**No se ha tocado en la v1.0.20 a propósito.** Es un cambio estructural que
-toca cuatro módulos y no tiene síntoma medido en el Ej_2; meterlo en la misma
-tanda que las cinco correcciones de forma habría hecho imposible saber cuál
-movió qué al remedir. Se hace **después** de que la v1.0.20 esté medida.
-
-Lo que hay que hacer: una función pública `divides.extremo_alto(pts,
-dist_al_cauce)` que reciba un invocable `(x, y) → distancia` —así cada módulo
-inyecta el suyo (`Corredor._cerca`, `GRD_Channels`, `disenos`) sin crear
-dependencias nuevas— y sustituir los cuatro sitios por cota. Respaldo, si no hay
-cauces: la proyección, nunca la cota. Invariante nuevo para `context/05`:
-*ningún módulo decide un extremo por cota*.
 
 ### P-17 · Remedir los dos ejemplos en QGIS real 🔴
 

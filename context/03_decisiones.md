@@ -6,6 +6,103 @@ la sustituyó.
 
 ---
 
+## ADR-022 · La cota de la divisoria es un DISEÑO, no una envolvente
+
+**Fecha**: 2026-08-11 · **Estado**: aceptada · **Origen**: B-037 ·
+**Deroga** la decisión nº 2 de la cabecera de `core/divides.py` y el párrafo de
+`core/hillslopes.py` que decía «la ladera manda… y la divisoria se calcula
+después como envolvente de las cabeceras».
+
+**Contexto.** Samuel comparó en 3D dos parejas concretas (`GRD_Ridges` 13 contra
+`GF_Ridges` 1829, y 15 contra 1788) y preguntó si el método constructivo era
+distinto de base. Lo era. Nuestro orden de causalidad estaba invertido respecto
+del método, y encima se realimentaba:
+
+```
+ridges._perfil_cresta   la divisoria NACE como envolvente de las laderas
+      ↓                 (max(z, z_env), y reimpuesto tras suavizar)
+hillslopes              la cabecera de ladera HEREDA la cota de la divisoria
+      ↓
+topology                la reestampa en la ladera con max(), hasta 30 pasadas
+      ↓
+divides                 la lee de vuelta como PUNTO DE CONTROL y vuelve a
+                        derivar la divisoria de ella
+```
+
+La divisoria se preguntaba su propia cota anterior. El bucle estaba previsto —el
+docstring de `Corredor.techo_cresta` decía que existía para *«filtrar las
+cabeceras que piden una cota imposible, que es lo que pasa cuando un pase
+anterior le pegó a un espolón la cota de la propia divisoria»*— pero esa guarda
+era **vacua por construcción**.
+
+**Decisión.** Se invierte la causalidad, y la cota de la divisoria pasa a ser:
+
+1. **Una sola curva vertical** entre las cotas de sus dos extremos, monótona,
+   convexo→cóncava. MANUAL p. 1752: *«design a longitudinal profile between the
+   upper and lower elevations of the 3D polyline by constructing a vertical
+   curve»*; LIBRO p. 156, que aplica el «perfil complejo» a *«any yellow
+   **main-** or sub-ridge polylines»*.
+2. **Acotada por arriba** por la pendiente de ladera que dejan sus DOS cauces
+   (`ridges.techo_de_ladera`), y por abajo por sus lechos.
+3. **Anclada** al DEM en el límite GeoFluv y al lecho en la confluencia. MANUAL
+   p. 1722 y LIBRO p. 206: la cota de la cresta se lee de la superficie de
+   partida donde la cresta cae.
+4. Las **laderas cuelgan de ella**, no al revés. MANUAL p. 1722: *«GeoFluv will
+   automatically design drainage-divide ridges between the channels… **also**
+   the sub-ridges and sub-ridge valleys in each subwatershed»*; patente
+   US7596418B2, FIG. 17.
+
+**El signo también estaba invertido.** `max(z, z_env)` obligaba a la divisoria a
+estar **al menos** a la cota de diseño. Pero el ajuste se llama *Maximum
+straight-line slopes*, el manual dice *«at elevations that create side slopes
+**less than** a default 5:1 gradient»* (p. 1706) y el ejercicio del libro
+(pp. 270 y 272) **baja** la cresta de 120 a 80 ft para suavizar la ladera del
+40 % al 20 %: **la cota de la cresta es la incógnita** y la pendiente de ladera
+la acota **por arriba**. La patente lo dice igual (módulo 52): *«raising or
+lowering the ridgeline to an elevation required to maintain user-specified
+valley wall slopes»*.
+
+**Y con LOS DOS cauces, no con el más próximo.** Una divisoria de Voronoi es
+equidistante de dos ejes, así que «el más próximo» se alterna por milímetros:
+medido en el Ej_2, cambiaba en el **21.2 %** de los pasos de vértice a vértice y
+con él la cota de lecho de referencia saltaba 4.15 m de mediana y hasta
+**29.96 m**. El `min` de dos funciones continuas es continuo, así que la
+discontinuidad desaparece por construcción. Con tres cauces no mejora nada, que
+es la comprobación de que **dos** es el número correcto.
+
+**Cuando la curva no cabe bajo el techo, se INFORMA y no se recorta.** Con los
+dos extremos anclados la curva está determinada. El mando del método para eso es
+**mover la divisoria en planta** hacia el valle contrario (LIBRO p. 180 §7.4.3,
+P-23), no retocarle la cota; y recortarla contra una función no monótona es
+justo lo que dejaba los dientes. El aviso sale por la interfaz con el número y
+con la acción.
+
+**Consecuencias.** `perfil_desde_control` y su maquinaria sobreviven, pero
+aplicadas solo a las **sillas**, que es exactamente lo que hacen. P-24
+desaparece solo: las sillas son hoyos locales sobre una curva ya monótona, así
+que `monotona=False` es su definición y no un apagado global. Cambia el balance
+corte/relleno, porque la divisoria baja donde antes el suelo la empujaba
+arriba: hay que rehacer la tabla de `context/06`.
+
+**Alternativas descartadas** (todas medidas antes de descartarlas, sobre las 13
+divisorias reales del Ej_2):
+
+| | vaivén | resultado |
+|---|---|---|
+| Hacer monótona la secuencia de controles (PAVA) | 93 → 43 m | a medias, y empuja una línea al 100 % y una meseta a 10 vértices |
+| Reconciliar el anclaje con la primera cabecera | 93 → 88 m | irrelevante |
+| Que mande el anclaje sobre la cabecera | 93 → 89 m | irrelevante |
+| Suavizar más | — | imposible por construcción: el suelo se reimponía después |
+| Bajar `MAX_PENDIENTE_FILO` | — | prohibido por ADR-009 y por el LIBRO p. 180 |
+
+Y una que conviene dejar escrita porque es un error fácil: *interpretar
+«increasing the blend percent» (LIBRO p. 260) como alargar `lc`*. Es **falso y
+va al revés**: `s_m = dz/(L − lc/2 − lf/2)` **crece** al crecer `lc`. El *blend*
+del original es la longitud sobre la que se reparte una edición de cota —lo que
+en nuestro motor son `MEZCLA_*` y `DECAIMIENTO`—, no la longitud convexa.
+
+---
+
 ## ADR-021 · Un clasificador que se compara con el original se calibra primero
 
 **Fecha**: 2026-08 · **Estado**: aceptada · **Origen**: bug B-036

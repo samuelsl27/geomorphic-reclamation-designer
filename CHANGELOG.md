@@ -8,6 +8,70 @@ Los códigos `B-0xx` remiten a [`context/04_bugs_resueltos.md`], los `ADR-0xx` a
 
 ## [No publicado]
 
+## [1.0.22] — 2026-08-11
+
+**La cota de la divisoria pasa a ser un DISEÑO en vez de una envolvente.** Es un
+cambio de arquitectura, no una corrección más, y sale de que Samuel comparó en
+3D dos parejas concretas (`GRD_Ridges` 13 contra `GF_Ridges` 1829, y 15 contra
+1788) y preguntó si el método constructivo era distinto de base. Lo era.
+
+> ⚠️ **Versión de trabajo.** 153 pruebas en verde, el efecto verificado
+> ejecutando el motor fuera de QGIS, pero **el diseño completo no se ha vuelto a
+> medir en QGIS real**. Por eso el instalable lleva la fecha.
+
+| | Nuestro (1.0.21) | Original |
+|---|---|---|
+| Traza en planta (separación p50) | 3.1 / 1.6 m ✅ | — |
+| Pendiente máxima del filo | **93.9 / 74.4 %** | 19.5 / 33.0 % |
+| **Vaivén total de las 13 divisorias** | **113 m** | **15 m** |
+| Giro en los últimos 20 m, máx | **104.3°** | 33.3° |
+
+### Corregido
+- 🔴 **La divisoria se preguntaba su propia cota anterior** (B-037, ADR-022).
+  Nacía como envolvente de las laderas, las laderas heredaban esa cota, y
+  `divides` la leía de vuelta como punto de control para volver a derivar la
+  divisoria de ella. La guarda prevista contra eso (`techo_cresta`) era **vacua
+  por construcción**: medía `s_max·d` cuando lo que acotaba vale
+  `s_max·(d − lc/2 − lf/2)`, entre un 31 % y un 45 % menos.
+- 🔴 **El signo estaba invertido**: `max(z, z_env)` era un **suelo** donde el
+  método pone un **techo** — el ajuste se llama *Maximum straight-line slopes*,
+  el manual dice *«at elevations that create side slopes **less than** a default
+  5:1 gradient»* (p. 1706) y el ejercicio del libro (pp. 270 y 272) **baja** la
+  cresta de 120 a 80 ft para suavizar la ladera.
+- 🔴 **El techo se calculaba con «el canal más próximo»**, y una divisoria de
+  Voronoi es equidistante de dos: el ganador cambiaba en el **21.2 %** de los
+  pasos de vértice a vértice, con saltos de cota de lecho de hasta **29.96 m**.
+  Ahora se evalúa con los **dos** y se toma el `min`, que es continuo por
+  construcción: el salto máximo del techo baja de 30.14 a **6.85 m**.
+- 🔴 **El gancho de la confluencia** (P-27). Se sustituía el vértice de *mínima
+  distancia* por el punto de confluencia, o sea que el segmento nuevo salía
+  **perpendicular a la traza** y podía medir 50 m. Ahora se parte ahí y no se
+  inserta nada; ADR-003 queda intacto porque lo que da las dos crestas es el
+  corte. Y `_salir_por_bisectriz` se rendía con `cos < 0.2`, descartando
+  exactamente los ganchos de 90° que existía para enderezar.
+- **C20/C21 medían la pendiente longitudinal de `GRD_Ridges`** contra un
+  objetivo de ladera. Error de categoría, el que ADR-009 nombra y el libro
+  declara en la p. 180.
+
+### Cambiado
+- El perfil de la divisoria es **una sola curva vertical** entre dos anclas
+  (MANUAL p. 1752, LIBRO p. 156), monótona por construcción. El extremo libre se
+  resuelve en **forma cerrada** contra el techo, sin iterar, aprovechando que
+  `perfil_trapezoidal` es exactamente lineal en el desnivel.
+- Con los dos extremos anclados la curva está determinada: si rebasa el techo se
+  **informa** y no se recorta, porque el mando del método para eso es mover la
+  divisoria en planta (LIBRO p. 180, P-23). El aviso sale por la interfaz.
+- `divides.extremo_alto()` decide la cabecera de una línea de ladera por
+  **distancia al cauce**, no por cota (P-19). Se hizo **antes** de mover ninguna
+  cota, para que un cambio de Z no hiciera que cuatro funciones eligieran el
+  otro extremo.
+- `topology` ya no mueve la divisoria en cota, solo en planta.
+
+### Pendiente de decidir
+- **Las sillas casi desaparecen** como consecuencia de cortar el bucle (P-28).
+  Es lo que describe el libro —son una edición manual del diseñador—, pero hay
+  que medirlo y decidirlo.
+
 ## [1.0.21] — 2026-08-11
 
 Ronda sobre **el perfil longitudinal de las divisorias** (`GRD_Ridges`), que era

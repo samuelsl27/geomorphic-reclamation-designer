@@ -6,6 +6,96 @@
 
 ---
 
+## B-037 · La divisoria se preguntaba su propia cota anterior 🔴
+
+**Síntoma.** Samuel sacó el perfil 3D de dos divisorias y las comparó con las
+del original. La traza en planta era casi la misma; el perfil, otra cosa:
+
+| | fid 13 vs 1829 | fid 15 vs 1788 |
+|---|---|---|
+| Separación en planta, p50 | 3.1 m ✅ | 1.6 m ✅ |
+| Pendiente media | 15.3 vs 14.1 % ✅ | 17.9 vs 15.5 % ✅ |
+| **Pendiente máxima** | **93.9 vs 19.5 %** | **74.4 vs 33.0 %** |
+| **Vaivén** | **12.49 vs 0.00 m** | **11.67 vs 0.00 m** |
+
+Sumando las 13: **113 m de vaivén contra 15 m** del original. Y giros de hasta
+**104°** en los últimos 20 m, contra 33 del original.
+
+**Causa raíz.** Tres cosas encadenadas, y la tercera es un bucle:
+
+1. **El signo estaba invertido.** `ridges._perfil_cresta:720` hacía
+   `z = max(z, z_env)`: obligaba a la divisoria a estar **al menos** a la cota
+   de diseño. Pero el ajuste se llama *Maximum straight-line slopes* y acota
+   **por arriba** (ver ADR-022). Era un suelo donde debía haber un techo.
+2. **El suelo se reimponía DESPUÉS de suavizar** (líneas 729-730). El propio
+   comentario decía que el suavizado existía «para evitar que los saltos de la
+   envolvente dejen dientes en la cresta», y la línea siguiente lo anulaba: el
+   suavizado podía rellenar valles pero no rebajar ni un pico. El perfil que
+   salía era la **envolvente superior** de `z_env`.
+3. **`z_env` no era una curva, era una función a trozos**, porque tomaba la cota
+   del canal **más próximo** y una divisoria de Voronoi es equidistante de dos.
+   Medido: el ganador cambia en el **21.2 %** de los pasos de vértice a vértice,
+   y con él la cota de lecho salta **4.15 m de mediana, 18.72 de p90 y 29.96 de
+   máximo**.
+
+Y el bucle, con cita de línea:
+
+```
+ridges._perfil_cresta:720   la divisoria NACE como envolvente de las laderas
+hillslopes.py:312-323       la cabecera de ladera HEREDA esa cota
+topology.py:580, :662       la reestampa con max(), hasta 30 pasadas
+divides.py:937              la lee de vuelta como z_cab = max(z de TODA la
+                            línea) y la usa como PUNTO DE CONTROL
+divides.py:679-689          _restaurar_control la clava exacta
+```
+
+La guarda prevista contra esto, `Corredor.techo_cresta`, **era vacua por
+construcción**: valía `z_lecho + s_max·d` (la ladera recta) mientras la
+coronación real vale `z_lecho + s_max·(d − lc/2 − lf/2)`, entre un 31 % y un
+45 % menos; y encima tomaba `max(…, z_DEM)`. Su propio docstring decía que
+existía justo para romper este bucle.
+
+**Corrección.** ADR-022, en cinco cortes:
+
+- `ridges.techo_de_ladera(lados)` — techo, `min` sobre **los dos** cauces, cada
+  uno con su pendiente y su longitud convexa. `min` de continuas es continua, así
+  que el salto desaparece por construcción. Medido: el salto máximo del techo
+  pasa de **30.14 a 6.85 m** y los pasos con salto > 2 m del 14.5 % al 7.4 %.
+  Con tres lados no mejora (6.85 m), que confirma que dos es el número.
+- `ridges._perfil_cresta` — **una sola curva vertical** entre dos anclas, sin
+  suelo por vértice y sin re-suavizado. El extremo libre se resuelve en **forma
+  cerrada** aprovechando que `perfil_trapezoidal` es exactamente lineal en el
+  desnivel:
+  `z_alto = min_x[(techo(x) − z_bajo·f(x)) / (1 − f(x))]`.
+  Con un techo con un diente de 30 m, el perfil no tiene ningún salto mayor de
+  1 m y su vaivén es **exactamente 0**.
+- Los tres eslabones del bucle cortados: `hillslopes` (la ladera cuelga de la
+  divisoria, y ahora el comentario lo dice), `divides` (deja de derivar la cota
+  de las cabeceras; la curva **sobrevive al recorte** porque `_limpiar_vertices`,
+  `remuestrear` y `recortar_contra_corredor` interpolan las tres componentes) y
+  `topology` (fuera el trinquete `max(z_lin, z0)`; la divisoria no se mueve en
+  cota, solo en planta).
+- El **gancho** (P-27): `_partir_en_confluencias` sustituía el vértice de
+  **mínima distancia** por el punto de confluencia. Ese vértice es el pie de la
+  perpendicular, así que el segmento nuevo salía **perpendicular a la traza** y
+  podía medir hasta 50 m. Ahora se **parte** ahí y no se inserta nada: ADR-003
+  queda intacto, porque lo que da las dos crestas es el corte. Y
+  `_salir_por_bisectriz` se rendía con `ref[0] < 0.2`, siendo `ref[0]` el coseno
+  entre traza y bisectriz: **cos(90°) = 0 < 0.2**, o sea que descartaba
+  exactamente los ganchos que existía para enderezar.
+- `checks` C20/C21 medía la pendiente **longitudinal** de `GRD_Ridges` contra un
+  objetivo de **ladera**. Es el error de categoría que ADR-009 nombra y que el
+  LIBRO p. 180 declara: *«an approximate overall slope, **not a specific part of
+  the complex slope profile**»*.
+
+**Cómo se llegó.** No con una hipótesis mejor, sino **dejando de proponerlas**.
+Cinco conclusiones mías se cayeron por el camino, y cuatro al contrastarlas
+contra el original; están listadas abajo y en `08_pendiente.md`. La causa
+apareció al listar los sesenta picos uno a uno con su entorno, y al medir el
+salto del canal más próximo vértice a vértice.
+
+---
+
 ## B-036 · La monotonía global convertía la divisoria en un trinquete 🔴
 
 **Síntoma.** El perfil longitudinal de `GRD_Ridges` no se parecía al del
@@ -915,3 +1005,18 @@ Ver `context/07_entorno_qgis_mcp.md`.
     respuesta se conoce, la precisión era del 65 % y el número real es 7. Sobre
     esa cifra falsa se había planificado una fase entera para «recuperar las 4
     divisorias que faltaban» — cuando en realidad nos sobran.
+
+20. **Un bucle de realimentación entre dos módulos** → B-037. A calculaba su
+    cota de B y B la suya de A, con un `max()` en medio que solo dejaba subir y
+    hasta 30 pasadas para acumular. Se detecta preguntando, de cada dato de
+    entrada, **de dónde salió**; si la respuesta lleva de vuelta al mismo sitio,
+    no es un dato, es un eco. Y ojo con la guarda que alguien puso para
+    romperlo: la de aquí llevaba dos versiones sin poder morder.
+21. **Un signo al revés se disfraza de ruido** → B-037. `max(z, z_env)` donde
+    debía ir `min` no produce un error evidente: produce una línea fea. La
+    pregunta que lo destapa es de qué lado acota el ajuste, y esa la contesta la
+    documentación, no el código.
+22. **Una constante que compara dos magnitudes distintas nunca muerde** →
+    B-037. `techo_cresta` valía `s_max·d` y lo que quería acotar valía
+    `s_max·(d − lc/2 − lf/2)`. Si un filtro no rechaza nunca nada, mide otra
+    cosa.
