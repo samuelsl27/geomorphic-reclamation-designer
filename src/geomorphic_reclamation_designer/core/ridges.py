@@ -223,15 +223,34 @@ def suelo_de_cresta(lados, resguardo=0.25):
     """Cota MÍNIMA de un filo: por encima del lecho de TODOS sus cauces.
 
     Una divisoria por debajo de un lecho no separa nada, drena al revés y deja
-    charcos en el TIN. Es `max` de funciones continuas, así que es continuo y no
-    escribe escalones."""
+    charcos en el TIN.
+
+    **OJO, y aquí me equivoqué en la v1.0.22**: este docstring decía que era
+    «`max` de funciones continuas, así que es continuo y no escribe escalones».
+    Es falso. Lo que cambia no son las funciones, es **el CONJUNTO**: `lados`
+    son los dos cauces más próximos, y esa pareja cambia de miembros a lo largo
+    de la divisoria. `techo_de_ladera` se salva de eso porque usa `min` y el
+    cauce que entra y sale es el lejano, cuyo término es el mayor; el `max` de
+    aquí está dominado **justo por él**, así que hereda el salto entero.
+
+    Medido en el Ej_2 con la v1.0.22: el suelo mandaba en el **40.9 %** de los
+    vértices de divisoria y él mismo saltaba hasta **15.80 m** entre vértices
+    consecutivos. Por eso ya **no se aplica punto a punto**: acota el extremo
+    libre (ver `resolver_extremo_libre`), que es donde no puede escribir
+    escalones. Ver B-038."""
     if not lados:
         return None
     return max(z for _D, z, _s, _lc in lados) + resguardo
 
 
-def resolver_extremo_libre(f, techo, z_fijo, libre_es_alto):
-    """Cota del extremo LIBRE que hace que la curva no rebase el techo.
+PESO_MIN_EXTREMO = 0.50   # peso mínimo con el que un punto puede opinar sobre
+                          # la cota del extremo libre; acota la amplificación
+                          # del despeje a 1/PESO = 2
+
+
+def resolver_extremo_libre(f, techo, z_fijo, libre_es_alto, suelo=None,
+                           peso_min=PESO_MIN_EXTREMO):
+    """Cota del extremo LIBRE: la más alta que respeta el techo y el suelo.
 
     `perfil_trapezoidal` es exactamente **lineal en `dz`** (está comprobado en
     `test_el_perfil_es_lineal_en_el_desnivel`), así que con
@@ -239,24 +258,52 @@ def resolver_extremo_libre(f, techo, z_fijo, libre_es_alto):
 
         z(x) = z_alto·(1 − f(x)) + z_bajo·f(x),   f monótona de 0 a 1
 
-    e imponer `z(x) ≤ techo(x)` para todo `x` se despeja de una vez:
+    y las dos condiciones se despejan de una vez, sin iterar:
 
-        z_alto ≤ min_x [ (techo(x) − z_bajo·f(x)) / (1 − f(x)) ]
+        z_alto ≤ min_x [ (techo(x) − z_bajo·f(x)) / (1 − f(x)) ]      (techo)
+        z_alto ≥ max_x [ (suelo(x) − z_bajo·f(x)) / (1 − f(x)) ]      (suelo)
 
-    Una pasada, sin iterar y sin recortar el perfil contra una función que no
-    es monótona —que es lo que producía los dientes—."""
-    mejor = None
-    for fk, tk in zip(f, techo):
-        if tk is None:
-            continue
+    Se coge la mayor de las dos, o sea **el suelo manda sobre el techo**: una
+    divisoria por debajo del lecho de su cauce es un error duro, y quedarse
+    corto de pendiente de ladera es solo un objetivo incumplido (el manual la
+    llama *«a best-fit slope adjustment toward the specified target value»*,
+    NRM p. 1718).
+
+    **`peso_min` es la corrección de B-038**, y es lo que hace que el despeje sea
+    estable. El factor de amplificación del cociente es `1/peso`, así que un
+    punto con `peso` pequeño convierte centímetros de restricción en decenas de
+    metros de cota. Y los pesos pequeños están precisamente **junto al extremo
+    fijo**, que es donde la divisoria muere: ahí la distancia al cauce tiende a
+    cero, el techo tiende al propio lecho y el suelo también, o sea que ese
+    tramo **no aporta ninguna información** sobre la cota del otro extremo — su
+    cota ya la fija el ancla.
+
+    Sin la guarda, en el Ej_2: siete de trece divisorias salían con menos de 7 m
+    de desnivel (una con 2.4 m en 117 m) cuando la más pequeña del original
+    tiene 11.5; y al añadir el suelo, dos se disparaban a 240 y 100 m de
+    desnivel. Con `peso_min = 0.5` la amplificación queda acotada a ×2 y el
+    desnivel máximo en 68.2 m, contra los 64.1 del original."""
+    alto, bajo = None, None
+    for k, fk in enumerate(f):
         peso = (1.0 - fk) if libre_es_alto else fk
-        if peso <= 1e-9:
-            continue          # ahí manda el extremo fijo, no el libre
+        if peso < max(peso_min, 1e-9):
+            continue
         otro = (z_fijo * fk) if libre_es_alto else (z_fijo * (1.0 - fk))
-        cand = (tk - otro) / peso
-        if mejor is None or cand < mejor:
-            mejor = cand
-    return mejor
+        tk = techo[k] if techo else None
+        if tk is not None:
+            cand = (tk - otro) / peso
+            if alto is None or cand < alto:
+                alto = cand
+        sk = suelo[k] if suelo else None
+        if sk is not None:
+            cand = (sk - otro) / peso
+            if bajo is None or cand > bajo:
+                bajo = cand
+    if alto is None:
+        return bajo
+    if bajo is None:
+        return alto
+    return max(alto, bajo)
 
 
 def proyectar_en_eje(puntos, x, y):
@@ -887,20 +934,28 @@ def _perfil_cresta(dens, disenos, geoms, s_max, dem, glob, contorno, anclaje=Non
     # dos cotas extremas y el extremo libre se despeja de una vez.
     f = [perfil_trapezoidal(si, D, 1.0, lc) for si in s]
 
-    # --- un extremo LIBRE se resuelve contra el techo; uno anclado manda
+    # --- un extremo LIBRE se resuelve contra el techo Y el suelo; uno anclado
+    # manda. Los dos entran como COTAS DEL EXTREMO, nunca punto a punto: ese
+    # era el fallo de la v1.0.22 (B-038).
     if tipoA == "cresta" and tipoB != "cresta":
-        cand = resolver_extremo_libre(f, techo, zB, libre_es_alto=True)
+        cand = resolver_extremo_libre(f, techo, zB, True, suelo=suelo)
         if cand is not None:
-            zA = min(zA, cand)
+            zA = cand
     elif tipoB == "cresta" and tipoA != "cresta":
-        cand = resolver_extremo_libre(f, techo, zA, libre_es_alto=False)
+        cand = resolver_extremo_libre(f, techo, zA, False, suelo=suelo)
         if cand is not None:
-            zB = min(zB, cand)
+            zB = cand
     elif tipoA == "cresta" and tipoB == "cresta":
-        if techo[0] is not None:
-            zA = min(zA, techo[0])
-        if techo[-1] is not None:
-            zB = min(zB, techo[-1])
+        for k, z in ((0, zA), (-1, zB)):
+            v = z
+            if techo[k] is not None:
+                v = min(v, techo[k])
+            if suelo[k] is not None:
+                v = max(v, suelo[k])
+            if k == 0:
+                zA = v
+            else:
+                zB = v
     if zB > zA:                       # la resolución puede invertir el sentido
         zA, zB = zB, zA
         dens, f, techo, suelo = dens[::-1], [1.0 - x for x in f[::-1]], \
@@ -908,20 +963,22 @@ def _perfil_cresta(dens, disenos, geoms, s_max, dem, glob, contorno, anclaje=Non
 
     zs = [zA * (1.0 - fk) + zB * fk for fk in f]
 
-    # El SUELO sí se aplica: una divisoria por debajo del lecho de uno de sus
-    # cauces no separa nada. Es `max` de funciones continuas, así que no
-    # escribe escalones.
-    zs = [z if su is None else max(z, su) for z, su in zip(zs, suelo)]
-
-    # Con los dos extremos anclados la curva está DETERMINADA: si aun así
-    # rebasa el techo, se informa y NO se recorta. El mando del método para eso
-    # es mover la divisoria en planta (LIBRO p. 180 §7.4.3), no retocarle la
-    # cota; recortarla contra una función no monótona es lo que dejaba dientes.
-    peor = 0.0
-    for z, tk in zip(zs, techo):
+    # Ni el techo ni el suelo se aplican punto a punto: los dos se INFORMAN.
+    # El suelo lo hacía hasta la v1.0.22, y era el deformador dominante — con
+    # `max` sobre una pareja de cauces que cambia de miembros, escribía saltos
+    # de hasta 15.80 m y mandaba en el 40.9 % de los vértices. Ahora acota el
+    # extremo libre, que es donde no puede escribir escalones (B-038).
+    # Y con los dos extremos anclados la curva está DETERMINADA: el mando del
+    # método para un exceso es mover la divisoria en planta (LIBRO p. 180
+    # §7.4.3), no retocarle la cota.
+    peor = peor_suelo = 0.0
+    for z, tk, su in zip(zs, techo, suelo):
         if tk is not None and z - tk > peor:
             peor = z - tk
-    diag = {"exceso_techo": peor, "anclas": (tipoA, tipoB), "L": D}
+        if su is not None and su - z > peor_suelo:
+            peor_suelo = su - z
+    diag = {"exceso_techo": peor, "bajo_suelo": peor_suelo,
+            "anclas": (tipoA, tipoB), "L": D}
     linea = [QgsPoint(pt[0], pt[1], z) for pt, z in zip(dens, zs)]
     return linea, zs, diag
 

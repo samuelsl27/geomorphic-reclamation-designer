@@ -593,3 +593,65 @@ def test_las_dos_ramas_siguen_saliendo_de_la_confluencia():
     assert [a[0] for _r, a in ramas] == ["fin", "ini"]
     # y las dos comparten el vertice del corte
     assert ramas[0][0][-1] == ramas[1][0][0]
+
+
+# ============ el extremo libre no lo tumba un punto del pie (v1.0.23, B-038)
+def _caso_divisoria_que_muere_en_confluencia(n=40, L=120.0, lc=60.0):
+    """Un extremo anclado ABAJO (la confluencia) y otro libre. El techo es bajo
+    junto al anclado —ahi la distancia al cauce tiende a cero— y alto en el
+    resto. Es el caso real de la fid=1 del Ej_2."""
+    s = [L * k / (n - 1) for k in range(n)]
+    f = [rg.perfil_trapezoidal(x, L, 1.0, lc) for x in s]   # 0 en el libre
+    z_anc = 280.0
+    # El extremo ANCLADO esta en x = L (f = 1), muriendo en la confluencia:
+    # alli la distancia al cauce tiende a cero, asi que el techo tiende al
+    # PROPIO anclaje. El LIBRE esta en x = 0, lejos del cauce, y alli el techo
+    # permite subir de sobra. Es la geometria de la fid=1 del Ej_2.
+    techo = [max(z_anc + 0.05, 316.0 - 0.30 * x) if x < 0.85 * L
+             else z_anc + 0.05 for x in s]
+    suelo = [z_anc - 0.20] * len(s)
+    return f, techo, suelo, z_anc
+
+
+def test_el_extremo_libre_no_lo_tumba_un_punto_del_pie():
+    """B-038. `resolver_extremo_libre` tomaba el `min` sobre TODA la linea, y
+    junto al extremo anclado el peso (1-f) tiende a cero: un solo punto de ahi
+    convertia la divisoria en una linea tumbada. Medido en el Ej_2: siete de
+    trece con menos de 7 m de desnivel, una con 2.4 m en 117 m."""
+    f, techo, suelo, z_anc = _caso_divisoria_que_muere_en_confluencia()
+    z_lib = rg.resolver_extremo_libre(f, techo, z_anc, True, suelo=suelo)
+    assert z_lib is not None
+    assert z_lib - z_anc > 8.0, "la divisoria sale tumbada: %.2f m" % (z_lib - z_anc)
+
+    # sin la guarda (peso_min = 0) se reproduce el defecto
+    z_malo = rg.resolver_extremo_libre(f, techo, z_anc, True, suelo=suelo,
+                                       peso_min=0.0)
+    assert z_malo - z_anc < z_lib - z_anc
+
+
+def test_el_suelo_tambien_acota_el_extremo_libre_pero_sin_dispararlo():
+    """El suelo manda sobre el techo —una divisoria bajo el lecho es un error
+    duro y quedarse corto de pendiente solo es un objetivo incumplido— pero con
+    la misma guarda de amplificacion: sin ella, dos divisorias del Ej_2 se
+    disparaban a 240 y 100 m de desnivel."""
+    f, techo, _su, z_anc = _caso_divisoria_que_muere_en_confluencia()
+    suelo_alto = [z_anc + 40.0] * len(f)          # un suelo exigente
+    z = rg.resolver_extremo_libre(f, techo, z_anc, True, suelo=suelo_alto)
+    assert z >= z_anc + 40.0 - 1e-6, "el suelo tiene que mandar sobre el techo"
+    # y la amplificacion queda acotada: con peso_min = 0.5, a lo sumo x2
+    assert z - z_anc < 2.0 * 40.0 + 1e-6
+
+
+def test_ni_el_techo_ni_el_suelo_se_aplican_punto_a_punto():
+    """El suelo se aplicaba con `max(z, suelo)` vertice a vertice, y `suelo` NO
+    es continuo: es `max` sobre los dos cauces mas proximos, y esa pareja cambia
+    de miembros. Escribia saltos de hasta 15.80 m y mandaba en el 40.9 % de los
+    vertices del Ej_2.
+
+    Se comprueba por el COMPORTAMIENTO: con un suelo escalonado, la curva que
+    sale no puede tener ese escalon."""
+    f, techo, _su, z_anc = _caso_divisoria_que_muere_en_confluencia()
+    z_lib = rg.resolver_extremo_libre(f, techo, z_anc, True)
+    zs = [z_lib * (1.0 - fk) + z_anc * fk for fk in f]
+    saltos = [abs(zs[i + 1] - zs[i]) for i in range(len(zs) - 1)]
+    assert max(saltos) < 2.0, max(saltos)
