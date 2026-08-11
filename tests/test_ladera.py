@@ -655,3 +655,56 @@ def test_ni_el_techo_ni_el_suelo_se_aplican_punto_a_punto():
     zs = [z_lib * (1.0 - fk) + z_anc * fk for fk in f]
     saltos = [abs(zs[i + 1] - zs[i]) for i in range(len(zs) - 1)]
     assert max(saltos) < 2.0, max(saltos)
+
+
+# ================= encadenar la red de divisorias (v1.0.24, B-040)
+def test_encadenar_cose_dos_arcos_que_comparten_extremo():
+    a = [(0.0, 0.0), (10.0, 0.0), (20.0, 0.0)]
+    b = [(20.0, 0.0), (30.0, 0.0), (40.0, 0.0)]
+    cad = rg.encadenar_arcos([a, b])
+    assert len(cad) == 1
+    assert cad[0][0] == (0.0, 0.0) and cad[0][-1] == (40.0, 0.0)
+    assert len(cad[0]) == 5, cad[0]        # el vertice compartido no se duplica
+
+
+def test_encadenar_respeta_el_sentido_de_cada_arco():
+    """Un arco puede venir al reves; encadenar tiene que invertirlo, no unir
+    cabeza con cabeza."""
+    a = [(0.0, 0.0), (10.0, 0.0), (20.0, 0.0)]
+    b = [(40.0, 0.0), (30.0, 0.0), (20.0, 0.0)]     # llega al nudo por su FINAL
+    cad = rg.encadenar_arcos([a, b])
+    assert len(cad) == 1
+    xs = [p[0] for p in cad[0]]
+    assert xs == sorted(xs) or xs == sorted(xs, reverse=True), xs
+
+
+def test_en_un_nudo_TRIPLE_continua_la_pareja_mas_enfrentada():
+    """Es el caso real: tres subcuencas que se tocan en un vertice de Voronoi
+    dan tres arcos. Sigue la pareja que menos gira —una divisoria no gira 120
+    grados en un nudo— y el tercero queda como cadena aparte."""
+    izq = [(-40.0, 0.0), (-20.0, 0.0), (0.0, 0.0)]        # llega por el este
+    der = [(0.0, 0.0), (20.0, 0.0), (40.0, 0.0)]          # sigue al este: recto
+    ramal = [(0.0, 0.0), (10.0, 20.0), (20.0, 40.0)]      # se va a 63 grados
+    cad = rg.encadenar_arcos([izq, der, ramal])
+    assert len(cad) == 2, [len(c) for c in cad]
+    larga = max(cad, key=len)
+    assert (-40.0, 0.0) in larga and (40.0, 0.0) in larga, larga
+    assert (20.0, 40.0) not in larga
+
+
+def test_encadenar_no_se_cuelga_con_un_ciclo():
+    a = [(0.0, 0.0), (10.0, 10.0), (20.0, 0.0)]
+    b = [(20.0, 0.0), (10.0, -10.0), (0.0, 0.0)]
+    cad = rg.encadenar_arcos([a, b])
+    assert 1 <= len(cad) <= 2
+    assert sum(len(c) for c in cad) < 20        # no ha entrado en bucle
+
+
+def test_la_tangente_se_mide_por_LONGITUD_no_por_vertices():
+    """El espaciado real de una frontera de Voronoi va de 5 a 10 m, asi que
+    contar vertices da direcciones que dependen de donde cayeron."""
+    # primeros vertices muy juntos y girados, el resto recto hacia el este
+    pts = [(0.0, 0.0), (0.5, 0.5), (1.0, 0.0)] + [(float(x), 0.0)
+                                                  for x in range(10, 60, 10)]
+    tx, ty = rg._tangente(pts, False, largo=25.0)
+    assert tx > 0.99 and abs(ty) < 0.05, (tx, ty)

@@ -590,6 +590,120 @@ def cortes_con_cauces(dens, disenos, geoms):
     return cortes
 
 
+def _tangente(pts, desde_el_final, largo=25.0):
+    """Dirección con la que un arco SALE de uno de sus extremos.
+
+    Se mide sobre `largo` metros de arco, no sobre un número de vértices: el
+    espaciado real de una frontera de Voronoi va de 5 a 10 m y contar vértices
+    da direcciones que dependen de dónde cayeron."""
+    seq = pts[::-1] if desde_el_final else pts
+    acc = 0.0
+    j = len(seq) - 1
+    for k in range(1, len(seq)):
+        acc += math.hypot(seq[k][0] - seq[k - 1][0], seq[k][1] - seq[k - 1][1])
+        if acc >= largo:
+            j = k
+            break
+    dx, dy = seq[j][0] - seq[0][0], seq[j][1] - seq[0][1]
+    L = math.hypot(dx, dy) or 1.0
+    return dx / L, dy / L
+
+
+def encadenar_arcos(arcos, tol=2.0, largo_tangente=25.0):
+    """Cose los arcos de frontera que comparten extremo en CADENAS continuas.
+
+    Las subcuencas se comparan por parejas, así que un punto donde se tocan tres
+    de ellas —un vértice del diagrama de Voronoi— produce **tres arcos sueltos**
+    que terminan exactamente ahí, calculados en tres iteraciones distintas y sin
+    ninguna comunicación entre ellas. Eso deja extremos que mueren en el aire,
+    que no existen en la salida del original: sus divisorias van siempre de
+    borde a confluencia. Ver B-040.
+
+    En un nudo de grado 3 hay que elegir cuáles dos continúan, y el criterio es
+    el **giro**: sigue la pareja cuyas tangentes de salida están más enfrentadas,
+    porque una divisoria real no gira 120° en un nudo. Es el mismo criterio de
+    coseno que ya usa `_salir_por_bisectriz`. Medido sobre el Ej_2, los cuatro
+    nudos se resuelven con desviaciones de la recta de 5°, 13°, 25° y 25°, y las
+    trece piezas salen como las **siete cadenas** del original, con sus
+    longitudes: 461/454, 399/397, 389/384, 325/325, 234/238, 197/188, 116/118.
+
+    `QgsGeometry.mergeLines()` no sirve para esto: solo funde nodos de grado 2 y
+    en un punto triple deja los tres arcos.
+
+    Devuelve una lista de listas de (x, y). No filtra por longitud: eso va
+    después, sobre la cadena, porque descartar un arco corto ANTES partiría la
+    cadena por el medio y crearía dos extremos nuevos en el aire."""
+    ext = []          # (indice de arco, 0=inicio | 1=final)
+    for k in range(len(arcos)):
+        ext.append((k, 0))
+        ext.append((k, 1))
+
+    def pto(e):
+        return arcos[e[0]][0] if e[1] == 0 else arcos[e[0]][-1]
+
+    # nudos: extremos que caen en el mismo sitio
+    nudos = []
+    visto = set()
+    for a in range(len(ext)):
+        if a in visto:
+            continue
+        grupo = [a]
+        for b in range(a + 1, len(ext)):
+            if b in visto:
+                continue
+            if math.dist(pto(ext[a])[:2], pto(ext[b])[:2]) <= tol:
+                grupo.append(b)
+                visto.add(b)
+        visto.add(a)
+        if len(grupo) > 1:
+            nudos.append([ext[g] for g in grupo])
+
+    # en cada nudo, la pareja MÁS ENFRENTADA continúa; el resto queda suelto
+    sigue = {}
+    for grupo in nudos:
+        mejor = None
+        for a in range(len(grupo)):
+            for b in range(a + 1, len(grupo)):
+                ta = _tangente(arcos[grupo[a][0]], grupo[a][1] == 1,
+                               largo_tangente)
+                tb = _tangente(arcos[grupo[b][0]], grupo[b][1] == 1,
+                               largo_tangente)
+                # enfrentadas = coseno -1; se mide lo que se desvía de eso
+                cos = ta[0] * tb[0] + ta[1] * tb[1]
+                if mejor is None or cos < mejor[0]:
+                    mejor = (cos, grupo[a], grupo[b])
+        if mejor is not None:
+            sigue[mejor[1]] = mejor[2]
+            sigue[mejor[2]] = mejor[1]
+
+    cadenas, usados = [], set()
+    for k in range(len(arcos)):
+        if k in usados:
+            continue
+        # se arranca por un extremo LIBRE si lo hay; si no, es un ciclo
+        arranque = None
+        for e in ((k, 0), (k, 1)):
+            if e not in sigue:
+                arranque = (k, 1 - e[1])
+                break
+        if arranque is None:
+            arranque = (k, 1)
+        pts, ki, salida = [], k, arranque[1]
+        while True:
+            if ki in usados:
+                break
+            usados.add(ki)
+            tramo = arcos[ki] if salida == 1 else arcos[ki][::-1]
+            pts.extend(tramo if not pts else tramo[1:])
+            sig = sigue.get((ki, salida))
+            if sig is None or sig[0] in usados:
+                break
+            ki, salida = sig[0], 1 - sig[1]
+        if len(pts) >= 2:
+            cadenas.append(pts)
+    return cadenas
+
+
 def _partir_en_confluencias(dens, confluencias, tol):
     """Parte la cadena de divisoria EN la confluencia de cauces.
 
@@ -804,6 +918,7 @@ def generar_crestas(disenos, subcuencas, g_lim, glob, dem, lm):
     capa.dataProvider().truncate()
     feats = []
     crestas_3d = []      # [(QgsGeometry 2D, [z por vértice])] para subcrestas
+    arcos = []           # fronteras de cada pareja, ANTES de encadenar
     nombres = list(subcuencas.keys())
     for i in range(len(nombres)):
         for j in range(i + 1, len(nombres)):
@@ -820,40 +935,53 @@ def generar_crestas(disenos, subcuencas, g_lim, glob, dem, lm):
                     continue
                 inter = QgsGeometry.collectGeometry(lineas)
             inter = inter.difference(banda_limite)  # excluir tramos sobre el límite
-            partes = _cadenas_continuas(inter)
-            for pts in partes:
-                dens = _densificar_xy(pts, PASO_CRESTA)
-                largo = sum(math.hypot(b[0] - a[0], b[1] - a[1])
-                            for a, b in zip(dens[:-1], dens[1:]))
-                if largo < long_min:
-                    continue        # esquirla de Voronoi, no es una divisoria
-                dens = _suavizar_xy(dens)
-                # La divisoria PASA por la confluencia (se parte en dos crestas)
-                # y NUNCA puede atravesar un cauce: los cruces con cualquier eje
-                # de canal son también puntos de corte.
-                anclas = list(confluencias) + cortes_con_cauces(dens, disenos, geoms)
-                for k_r, (rama, anclaje) in enumerate(
-                        _partir_en_confluencias(dens, anclas, tol_conf)):
-                    largo_r = sum(math.hypot(b[0] - a[0], b[1] - a[1])
-                                  for a, b in zip(rama[:-1], rama[1:]))
-                    if largo_r < 0.5 * long_min:
-                        continue
-                    rama = _salir_por_bisectriz(
-                        rama, anclaje, bisectrices,
-                        largo=glob.max_dist_cresta_cabecera,
-                        radio=tol_conf)
-                    linea, _zs, diag = _perfil_cresta(
-                        rama, disenos, geoms, s_max, dem, glob, contorno,
-                        anclaje=anclaje)
-                    if diag["exceso_techo"] > peor_exceso:
-                        peor_exceso = diag["exceso_techo"]
-                    f = QgsFeature(capa.fields())
-                    f.setGeometry(QgsGeometry.fromPolyline(linea))
-                    f.setAttributes(attrs(capa, [
-                        f"cresta {nombres[i]} | {nombres[j]}"
-                        + (f" ({k_r + 1})" if k_r else "")]))
-                    feats.append(f)
-                    crestas_3d.append(traza_y_cotas(linea))
+            # Solo se RECOGEN. Encadenar exige ver todas las fronteras a la vez:
+            # un punto donde se tocan tres subcuencas se calcula en tres
+            # iteraciones distintas de este bucle, y desde dentro no hay forma
+            # de saber que son el mismo nudo. Ver B-040.
+            for pts in _cadenas_continuas(inter):
+                if len(pts) >= 2:
+                    arcos.append(pts)
+
+    # --- de arcos de pareja a CADENAS de borde a confluencia ---
+    for dens in encadenar_arcos(arcos):
+        dens = _densificar_xy(dens, PASO_CRESTA)
+        largo = sum(math.hypot(b[0] - a[0], b[1] - a[1])
+                    for a, b in zip(dens[:-1], dens[1:]))
+        # El filtro va sobre la CADENA, no sobre el arco: descartar un arco
+        # corto antes de encadenar partiría la cadena por el medio y dejaría dos
+        # extremos nuevos en el aire. Y aplicado aquí cae solo el brazo sobrante
+        # de cada nudo triple, que es lo que el original tampoco tiene.
+        if largo < long_min:
+            continue            # esquirla de Voronoi, no es una divisoria
+        dens = _suavizar_xy(dens)
+        # La divisoria PASA por la confluencia (se parte en dos crestas)
+        # y NUNCA puede atravesar un cauce: los cruces con cualquier eje
+        # de canal son también puntos de corte.
+        anclas = list(confluencias) + cortes_con_cauces(dens, disenos, geoms)
+        for rama, anclaje in _partir_en_confluencias(dens, anclas, tol_conf):
+            largo_r = sum(math.hypot(b[0] - a[0], b[1] - a[1])
+                          for a, b in zip(rama[:-1], rama[1:]))
+            if largo_r < 0.5 * long_min:
+                continue
+            rama = _salir_por_bisectriz(
+                rama, anclaje, bisectrices,
+                largo=glob.max_dist_cresta_cabecera,
+                radio=tol_conf)
+            linea, _zs, diag = _perfil_cresta(
+                rama, disenos, geoms, s_max, dem, glob, contorno,
+                anclaje=anclaje)
+            if diag["exceso_techo"] > peor_exceso:
+                peor_exceso = diag["exceso_techo"]
+            f = QgsFeature(capa.fields())
+            f.setGeometry(QgsGeometry.fromPolyline(linea))
+            # Una cadena atraviesa varios nudos y separa cuencas distintas en
+            # tramos distintos, así que «cresta A | B» ya no la describe. Se
+            # numeran, que además arregla que hasta ahora dos entidades podían
+            # salir con el MISMO nombre.
+            f.setAttributes(attrs(capa, ["cresta %d" % (len(feats) + 1)]))
+            feats.append(f)
+            crestas_3d.append(traza_y_cotas(linea))
     capa.dataProvider().addFeatures(feats)
     capa.updateExtents(); capa.triggerRepaint()
     return len(feats), crestas_3d, peor_exceso
