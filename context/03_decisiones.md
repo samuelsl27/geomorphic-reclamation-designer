@@ -77,6 +77,33 @@ P-23), no retocarle la cota; y recortarla contra una función no monótona es
 justo lo que dejaba los dientes. El aviso sale por la interfaz con el número y
 con la acción.
 
+**Enmienda de la v1.0.23 (B-038).** El techo y el suelo **no se aplican punto a
+punto**: los dos entran como **cotas del extremo libre**, con una guarda de peso
+mínimo que acota la amplificación del despeje. Aplicar el suelo vértice a
+vértice fue el error de la v1.0.22: mandaba en el **40.9 %** de los vértices y
+escribía saltos de hasta **15.80 m**, porque `max` sobre una pareja de cauces
+que cambia de miembros **no es continuo** aunque el techo con `min` sí lo sea.
+
+El suelo manda sobre el techo cuando los dos aprietan: una divisoria por debajo
+del lecho es un error duro, y quedarse corto de pendiente de ladera es solo un
+objetivo incumplido — *«a best-fit slope adjustment toward the specified target
+value»* (NRM p. 1718).
+
+Y se añade una cita que refuerza la decisión: **NRM p. 1717**, el ajuste *Force
+ridges to be lower than GeoFluv boundary*. Que exista un interruptor para
+**impedir** que la cresta supere el borde confirma que por defecto **las crestas
+principales son los máximos del diseño**, y que sin él *«a ridgeline may have a
+high point of greater elevation than the GeoFluv boundary, e.g., creating a knob
+or butte feature»*.
+
+> **Ojo con las sillas.** El LIBRO (p. 259) dice que una cresta natural alterna
+> picos en las cabeceras de subcresta con sillas en las de vaguada, y Klema et
+> al. (2026, *ESurf* 14:493-515) lo cuantifican en 63 % domos / 37 % sillas.
+> Pero medida la salida de Carlson **en este proyecto**: **1 pico y 0 sillas en
+> sus siete divisorias**. Su borrador es prácticamente monótono, coherente con
+> que el libro presente las sillas como **edición manual** del diseñador. No se
+> implementa ninguna estructura automática (ADR-020, P-28).
+
 **Consecuencias.** `perfil_desde_control` y su maquinaria sobreviven, pero
 aplicadas solo a las **sillas**, que es exactamente lo que hacen. P-24
 desaparece solo: las sillas son hoyos locales sobre una curva ya monótona, así

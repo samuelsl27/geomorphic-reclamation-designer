@@ -6,6 +6,98 @@
 
 ---
 
+## B-038 · El suelo tumbaba la divisoria, y su docstring decía lo contrario 🔴
+
+**Síntoma.** Samuel miró los perfiles 3D de la v1.0.22 y dijo que las divisorias
+«son crestas de montaña, por lo que deben ser los puntos más altos», y que las
+nuestras no lo parecen. Medido, tenía razón:
+
+```
+desnivel de cada divisoria
+NUESTRAS:  60.5  57.4  30.0  28.9  26.4  17.1 │ 6.5  4.9  3.6  2.9  2.4  2.1  1.3
+ORIGINAL:  64.1  61.3  34.8  29.4  28.8  15.4   11.5
+```
+
+**Siete de trece con menos de 7 m de desnivel**, una con **2.4 m en 117 m**,
+cuando la más pequeña del original tiene 11.5. No son crestas: son líneas
+tumbadas.
+
+**Causa raíz.** Dos, las dos mías de la v1.0.22 y las dos en el mismo sitio.
+
+**1. `suelo_de_cresta` se aplicaba punto a punto, y no es continuo.** Su
+docstring afirmaba que era *«`max` de funciones continuas, así que es continuo y
+no escribe escalones»*. **Falso**: lo que cambia no son las funciones, es **el
+CONJUNTO** — `lados` son los dos cauces más próximos, y esa pareja cambia de
+miembros a lo largo de la divisoria. `techo_de_ladera` se salva de eso porque
+usa `min` y el que entra y sale es el lejano, cuyo término es el mayor; el `max`
+del suelo está dominado **justo por él**.
+
+Medido en el Ej_2: el suelo mandaba en el **40.9 %** de los vértices de
+divisoria (167 de 408) y él mismo saltaba hasta **15.80 m** entre vértices
+consecutivos. La fid=1 tenía **sus 24 vértices pegados al suelo**: no era una
+curva, era el perfil del lecho + 0.25.
+
+**2. `resolver_extremo_libre` tomaba el `min` sobre TODA la línea.** El factor de
+amplificación del despeje es `1/peso`, y los pesos pequeños están precisamente
+junto al extremo fijo, que es donde la divisoria muere: ahí la distancia al
+cauce tiende a cero, el techo tiende al propio anclaje y el candidato tiende a
+`z_fijo`. **Un solo punto del pie tumbaba los 117 m enteros.**
+
+**Corrección.** El techo y el suelo entran los dos como **cotas del extremo
+libre**, nunca punto a punto, con una guarda de peso mínimo (0.5) que acota la
+amplificación a ×2. El suelo manda sobre el techo: una divisoria bajo el lecho
+es un error duro y quedarse corto de pendiente es solo un objetivo incumplido,
+que el propio manual llama *«a best-fit slope adjustment toward the specified
+target value»* (p. 1718). Lo que la curva no cumpla se **informa**.
+
+| | v1.0.22 | v1.0.23 | Original |
+|---|---|---|---|
+| Divisorias > 60 m con < 8 m de desnivel | 4 de 10 | **2 de 10** | 0 |
+| fid=1 (117 m) | 2.4 m | **12.7 m** | mín. 11.5 |
+| fid=7 (99 m) | 2.9 m | **14.5 m** | |
+| Desnivel máximo | 60.5 m | 68.2 m | 64.1 m |
+
+La guarda hizo falta **en las dos direcciones**: sin ella, al meter el suelo dos
+divisorias se disparaban a **240 y 100 m** de desnivel.
+
+**Y es lo que dice el método**: la cota de la cresta es la que da la pendiente de
+ladera objetivo (NRM p. 1706, *«at elevations that create side slopes less than
+a default 5:1 gradient»*; LIBRO pp. 270 y 272, donde la cota de la cresta es
+**la incógnita**), y existe un ajuste para **impedir** que la cresta supere el
+borde GeoFluv (NRM p. 1717), lo que confirma que por defecto son los máximos del
+diseño.
+
+---
+
+## B-039 · Los micro-segmentos los dejaba el propio remuestreo 🟠
+
+**Síntoma.** El 4.3 % de los segmentos de divisoria por debajo de 1 m —el más
+corto de **0.43 m con un giro de 119°**— cuando el original no tiene **ni uno**.
+Eran los que inflaban la métrica del giro acumulado hasta un falso 220°.
+
+**Causa raíz.** `divides.remuestrear` reinserta los vértices que se conservan
+por forma **en su propia estación**, sin ninguna guarda de separación, y esa
+estación puede caer a centímetros de una marca regular. Y es **lo último que
+toca la planta** de una divisoria: nada posterior la vuelve a limpiar.
+
+**Corrección.** Dos guardas, y la segunda es la que lo arregla: el vértice
+reinsertado **desplaza** a la marca vecina si está a menos de medio paso; y los
+conservados **tampoco se amontonan entre ellos**, porque un quiebro espurio no
+aporta un vértice sino un **racimo** y todos superan la tolerancia. De cada
+racimo se queda **el que más se desvía**, no el primero: quedarse con el primero
+se comía el ápice de las curvas cerradas, y la prueba de la horquilla de la
+v1.0.21 lo detectó al momento.
+
+Segmentos por debajo de 1 m: **4.3 % → 0.0 %**; el más corto, de 0.43 a 2.55 m.
+
+**Lo que NO se tocó.** `_salir_por_bisectriz` era la otra sospechosa —en la
+v1.0.22 le solté la guarda de `cos < 0.2` a `cos <= 0`, así que se dispara mucho
+más—, pero medida con las dos guardas sobre cadenas de espaciado irregular y
+ángulos de salida de 0 a 110°, **no reproduce el defecto**: mismo resultado con
+las dos y ningún segmento corto. Sin dato que lo respalde, no se cambia.
+
+---
+
 ## B-037 · La divisoria se preguntaba su propia cota anterior 🔴
 
 **Síntoma.** Samuel sacó el perfil 3D de dos divisorias y las comparó con las
@@ -1020,3 +1112,17 @@ Ver `context/07_entorno_qgis_mcp.md`.
     B-037. `techo_cresta` valía `s_max·d` y lo que quería acotar valía
     `s_max·(d − lc/2 − lf/2)`. Si un filtro no rechaza nunca nada, mide otra
     cosa.
+23. **«`min` de continuas es continuo» no salva a `max`** → B-038. El argumento
+    que hace continuo al techo NO vale para el suelo, aunque la fórmula se le
+    parezca: lo que cambia no son las funciones, es **el conjunto** sobre el que
+    se agrega. El `min` ignora al miembro que entra y sale porque su término es
+    el mayor; el `max` está dominado justo por él. Si copias un razonamiento de
+    continuidad de un sitio a otro, comprueba **quién domina la agregación**.
+24. **Un docstring que afirma una propiedad es una hipótesis, no una prueba** →
+    B-038. El de `suelo_de_cresta` decía que no escribía escalones, y escribía
+    saltos de 15.80 m en el 40.9 % de los vértices. Lo escribí yo dos versiones
+    antes. Cuando un comentario asegure una propiedad matemática, mídela.
+25. **Dividir por algo que tiende a cero convierte centímetros en decenas de
+    metros** → B-038. El despeje del extremo libre amplifica por `1/peso`, y los
+    pesos pequeños están justo donde la información no sirve. Acota la
+    amplificación **antes** de que el caso raro te la encuentre.

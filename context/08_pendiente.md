@@ -1,12 +1,32 @@
 # Backlog — lo que falta y lo que está a medias
 
-Estado a **v1.0.22**. Actualiza esta página en cada sesión: mueve lo hecho a
+Estado a **v1.0.23**. Actualiza esta página en cada sesión: mueve lo hecho a
 `09_historial_sesiones.md` y añade lo nuevo.
 
 > **Numeración**: el proyecto sigue en **1.0.x** mientras no haya nada
 > definitivo. Aunque una versión cambie rótulos visibles, se numera como parche.
 > El salto a 1.1 se reserva para cuando la geometría se dé por estable y el
 > complemento deje de ser `experimental`.
+
+---
+
+## 🟢 Resuelto en la v1.0.23
+
+- **Las divisorias sin relieve** (B-038). Siete de trece con menos de 7 m de
+  desnivel, una con 2.4 m en 117 m. Eran dos errores de la v1.0.22: el suelo
+  aplicado punto a punto sobre una pareja de cauces que cambia de miembros, y el
+  `min` global del extremo libre. Ahora los dos acotan el extremo, con guarda de
+  amplificación.
+- **Los micro-segmentos** (B-039). Del 4.3 % de segmentos por debajo de 1 m al
+  0.0 %, que es lo que tiene el original.
+
+### Y lo que se midió y NO se cambió
+
+- **`_salir_por_bisectriz`**: medida con las dos guardas, no reproduce el
+  defecto. Queda como sospechosa sin cargos.
+- **La forma del perfil**: p50 −0.087 contra −0.175 del original. Real pero
+  modesta y ruidosa (siete líneas, distribuciones solapadas, un valor de −0.797
+  inflando el promedio). Se remide tras regenerar.
 
 ---
 

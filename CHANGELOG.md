@@ -8,6 +8,57 @@ Los códigos `B-0xx` remiten a [`context/04_bugs_resueltos.md`], los `ADR-0xx` a
 
 ## [No publicado]
 
+## [1.0.23] — 2026-08-11
+
+**Las divisorias vuelven a ser crestas.** Samuel miró los perfiles 3D de la
+v1.0.22 y dijo que «son crestas de montaña, por lo que deben ser los puntos más
+altos», y que las nuestras no lo parecen. Tenía razón, y la causa eran dos
+errores míos de esa misma versión.
+
+> ⚠️ **Versión de trabajo.** 158 pruebas en verde y el efecto medido
+> reproduciendo el motor fuera de QGIS sobre las 13 divisorias reales del Ej_2,
+> pero **el diseño completo no se ha vuelto a generar en QGIS**. Por eso el
+> instalable lleva la fecha.
+
+### Corregido
+- 🔴 **Siete de trece divisorias no tenían relieve** (B-038): menos de 7 m de
+  desnivel, una con **2.4 m en 117 m**, cuando la más pequeña del original tiene
+  11.5 m. Dos causas encadenadas:
+  - **`suelo_de_cresta` se aplicaba punto a punto y no es continuo.** Su
+    docstring afirmaba que era «`max` de funciones continuas, así que no escribe
+    escalones» — falso: lo que cambia no son las funciones sino **el conjunto**,
+    porque son los dos cauces más próximos y esa pareja cambia de miembros. El
+    techo se salva porque usa `min` y el que entra y sale tiene el término
+    mayor; el `max` está dominado justo por él. Medido: mandaba en el **40.9 %**
+    de los vértices y saltaba hasta **15.80 m**.
+  - **`resolver_extremo_libre` tomaba el `min` sobre toda la línea.** La
+    amplificación del despeje es `1/peso`, y los pesos pequeños están junto al
+    extremo que muere en la confluencia, donde el techo tiende al propio
+    anclaje: **un solo punto del pie tumbaba los 117 m enteros**.
+
+  Ahora los dos entran como **cotas del extremo libre**, con una guarda que
+  acota la amplificación a ×2. Resultado: divisorias de más de 60 m con menos de
+  8 m de desnivel, **4 de 10 → 2 de 10**; la fid=1 pasa de 2.4 a **12.7 m**; el
+  desnivel máximo queda en 68.2 m contra los 64.1 del original.
+- 🟠 **Micro-segmentos** (B-039): el 4.3 % de los segmentos por debajo de 1 m
+  —el más corto de 0.43 m con un giro de 119°— cuando el original no tiene
+  ninguno. Los dejaba `remuestrear`, que reinserta los vértices conservados por
+  forma en su propia estación sin guarda de separación, y que es **lo último que
+  toca la planta**. Ahora se separan de las marcas y **entre ellos**, quedándose
+  con el que más se desvía de cada racimo. **4.3 % → 0.0 %**.
+
+### Medido y no cambiado
+- **`_salir_por_bisectriz`**: medida con las dos guardas sobre cadenas de
+  espaciado irregular y ángulos de salida de 0 a 110°, **no reproduce** el
+  defecto que se le atribuía. Sin dato, no se toca.
+- **La forma del perfil** sigue algo más recta que la del original (p50 −0.087
+  contra −0.175), pero las distribuciones se solapan de largo y el promedio del
+  original lo infla un único valor. Se remide tras regenerar y **entonces** se
+  decide.
+- **Las sillas**: el libro y la literatura describen crestas naturales con un
+  37 % de sillas, pero la salida de Carlson en este proyecto tiene **1 pico y 0
+  sillas** en sus siete divisorias. No se implementa nada automático.
+
 ## [1.0.22] — 2026-08-11
 
 **La cota de la divisoria pasa a ser un DISEÑO en vez de una envolvente.** Es un

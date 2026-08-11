@@ -17,7 +17,7 @@ identificadores internos históricos (`GeoFluvBuilder`, `GeoFluvProject`,
 `GeoFluvQPlugin`) que no se muestran en ninguna parte.
 """
 
-__version__ = "1.0.22"
+__version__ = "1.0.23"
 __author__ = "Samuel Saez Lopez"
 __license__ = "AGPL-3.0-or-later"
 
