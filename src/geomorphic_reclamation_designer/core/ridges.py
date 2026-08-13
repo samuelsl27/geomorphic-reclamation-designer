@@ -1255,6 +1255,27 @@ def _perfil_cresta(dens, disenos, geoms, s_max, dem, glob, contorno, anclaje=Non
     DEM: fundirlo hacía que la "cresta" copiase la topografía original y en
     muchos tramos no separase realmente las dos cuencas.
     """
+    def alza_de_pie(pt):
+        """Cuánto sube la divisoria sobre la RASANTE en su pie (B-051).
+
+        El pie de una divisoria no está en el agua: en el original arranca a
+        **2.5–7.2 m del eje** del cauce, o sea ya subido por la ladera, y su cota
+        va de **+0.60 a +2.63 m** sobre la rasante (mediana +1.68). Nosotros
+        anclábamos ese extremo a la cota del lecho en el punto de confluencia y
+        salía entre −0.47 y +0.50, con **cinco de siete por debajo del lecho**:
+        una divisoria por debajo del agua que separa no separa nada.
+
+        La cota que le corresponde es la misma ecuación que rige todo el relieve
+        de ladera, `desnivel_de_ladera`, evaluada a la distancia real del pie al
+        cauce. No es una constante nueva ni un resguardo: es la cota de cresta
+        que toca a ese punto. El 0.25 de antes se queda como suelo."""
+        lados = lados_de_un_punto((pt[0], pt[1]), disenos, geoms, s_max,
+                                  glob=glob)
+        if not lados:
+            return 0.25
+        D_pie, _z, s_pie, lc_pie = min(lados, key=lambda t: t[0])
+        return max(desnivel_de_ladera(D_pie, s_pie, lc_pie), 0.25)
+
     def z_extremo(pt):
         g = QgsGeometry.fromPointXY(QgsPointXY(*pt))
         if contorno is not None and contorno.distance(g) < 3.0 and dem is not None:
@@ -1272,19 +1293,20 @@ def _perfil_cresta(dens, disenos, geoms, s_max, dem, glob, contorno, anclaje=Non
             i = min(range(len(d.puntos)),
                     key=lambda k: (d.puntos[k][0] - pt[0]) ** 2 +
                                   (d.puntos[k][1] - pt[1]) ** 2)
-            return d.puntos[i][2] + 0.25, "confluencia"
+            return d.puntos[i][2] + alza_de_pie(pt), "confluencia"
         return (_z_ladera(pt, disenos, geoms, s_max, dem, False,
                           glob=glob), "cresta")
 
     zA, tipoA = z_extremo(dens[0])
     zB, tipoB = z_extremo(dens[-1])
-    # extremo anclado a una confluencia: manda la cota del cauce en ese punto
+    # extremo anclado a una confluencia: manda la cota del cauce en ese punto,
+    # SUBIDA lo que sube la ladera desde el agua hasta donde muere la divisoria
     if anclaje:
         donde, z_conf = anclaje
         if donde == "ini":
-            zA, tipoA = z_conf, "confluencia"
+            zA, tipoA = z_conf + alza_de_pie(dens[0]), "confluencia"
         else:
-            zB, tipoB = z_conf, "confluencia"
+            zB, tipoB = z_conf + alza_de_pie(dens[-1]), "confluencia"
     # orientar del extremo ALTO al bajo para el perfil
     if zB > zA:
         dens = dens[::-1]
@@ -1308,7 +1330,17 @@ def _perfil_cresta(dens, disenos, geoms, s_max, dem, glob, contorno, anclaje=Non
     # MANUAL p. 1752 «constructing a vertical curve»). `perfil_trapezoidal` es
     # lineal en el desnivel, así que la curva es la combinación convexa de las
     # dos cotas extremas y el extremo libre se despeja de una vez.
-    f = [perfil_trapezoidal(si, D, 1.0, lc) for si in s]
+    # `lf = 0`: la divisoria NO lleva pie cóncavo. Ese tramo existe donde una
+    # ladera se tumba al llegar al fondo del valle, y una divisoria no llega al
+    # fondo: muere sobre el filo, por encima del agua. Ajustado sobre las siete
+    # del original, `lf/L` sale **0.000**; `tramos_de_ladera` lo acota a 0.5 m,
+    # que es lo que se quiere, no cero exacto.
+    # Con el `lf = min(lc, 0.30·D)` por defecto salía un pie cóncavo de **75 m**
+    # en una divisoria de 436, y eso es lo que aplanaba el arranque: al 10 % del
+    # recorrido habíamos ganado 0.055 del desnivel y el original 0.119.
+    # OJO: esto vale para la DIVISORIA, no para subcrestas ni vaguadas, que sí
+    # tienen pie cóncavo medido (57 perfiles del DXF de referencia).
+    f = [perfil_trapezoidal(si, D, 1.0, lc, lf=0.0) for si in s]
 
     # --- un extremo LIBRE se resuelve contra el techo Y el suelo; uno anclado
     # manda. Los dos entran como COTAS DEL EXTREMO, nunca punto a punto: ese

@@ -42,6 +42,9 @@ del disco; las de salida se crean en memoria (`modo_almacenamiento='memory'`).
 | Giros de ladera > 90° | **30** | **1** | 0 |
 | Giro máximo de ladera | **180.0°** | **130.4°** | 37.9° |
 | Pasadas de `topology.revisar` | **30** (no convergía) | **5** | — |
+| Δz del pie de divisoria sobre la rasante | −0.20 m (mediana) | **+1.67 m** | +1.68 m |
+| Divisorias por debajo del lecho | **5 de 7** | **0** | 0 |
+| Perfil Z de la divisoria al 10 % | 0.055 | **0.116** | 0.119 |
 
 ### Lo que queda, por orden
 
@@ -57,6 +60,15 @@ del disco; las de salida se crean en memoria (`modo_almacenamiento='memory'`).
    pero hay que mirarlo.
 3. **Quedan 4 líneas de ladera con giro > 40°** (antes 10) y el original no tiene
    **ninguna**. Las tres que no son la fid 32 están entre 45 y 70°.
+4. **Subcrestas y vaguadas siguen arrancando tendidas**: 0.022 y 0.025 del
+   desnivel al 10 % del recorrido, contra 0.085 y 0.043 del original. Es su
+   propio `lf` —el pie cóncavo—, no el de la divisoria, que ya está corregido
+   (B-051). Ojo: el suyo **sí** está medido sobre 57 perfiles del DXF, así que
+   hay que remedirlo antes de tocarlo, no copiar la solución de la divisoria.
+5. **Una divisoria arranca a +4.53 m sobre la rasante** y el máximo del original
+   es +2.63. Las otras seis van de +0.15 a +2.52.
+6. **Emisión de vértices al estilo Carlson**: malla de 6.10 m con eliminación de
+   vértices colineales en planta, en `divides.remuestrear`.
 3. **Cota del pie de la divisoria** y **arranque del perfil**.
 4. **Emisión de vértices al estilo Carlson**, en `divides.remuestrear` — no en
    `ridges`, porque el remuestreo deshace unos pasos después cualquier

@@ -138,6 +138,56 @@ boca del último tributario (fid 1789, main|R4).
 
 ---
 
+## B-051 · La divisoria arrancaba por debajo del lecho de su cauce 🔴
+
+**Síntoma.** Cinco de las siete divisorias del Ej_2 arrancaban **por debajo** de
+la rasante del cauce (de −0.47 a +0.50 m, mediana −0.20). Una divisoria bajo el
+agua no separa nada. Y el perfil salía tendido en el arranque: al 10 % del
+recorrido había ganado **0.055** del desnivel, contra **0.119** del original.
+
+**Causa raíz — dos, independientes.**
+
+**(a) El ancla del pie era la RASANTE.** `_partir_en_confluencias` ancla el
+extremo a la cota del lecho en el punto de confluencia (`puntos_confluencia`
+devuelve `d.puntos[-1][2]`), pero **el pie de la divisoria no está en el agua**:
+en el original arranca a **2.5–7.2 m del eje**, o sea ya subido por la ladera, y
+su cota va de **+0.60 a +2.63 m** sobre la rasante (mediana +1.68).
+
+La cota que le toca es la misma ecuación que rige todo el relieve de ladera,
+`desnivel_de_ladera`, evaluada a la distancia real del pie al cauce. No hace
+falta ninguna constante nueva: `_perfil_cresta.alza_de_pie()`. El `+ 0.25` que
+había se queda como suelo.
+
+**(b) La divisoria llevaba pie CÓNCAVO.** `perfil_trapezoidal` recibía
+`lf = None`, y `tramos_de_ladera` lo pone en `min(lc, 0.30·D)`: **75 m** de tramo
+cóncavo en una divisoria de 436. Ese tramo existe donde una ladera se tumba al
+llegar al fondo del valle, y **una divisoria no llega al fondo**: muere sobre el
+filo, por encima del agua. Ajustado sobre las siete del original, `lf/L` sale
+**0.000**. Ahora se le pasa `lf = 0.0`, que `tramos_de_ladera` acota a 0.5 m.
+
+⚠️ **Solo la divisoria.** Subcrestas y vaguadas sí tienen pie cóncavo, y está
+medido sobre 57 perfiles del DXF de referencia. No tocar.
+
+**Medido** (Ej_2 regenerado, las siete divisorias):
+
+| | antes | **ahora** | original |
+|---|---|---|---|
+| Δz del pie sobre la rasante, mediana | −0.20 m | **+1.67 m** | +1.68 m |
+| Divisorias por debajo del lecho | **5 de 7** | **0** | 0 |
+| Perfil Z al 10 % del recorrido | 0.055 | **0.116** | 0.119 |
+| Perfil Z al 20 % | 0.163 | **0.232** | 0.262 |
+| Perfil Z al 30 % | 0.282 | **0.351** | 0.336 |
+
+Toca **ADR-022**, con permiso explícito: la cota de la divisoria sigue siendo un
+diseño y no una envolvente, pero ni su ancla ni su forma eran las del método.
+
+**Lo que queda**: una de las siete arranca a +4.53 m sobre la rasante, y el
+máximo del original es +2.63. Y las subcrestas y vaguadas siguen arrancando
+tendidas (0.022 y 0.025 al 10 %, contra 0.085 y 0.043 del original): ese es su
+propio `lf`, y hay que mirarlo aparte.
+
+---
+
 ## B-050 · El nudo triple y el codo de la cabecera 🔴
 
 Los dos salieron **al medir el resultado de B-045/B-046**, no antes: son el

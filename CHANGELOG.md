@@ -35,6 +35,9 @@ salida original del Ej_2 contra la nuestra apareció la causa de casi todo.
 | Giros de ladera > 90° | **30** | **1** | 0 |
 | Giro máximo de ladera | **180.0°** | **130.4°** | 37.9° |
 | Pasadas de `topology.revisar` | **30** (no convergía) | **5** | — |
+| Δz del pie de divisoria sobre la rasante | −0.20 m (mediana) | **+1.67 m** | +1.68 m |
+| Divisorias por debajo del lecho | **5 de 7** | **0** | 0 |
+| Perfil Z de la divisoria al 10 % | 0.055 | **0.116** | 0.119 |
 
 - 🔴 **La divisoria se calculaba equidistante del EJE MEANDRIFORME** (B-045). El
   método la quiere equidistante de las **polilíneas de fondo de valle**, que es
@@ -144,6 +147,18 @@ salida original del Ej_2 contra la nuestra apareció la causa de casi todo.
   el original se permite (37.9° en sus 120 subcrestas, 0.00° en sus 117
   vaguadas). Si ninguna candidata entra, la ladera **no se prolonga**: es
   preferible que se quede corta a que llegue con un codo.
+
+- 🔴 **La divisoria arrancaba por debajo del lecho de su cauce** (B-051), cinco
+  de siete. Dos causas independientes: el extremo se anclaba a la **rasante** del
+  cauce en la confluencia, cuando el pie de la divisoria está a 2.5–7.2 m del eje
+  y por tanto ya subido por la ladera —el original arranca de +0.60 a +2.63 m
+  sobre la rasante—; y la divisoria llevaba un **pie cóncavo de 75 m** en una
+  línea de 436, que es lo que aplanaba el arranque. Ese tramo existe donde una
+  ladera se tumba al llegar al fondo del valle, y una divisoria no llega al
+  fondo: muere sobre el filo. Ajustado sobre las siete del original, `lf/L` sale
+  **0.000**. Subcrestas y vaguadas conservan el suyo, que sí está medido.
+  Resultado: **cero** divisorias bajo el lecho, Δz mediano del pie **+1.67 m**
+  (original +1.68) y perfil al 10 % **0.116** (original 0.119).
 
 ### Lo que queda de esta tanda
 
