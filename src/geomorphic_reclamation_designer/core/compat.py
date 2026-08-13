@@ -65,6 +65,45 @@ def tipo_geom(geom):
 
 
 # ---------------------------------------------------------------- ráster
+def _fn_borrado():
+    """`sip.isdeleted` en la ubicación que le toque según el enlace de Qt, o
+    None si esta instalación no lo expone."""
+    try:                                    # lo normal en QGIS 3 y 4
+        from qgis.PyQt import sip
+        return sip.isdeleted
+    except ImportError:
+        pass
+    try:                                    # instalaciones antiguas
+        import sip
+        return sip.isdeleted
+    except ImportError:
+        return None
+
+
+def capa_viva(capa):
+    """True si `capa` existe y su objeto C++ NO ha sido destruido.
+
+    QGIS destruye el objeto C++ en cuanto la capa sale del proyecto —el usuario
+    la quita del árbol, se lee otro proyecto, `removeMapLayer`— pero el
+    envoltorio de Python sobrevive, y la siguiente llamada revienta con
+    «wrapped C/C++ object of type ... has been deleted». Quien guarde el objeto
+    de una capa en vez de re-resolverla tiene que comprobar esto antes de
+    tocarla (B-042)."""
+    if capa is None:
+        return False
+    borrado = _fn_borrado()
+    if borrado is not None:
+        try:
+            return not borrado(capa)
+        except TypeError:       # no es un objeto de sip (dobles de los tests)
+            pass
+    try:                        # sin sip: tocarla y ver si protesta
+        capa.id()
+        return True
+    except RuntimeError:
+        return False
+
+
 def formato_identify_valor():
     """Formato 'Value' para dataProvider().identify(), en su ubicación
     correcta según versión."""

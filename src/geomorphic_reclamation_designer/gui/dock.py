@@ -34,7 +34,7 @@ from ..core.params import ChannelSettings
 from ..core.layer_manager import LayerManager
 from ..core import setup_tools as st
 from ..core.compat import (filtro_capas_raster, filtro_capas_poligono,
-                           filtro_capas_linea, nivel_msg)
+                           filtro_capas_linea, nivel_msg, capa_viva)
 from .settings_dialog import SettingsDialog
 
 VERSION = "1.0.24"
@@ -422,7 +422,7 @@ class GeoFluvDock(QDockWidget):
         self.proyecto = GeoFluvProject()
         self.ruta_proyecto = None
         self.lm = LayerManager(iface, self.proyecto.nombre)
-        self.dem_layer = None
+        self._dem_layer = None      # se lee por la propiedad dem_layer
         self._map_tool = None
         self._inspector_tool = None
         self.inspector_groups = {k for k, _ in InspectorDefsDialog.GRUPOS}
@@ -849,6 +849,20 @@ class GeoFluvDock(QDockWidget):
         self.iface.messageBar().pushMessage("Geomorphic Reclamation", txt,
                                             level=nivel_msg(nivel), duration=6)
 
+    def _log_exc(self, contexto):
+        """Vuelca la traza completa al registro de mensajes de QGIS.
+
+        La barra de mensajes solo enseña `str(e)` y caduca a los seis segundos.
+        Sin traza, un fallo como el de B-042 obliga a reconstruir a mano la
+        cadena de llamadas entera; con ella, se lee en el registro."""
+        import traceback
+        from qgis.core import QgsMessageLog
+        try:
+            QgsMessageLog.logMessage(f"{contexto}\n{traceback.format_exc()}",
+                                     "Geomorphic Reclamation", nivel_msg(2))
+        except Exception:       # registrar nunca puede tapar el error de verdad
+            pass
+
     def _help(self):
         """Opens the bilingual HTML parameter guide in the browser."""
         ruta = os.path.join(os.path.dirname(os.path.dirname(__file__)),
@@ -1145,6 +1159,49 @@ class GeoFluvDock(QDockWidget):
         self.iface.mapCanvas().refreshAllLayers()
 
     # ---------- DEM ----------
+    @property
+    def dem_layer(self):
+        """Superficie de elevaciones, y SIEMPRE una que siga viva.
+
+        Se guarda el objeto de la capa porque es lo que consumen el motor y las
+        herramientas, pero QGIS destruye ese objeto en cuanto la capa sale del
+        proyecto y el envoltorio de Python queda colgando: la primera lectura
+        reventaba con «wrapped C/C++ object of type QgsRasterLayer has been
+        deleted» (B-042). Aquí se comprueba antes de entregarlo, y si está
+        muerto se intenta recuperar por la ruta."""
+        if self._dem_layer is not None and not capa_viva(self._dem_layer):
+            self._recuperar_dem()
+        return self._dem_layer
+
+    @dem_layer.setter
+    def dem_layer(self, capa):
+        self._dem_layer = capa
+
+    def _recuperar_dem(self):
+        """La capa de elevaciones ha desaparecido del proyecto: recuperarla por
+        su ruta y decirlo. Devuelve la capa recuperada o None.
+
+        No hace falta marca antispam: al salir, `_dem_layer` es o una capa viva
+        o None, y en ninguno de los dos casos vuelve a entrar aquí."""
+        self._dem_layer = None
+        ruta = getattr(self.proyecto, "ruta_dem", None)
+        if ruta:
+            capa = st.raster_por_ruta(ruta)
+            if capa is not None:
+                self._dem_layer = capa
+                self._msg("Elevation surface re-linked: the layer had been "
+                          "removed, but the same file is still loaded in the "
+                          "project.", 0)
+                return capa
+            if os.path.exists(ruta):
+                self._cargar_dem(ruta)
+                if self._dem_layer is not None:
+                    self._msg("The elevation surface had been removed from the "
+                              f"project: reloaded from {ruta}.", 1)
+                    return self._dem_layer
+        self._msg(st.MSG_DEM_MUERTO, 1)
+        return None
+
     def _surface_for_elevations(self):
         dlg = SurfaceElevDialog(self)
         if not dlg.exec():
@@ -1162,11 +1219,19 @@ class GeoFluvDock(QDockWidget):
         self._actualizar_estado_botones()
 
     def _cargar_dem(self, ruta):
-        lyr = QgsRasterLayer(ruta, os.path.basename(ruta))
-        if lyr.isValid():
+        """Fija la superficie de elevaciones a partir de un fichero.
+
+        Si ese mismo ráster YA está cargado en el proyecto se reutiliza, y se
+        deja donde el usuario lo tenga: al abrir un proyecto sobre un QGIS que
+        ya tenía el terreno, aparecía duplicado en «01 Inputs» (B-043)."""
+        lyr = st.raster_por_ruta(ruta)
+        if lyr is None:
+            lyr = QgsRasterLayer(ruta, os.path.basename(ruta))
+            if not lyr.isValid():
+                return
             self.lm.anadir_raster_a_grupo(lyr, "01 Inputs")
-            self.dem_layer = lyr
-            self.proyecto.ruta_dem = ruta
+        self.dem_layer = lyr
+        self.proyecto.ruta_dem = ruta
 
     def _sel_comparacion(self):
         ruta, _ = QFileDialog.getOpenFileName(self, "Comparison Surface (DEM)", "",
@@ -1237,16 +1302,15 @@ class GeoFluvDock(QDockWidget):
         self._actualizar_datos_principal()
         self._recalcular_dd()
         if self.diseno:
-            self._generar_diseno()
-            self._msg("Valley bottoms reread: design regenerated.", 3)
+            if self._generar_diseno():
+                self._msg("Valley bottoms reread: design regenerated.", 3)
         else:
             self._msg("Valley bottoms reread: data updated.", 3)
 
     # ---------- design engine ----------
     def _preview(self):
         """Preview = generate channels + main ridgelines (no surface yet)."""
-        self._generar_diseno()
-        if not self.diseno:
+        if not self._generar_diseno() or not self.diseno:
             return
         gl = self._geom_limite()
         if gl is None:
@@ -1290,16 +1354,22 @@ class GeoFluvDock(QDockWidget):
             for a in avisos_l:
                 self._msg(a, 1)
         except Exception as e:
+            self._log_exc("Preview")
             self._msg(f"Preview error: {e}", 2)
         finally:
             QApplication.restoreOverrideCursor()
         self.iface.mapCanvas().refreshAllLayers()
 
     def _generar_diseno(self):
+        """Regenera el diseño. Devuelve True si ha salido.
+
+        Quien lo llame TIENE que mirar el resultado: si falla, `self.diseno`
+        queda vacío y seguir adelante con él trunca las capas de diseño y las
+        deja en blanco (era lo que pasaba en `_dibujar_superficie`)."""
         from ..core.builder import GeoFluvBuilder
         if self.proyecto.fid_limite is None or not self.proyecto.canales:
             self._msg("Complete the Setup tab first (boundary and main channel).", 1)
-            return
+            return False
         from qgis.PyQt.QtWidgets import QApplication
         try:
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
@@ -1307,8 +1377,9 @@ class GeoFluvDock(QDockWidget):
             self.diseno = b.construir()
         except Exception as e:
             self.diseno = {}
+            self._log_exc("Design")
             self._msg(f"Design error: {e}", 2)
-            return
+            return False
         finally:
             QApplication.restoreOverrideCursor()
         self._refrescar_canales()
@@ -1321,6 +1392,7 @@ class GeoFluvDock(QDockWidget):
                   + (f" {n_avisos} warnings (see Summary Report)." if n_avisos else ""), 3)
         self._actualizar_estado_botones()
         self.iface.mapCanvas().refreshAllLayers()
+        return True
 
     def _diseno_actual(self):
         nombre = self.cb_canal.currentText()
@@ -1463,10 +1535,9 @@ class GeoFluvDock(QDockWidget):
     # ---------- surface & analysis ----------
     def _dibujar_superficie(self):
         from ..core import ridges
-        if not self.diseno:
-            self._generar_diseno()
-            if not self.diseno:
-                return
+        # sin diseño previo hay que generarlo, y si eso falla no hay nada que dibujar
+        if not self.diseno and (not self._generar_diseno() or not self.diseno):
+            return
         gl = self._geom_limite()
         if gl is None:
             self._msg("No design boundary.", 1)
@@ -1485,7 +1556,10 @@ class GeoFluvDock(QDockWidget):
         from qgis.PyQt.QtWidgets import QApplication
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
-            self._generar_diseno()          # re-write banks with chosen line count
+            # re-write banks with chosen line count. Si falla, PARAR: seguir con
+            # un diseño vacío trunca las capas y las deja en blanco.
+            if not self._generar_diseno():
+                return
             crs = QgsProject.instance().crs().authid()
             sub = ridges.generar_subcuencas(self.diseno, gl, self.lm, crs)
             n_cr, crestas3d, exc_cr = ridges.generar_crestas(
@@ -1524,6 +1598,7 @@ class GeoFluvDock(QDockWidget):
                 self._interpolar_y_contornear(gl)
             self.rb_surface.setChecked(True)   # switch to surface editing mode
         except Exception as e:
+            self._log_exc("Draw Design Surface")
             self._msg(f"Draw Design Surface error: {e}", 2)
         finally:
             QApplication.restoreOverrideCursor()
@@ -1542,6 +1617,7 @@ class GeoFluvDock(QDockWidget):
         try:
             self._interpolar_y_contornear(gl)
         except Exception as e:
+            self._log_exc("Contouring")
             self._msg(f"Contouring error: {e}", 2)
         finally:
             QApplication.restoreOverrideCursor()
@@ -1577,9 +1653,9 @@ class GeoFluvDock(QDockWidget):
     def _capa_comparacion(self):
         ruta = self.proyecto.ruta_dem_comparacion
         if ruta and os.path.exists(ruta):
-            for lyr in QgsProject.instance().mapLayers().values():
-                if isinstance(lyr, QgsRasterLayer) and lyr.source() == ruta:
-                    return lyr
+            lyr = st.raster_por_ruta(ruta)
+            if lyr is not None:
+                return lyr
             lyr = QgsRasterLayer(ruta, os.path.basename(ruta))
             if lyr.isValid():
                 self.lm.anadir_raster_a_grupo(lyr, "01 Inputs")
@@ -1607,6 +1683,7 @@ class GeoFluvDock(QDockWidget):
                     QgsProject.instance().removeMapLayer(lyr.id())
             surface.raster_diferencia(self.ruta_superficie, comp, self.lm, gl)
         except Exception as e:
+            self._log_exc("Cut/Fill")
             self._msg(f"Cut/Fill error: {e}", 2)
             return
         finally:
@@ -1813,6 +1890,7 @@ class GeoFluvDock(QDockWidget):
                 log=lambda m: self._msg(m.strip(), 0))
             dt = time.time() - t0
         except Exception as e:
+            self._log_exc("Check Design")
             self._msg(f"Check Design error: {e}", 2)
             return
         finally:

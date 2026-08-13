@@ -14,20 +14,62 @@
 """
 
 
+import os
+
 from qgis.core import (
-    QgsGeometry, QgsPointXY,
+    QgsGeometry, QgsPointXY, QgsProject, QgsRasterLayer,
 )
 
 from .params import UMBRAL_PENDIENTE
-from .compat import tipo_geom, formato_identify_valor
+from .compat import tipo_geom, formato_identify_valor, capa_viva
+
+
+# Lo que se le enseña al usuario cuando la capa de elevaciones ya no está.
+# Constante para que el panel y el motor digan exactamente lo mismo.
+MSG_DEM_MUERTO = ("The elevation surface is no longer in the project. "
+                  "Choose it again in Setup > Surface for Elevations.")
 
 
 # ---------------- DEM ----------------
 
+def ruta_norm(ruta):
+    """Ruta en forma comparable. En Windows dos rutas al MISMO fichero se
+    escriben de varias maneras (mayúsculas, barras normales o invertidas), y
+    compararlas en crudo hace creer que son ficheros distintos."""
+    if not ruta:
+        return ""
+    return os.path.normcase(os.path.normpath(str(ruta).strip()))
+
+
+def raster_por_ruta(ruta, capas=None):
+    """La capa ráster VIVA del proyecto cuyo fichero es `ruta`, o None.
+
+    Sirve para no volver a cargar lo que ya está cargado: al abrir un proyecto
+    sobre un QGIS que ya tenía el terreno, se añadía una segunda copia del
+    mismo ráster (B-043). `capas` permite pasar otra colección (tests)."""
+    if not ruta:
+        return None
+    objetivo = ruta_norm(ruta)
+    if capas is None:
+        capas = QgsProject.instance().mapLayers().values()
+    for capa in capas:
+        if not isinstance(capa, QgsRasterLayer) or not capa_viva(capa):
+            continue
+        if ruta_norm(capa.source()) == objetivo:
+            return capa
+    return None
+
+
 def cota_dem(dem_layer, x, y):
-    """Cota del DEM en (x, y) o None."""
+    """Cota del DEM en (x, y) o None.
+
+    Si la capa está muerta se PARA con un mensaje claro. Devolver None sería
+    peor: las cotas caerían al cálculo de reserva y saldría un diseño
+    silenciosamente equivocado (B-042)."""
     if dem_layer is None:
         return None
+    if not capa_viva(dem_layer):
+        raise RuntimeError(MSG_DEM_MUERTO)
     res = dem_layer.dataProvider().identify(QgsPointXY(x, y),
                                             formato_identify_valor())
     if not res.isValid():
