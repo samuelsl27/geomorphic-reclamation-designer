@@ -102,6 +102,41 @@ def amplitud_triangular(k, lam):
 
 # ---------------- trazado del canal ----------------
 
+def _peso_de_mezcla(s, s_t, largo):
+    """Peso de la onda de FONDO DE VALLE frente a la del canal A, en la
+    estación `s`.
+
+    0 = zigzag puro (aguas arriba), 1 = senoide pura (aguas abajo), con un
+    *smoothstep* sobre una ventana de `largo` metros centrada en la transición.
+
+    **Por qué existe** (B-047). Antes no había mezcla: en cada vértice se elegía
+    una forma de onda u otra, con amplitud, longitud de onda y fase distintas.
+    Como la onda triangular puede estar en cualquier punto de su ciclo cuando le
+    toca el relevo, el desplazamiento respecto al fondo de valle daba un salto.
+    Medido en el eje `main` del Ej_2, entre los vértices 548 y 549: de **+0.10 m
+    a −5.11 m en un paso de densificado de 1 m**, con giros de **108.7° y
+    98.1°**. El original, en esa misma transición, no pasa de 66.6°, y sus
+    vértices de zigzag giran 59.2°, que es exactamente el valor teórico del
+    ápice para k = 1.15 y reach = 20 m.
+
+    La ventana es **una longitud de meandro del canal A** (`2 × reach`, porque
+    el 'reach' es media longitud de meandro, LIBRO p. 35): es la escala natural
+    del cambio de patrón, y es del mismo orden que la longitud de onda del
+    meandro de valle en la transición, así que ninguna de las dos ondas se
+    interrumpe a medio ciclo.
+    """
+    if s_t is None:
+        return 1.0
+    if largo <= 1e-9:
+        return 0.0 if s <= s_t else 1.0
+    return _smoothstep((s - (s_t - largo / 2.0)) / largo)
+
+
+def _smoothstep(u):
+    u = max(0.0, min(1.0, u))
+    return u * u * (3.0 - 2.0 * u)
+
+
 def trazar_canal(dens, perfil, s_transicion, q_en, settings_canal, settings_glob,
                  semilla=None):
     """Genera el eje del canal desplazando la línea de valle.
@@ -127,9 +162,36 @@ def trazar_canal(dens, perfil, s_transicion, q_en, settings_canal, settings_glob
 
     paso_dens = max((dens[1][0] - dens[0][0]) if len(dens) > 1 else 1.0, 0.25)
 
+    # --- estación efectiva de transición A → fondo de valle -------------------
+    # Se decide UNA VEZ, antes del bucle, y no vértice a vértice. Antes el tramo
+    # se resolvía con `s <= s_transicion and |pendiente(s)| > UMBRAL`, evaluado en
+    # cada vértice: con la pendiente rondando el 4 % la condición parpadeaba y la
+    # traza saltaba de la onda triangular a la senoide y vuelta.
+    # El perfil longitudinal es cóncavo y monótono en pendiente, así que el cruce
+    # del umbral es único; se coge el más aguas arriba de los dos criterios, que
+    # es lo que conserva la protección de la v1.0.9 (si el usuario marca la
+    # transición cerca de la boca, el canal entero salía en zigzag).
+    s_cruce = perfil.L
+    for s, _x, _y in dens:
+        if abs(perfil.pendiente(s)) <= UMBRAL_PENDIENTE:
+            s_cruce = s
+            break
+    s_t = min(s_transicion, s_cruce) if s_transicion is not None else None
+
+    # Ventana de mezcla entre las dos ondas: UNA longitud de meandro del canal A
+    # (el 'reach' es media longitud de meandro, LIBRO p. 35), mitad a cada lado
+    # de la transición. Ver `_peso_de_mezcla`.
+    largo_mezcla = 2.0 * reach_A
+
     # fase acumulada y factores aleatorios por meandro
     puntos = []
-    fase = 0.0
+    # Dos fases independientes, una por onda, cada una avanzando con SU longitud
+    # de onda. Compartir una sola fase era lo que hacía imposible empalmar las
+    # dos formas: al cambiar λ, el mismo valor de fase cae en un sitio distinto
+    # de cada onda, y el desplazamiento saltaba (medido en el Ej_2: de +0.10 m a
+    # −5.11 m en un solo paso de densificado, con giros de 108.7° y 98.1°).
+    fase_A = 0.0
+    fase_v = 0.0
     k_rc = 2.5            # radio de curvatura fijo 2.5·W (sin factores aleatorios)
     ciclo_previo = -1
     long_canal = 0.0
@@ -139,58 +201,55 @@ def trazar_canal(dens, perfil, s_transicion, q_en, settings_canal, settings_glob
         # variación aleatoria por ciclo de meandro: el radio de curvatura de
         # cada curva varía en el rango estable Rc = 2.5–3.2 × W bankfull
         # (Williams 1986); λ y el cinturón se derivan de Rc (regime equations)
-        ciclo = int(fase / (2 * math.pi))
+        ciclo = int(fase_v / (2 * math.pi))
         if usar_rand and ciclo != ciclo_previo:
             k_rc = rng.uniform(2.5, 3.2)
             ciclo_previo = ciclo
 
-        # Un tramo es de tipo A (zigzag) solo si está aguas arriba de la
-        # transición Y la pendiente local supera realmente el 4 % (definición
-        # del método: los canales A son los de |s| > 4 %). Antes bastaba con
-        # estar aguas arriba del punto de transición, de modo que si el usuario
-        # marcaba la transición con 'Pick' cerca de la boca TODO el canal se
-        # dibujaba en zigzag y desaparecían los meandros (bug de la v1.0.9).
-        pend_local = perfil.pendiente(s)
-        en_tramo_A = (s_transicion is not None and s <= s_transicion
-                      and abs(pend_local) > UMBRAL_PENDIENTE)
-        if en_tramo_A:
-            lam = 2.0 * reach_A                       # reach = ½ longitud de meandro
-            amp = amplitud_triangular(k_A, lam)
-        else:
-            q = max(q_en(s), 1e-4)
-            pend = perfil.pendiente(s)
-            wd = settings_canal.wd_pend_mayor_004 if abs(pend) > UMBRAL_PENDIENTE \
-                else settings_canal.wd_pend_menor_004
-            w_bkf = ancho_bankfull(q, wd, settings_canal.vel_max_agua)
-            lm, belt, _rc = geometria_meandro(w_bkf, k_rc)
-            # la longitud de onda nunca por debajo de 6 pasos de densificado:
-            # con menos vértices por meandro la polilínea "recorta" las curvas
-            # y la sinuosidad dibujada queda muy por debajo de la calculada
-            lam = max(lm, 6.0 * paso_dens, 4.0)
-            amp = min(amplitud_para_sinuosidad(k_valle, lam),
-                      max(belt - w_bkf, w_bkf) / 2.0)
+        # --- las DOS ondas se calculan siempre, en todas las estaciones ------
+        # zigzag del canal A: reach = ½ longitud de meandro (LIBRO p. 35)
+        lam_A = 2.0 * reach_A
+        amp_A = amplitud_triangular(k_A, lam_A)
+        # meandro del fondo de valle: relaciones de régimen de Williams (1986)
+        q = max(q_en(s), 1e-4)
+        pend = perfil.pendiente(s)
+        wd = settings_canal.wd_pend_mayor_004 if abs(pend) > UMBRAL_PENDIENTE \
+            else settings_canal.wd_pend_menor_004
+        w_bkf = ancho_bankfull(q, wd, settings_canal.vel_max_agua)
+        lm, belt, _rc = geometria_meandro(w_bkf, k_rc)
+        # la longitud de onda nunca por debajo de 6 pasos de densificado:
+        # con menos vértices por meandro la polilínea "recorta" las curvas
+        # y la sinuosidad dibujada queda muy por debajo de la calculada
+        lam_v = max(lm, 6.0 * paso_dens, 4.0)
+        amp_v = min(amplitud_para_sinuosidad(k_valle, lam_v),
+                    max(belt - w_bkf, w_bkf) / 2.0)
 
-        # avance de fase
+        # avance de fase, cada onda con SU longitud de onda
         if i > 0:
             ds = s - dens[i - 1][0]
-            fase += 2 * math.pi * ds / lam
+            fase_A += 2 * math.pi * ds / lam_A
+            fase_v += 2 * math.pi * ds / lam_v
 
-        if en_tramo_A:
-            # zigzag triangular: onda triangular de la fase
-            tri = 2.0 * abs(2.0 * ((fase / (2 * math.pi)) % 1.0) - 1.0) - 1.0
-            offset = amp * tri
-        else:
-            offset = amp * math.sin(fase)
+        tri = 2.0 * abs(2.0 * ((fase_A / (2 * math.pi)) % 1.0) - 1.0) - 1.0
+        off_A = amp_A * tri
+        off_v = amp_v * math.sin(fase_v)
 
-        # Amortiguar el offset SOLO lo justo en los extremos (cabecera y boca)
-        # y en el propio punto de transición, para no perder sinuosidad: antes
-        # se amortiguaba media longitud de onda en cada extremo y un cuarto a
-        # cada lado de la transición, lo que rebajaba visiblemente la
-        # sinuosidad real del canal frente a la pedida.
+        # --- mezcla continua entre las dos, en vez de un cambio brusco -------
+        w = _peso_de_mezcla(s, s_t, largo_mezcla)
+        offset = (1.0 - w) * off_A + w * off_v
+        lam = lam_A if w < 0.5 else lam_v
+
+        # Amortiguar el offset SOLO lo justo en los extremos (cabecera y boca),
+        # para no perder sinuosidad: antes se amortiguaba media longitud de onda
+        # en cada extremo, lo que rebajaba visiblemente la sinuosidad real del
+        # canal frente a la pedida.
+        # Ya NO se amortigua en la transición: ese `min(1, |s−s_t|/(λ/8))` estaba
+        # ahí para disimular el salto de forma de onda, y con λ/8 ≈ 5 m frente a
+        # una amplitud de 5.7 m no disimulaba nada; lo que hacía era clavar el
+        # desplazamiento a cero en un punto y soltarlo cinco metros después. La
+        # continuidad la da ahora la mezcla.
         margen = min(s, perfil.L - s)
         rampa = min(1.0, margen / max(lam / 4.0, 1e-6))
-        if s_transicion is not None:
-            rampa = min(rampa, min(1.0, abs(s - s_transicion) / max(lam / 8.0, 1e-6)))
         offset *= max(rampa, 0.0)
 
         nx, ny = -tg[i][1], tg[i][0]   # normal (izquierda del avance)

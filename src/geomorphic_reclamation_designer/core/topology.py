@@ -49,6 +49,9 @@ MAX_PENDIENTE_EMPALME = 1.00   # 100 %, cortapicos del tramo que se añade para
                         # 244 líneas de cresta no pasan de 65.7 %. Mismo valor
                         # que `divides.MAX_PENDIENTE_FILO`, por coherencia.
 PASO = 4.0              # m, densificado de las líneas nuevas
+TOL_PEGADO = 0.5        # m por debajo de los cuales el extremo de una ladera YA
+                        # está sobre la divisoria y no hay nada que empalmar.
+                        # Ver `empalmar_en_divisorias` y B-048.
 MAX_ORDEN = 10          # órdenes de cresta como máximo. Una cresta nacida de
                         # un encuentro es de orden 2, la que nazca del
                         # encuentro de dos de esas es de orden 3… Igual que en
@@ -188,6 +191,23 @@ def _cruza_alguna(p_a, p_b, geoms2d):
     return any(seg.intersects(g) for g in geoms2d)
 
 
+def _se_dobla(pts, alto, en_inicio, destino):
+    """¿La cola que se va a añadir se dobla sobre la propia línea?
+
+    Una subcresta o una vaguada son RECTAS en planta —lo son en el original: las
+    117 vaguadas del Ej_2 tienen sinuosidad 1.000 y ángulo de giro máximo 0.00°—
+    así que una prolongación que salga hacia atrás no es una prolongación, es un
+    pliegue. Segunda línea de defensa de B-048: aunque alguien vuelva a abrir la
+    puerta a extender dos veces la misma línea, un pliegue no puede entrar."""
+    vecino = pts[1] if en_inicio else pts[-2]
+    ax, ay = alto[0] - vecino[0], alto[1] - vecino[1]
+    bx, by = destino[0] - alto[0], destino[1] - alto[1]
+    na, nb = math.hypot(ax, ay), math.hypot(bx, by)
+    if na < 1e-9 or nb < 1e-9:
+        return False
+    return (ax * bx + ay * by) / (na * nb) < 0.0
+
+
 def _densificar3(p0, p1, paso=PASO):
     """Segmento 3D densificado, con la z interpolada linealmente."""
     d = _dist(p0, p1)
@@ -199,6 +219,46 @@ def _densificar3(p0, p1, paso=PASO):
                     p0[1] + t * (p1[1] - p0[1]),
                     p0[2] + t * (p1[2] - p0[2])))
     return out
+
+
+def destino_de_empalme(pts, alto, en_inicio, cand, tol=TOL_EMPALME):
+    """Punto de divisoria hasta el que prolongar una ladera, o None.
+
+    `cand` es `[(distancia, fid, punto)]` ordenado, tal y como lo devuelve
+    `_proyecciones`. Es la decisión entera del empalme, y vive fuera de
+    `empalmar_en_divisorias` porque necesita prueba propia: `revisar()` repite
+    ese pase hasta punto fijo y una decisión no idempotente se multiplica por
+    treinta.
+
+    **B-048.** El primer filtro era `if d_xy < 0.5 or d_xy > tol: continue`
+    dentro del bucle de candidatas, así que cuando el extremo ya estaba sobre
+    una divisoria no paraba: descartaba **esa** candidata y se iba a la
+    SIGUIENTE, hasta 18 m más allá, y volvía a prolongar. En la pasada siguiente
+    la más próxima era la que acababa de alcanzar —descartada otra vez— y volvía
+    a la primera: ping-pong, una cola por pasada.
+
+    Medido en el Ej_2: `GRD_SubRidges` fid 86, canal "main R2", índice 15, con
+    **66 vértices oscilando entre tres puntos**, 260.6 m de longitud, sinuosidad
+    **8.318** y 28 giros de más de 60°, con máximo de **180.00°**. Otras quince
+    subcrestas con anomalías menores del mismo origen. Y de paso el bucle no
+    convergía nunca, así que se comía las 30 pasadas de `MAX_PASADAS` (P-05).
+    """
+    if cand and cand[0][0] < TOL_PEGADO:
+        return None                     # ya muere sobre la divisoria: no se toca
+    for d_xy, _fid, punto in cand:
+        if d_xy > tol:
+            continue
+        # La divisoria más próxima EN PLANTA puede estar a una cota imposible.
+        # Sin esta comprobación se pegaba la diferencia entera en un solo
+        # segmento: medido en el Ej_2, una subcresta subía de 300.7 a 336.0 m en
+        # 3.69 m de recorrido, un 955 %. El original no pasa de 65.7 % en
+        # ninguna de sus 244 líneas.
+        if abs(punto[2] - alto[2]) > MAX_PENDIENTE_EMPALME * d_xy:
+            continue
+        if _se_dobla(pts, alto, en_inicio, punto):
+            continue
+        return punto
+    return None
 
 
 # ------------------------------------------------------- regla 1: empalmes
@@ -221,19 +281,8 @@ def empalmar_en_divisorias(lm, tol=TOL_EMPALME, log=None):
         if len(pts) < 2:
             continue
         alto, en_inicio, _ = _extremo_hacia_divisoria(pts, idx, divisorias)
-        destino = None
-        for d_xy, _fid, punto in _proyecciones(idx, divisorias, alto):
-            if d_xy < 0.5 or d_xy > tol:
-                continue
-            # La divisoria más próxima EN PLANTA puede estar a una cota
-            # imposible. Sin esta comprobación se pegaba la diferencia entera
-            # en un solo segmento: medido en el Ej_2, una subcresta subía de
-            # 300.7 a 336.0 m en 3.69 m de recorrido, un 955 %. El original no
-            # pasa de 65.7 % en ninguna de sus 244 líneas.
-            if abs(punto[2] - alto[2]) > MAX_PENDIENTE_EMPALME * d_xy:
-                continue
-            destino = punto
-            break
+        cand = _proyecciones(idx, divisorias, alto)
+        destino = destino_de_empalme(pts, alto, en_inicio, cand, tol)
         if destino is None:
             descartados += 1
             continue

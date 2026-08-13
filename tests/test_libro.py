@@ -81,13 +81,17 @@ def test_el_reach_de_canal_A_es_media_longitud_de_meandro():
     """Libro, 2.2.10: «The "A-channel" reach length is one-half of a "meander
     length" for the steeper channels».
 
-    En `planform.disenar_planta` el tramo A usa `lam = 2.0 * reach_A`, que es
-    exactamente esa relacion despejada.
+    En `planform.trazar_canal` la onda del tramo A usa `lam_A = 2.0 * reach_A`,
+    que es exactamente esa relacion despejada. La misma relacion fija la ventana
+    de mezcla entre las dos ondas (`largo_mezcla = 2.0 * reach_A`, B-047): una
+    longitud de meandro del canal A.
     """
     ruta = os.path.join(os.path.dirname(__file__), "..", "src", "geomorphic_reclamation_designer", "core", "planform.py")
     src = open(ruta, encoding="utf-8").read()
-    assert "lam = 2.0 * reach_A" in src, \
+    assert "lam_A = 2.0 * reach_A" in src, \
         "el tramo A ya no usa reach = media longitud de meandro"
+    assert "largo_mezcla = 2.0 * reach_A" in src, \
+        "la ventana de mezcla ya no es una longitud de meandro del canal A"
 
 
 # ===================================================== 2.2.9 tipos de canal

@@ -212,7 +212,7 @@ def _trazar_ladera(origen, direccion, propio, geoms, g_lim, disenos, s_max,
                    convexo_m, z0, dem=None, lineas_previas=None,
                    factor_fin=1.0, contorno=None, banda_mezcla=0.0,
                    forzar_bajo=False, crestas=None,
-                   factor_dz=1.0, glob=None):
+                   factor_dz=1.0, glob=None, geoms_div=None):
     """Marcha desde el borde del canal hacia la divisoria con dirección FIJA
     (todas las subcrestas/vaguadas del canal comparten el mismo ángulo con la
     perpendicular del valle, por lo que resultan sub-paralelas/equidistantes).
@@ -233,7 +233,21 @@ def _trazar_ladera(origen, direccion, propio, geoms, g_lim, disenos, s_max,
     hacia el canal, llano en el pie. La pendiente máxima resulta
     s_j = 2·Δz/D — si el desnivel es pequeño, la ladera es suave (ya no se
     impone la pendiente máxima). 'factor_fin' (<1 en vaguadas) rebaja la cota
-    del extremo interior para que la vaguada quede bajo las subcrestas."""
+    del extremo interior para que la vaguada quede bajo las subcrestas.
+
+    **`geoms` y `geoms_div` no son lo mismo, y confundirlos es B-049.**
+    `geoms_div` son las LÍNEAS DE VALLE y definen dónde está la divisoria, que
+    es donde la marcha tiene que parar: desde B-045 la divisoria es el eje
+    medial de los valles, no el de los ejes. `geoms` son los EJES
+    meandriformes y definen la distancia al agua, que es lo que gobierna la
+    cota de ladera (`_z_ladera`). Si la parada se mide contra los ejes, la
+    ladera se detiene en una curva que ya no es la divisoria: medido sobre la
+    reconstrucción del eje medial, la separación entre las dos curvas tiene
+    mediana 1.12 m, p90 4.83 y p99 7.52, así que el 32.9 % de los vértices
+    caería fuera de la tolerancia de 2.0 m con la que `topology` da una
+    cabecera por «llegada». Volvería B-034 por un lado (extremos en el aire) y
+    `divides._cortar_en_divisorias` amputaría por el otro."""
+    gd = geoms_div or geoms
     pts_xy = [origen]
     x, y = origen
     dx, dy = direccion
@@ -272,8 +286,10 @@ def _trazar_ladera(origen, direccion, propio, geoms, g_lim, disenos, s_max,
                 except Exception:
                     pass
                 break
-        d_propio = geoms[propio].distance(g)
-        d_otro = min((ge.distance(g) for n, ge in geoms.items() if n != propio),
+        # Equidistancia contra las LÍNEAS DE VALLE (`gd`), que es donde está la
+        # divisoria desde B-045, no contra los ejes meandriformes. Ver B-049.
+        d_propio = gd[propio].distance(g)
+        d_otro = min((ge.distance(g) for n, ge in gd.items() if n != propio),
                      default=d_propio + 1)
         x, y = xn, yn
         pts_xy.append((x, y))
@@ -404,6 +420,19 @@ def generar_subcrestas(disenos, g_lim, glob, lm, dem=None, crestas=None,
     s_max = glob.pendiente_max_pct / 100.0
     ang = math.radians(glob.angulo_subcresta_deg)
     geoms = _geoms_ejes(disenos)
+    # Las LÍNEAS DE VALLE, que son las que definen dónde cae la divisoria desde
+    # B-045: la marcha de ladera tiene que parar en la equidistancia de ESTAS,
+    # no en la de los ejes meandriformes. Ver B-049 y el docstring de
+    # `_trazar_ladera`. Se construye aquí y no se importa de `ridges` a
+    # propósito: el bloque `from .ridges import (...)` de la cabecera lo parchea
+    # `tests/test_registro_laderas.py` por cadena exacta, y añadirle un nombre
+    # convierte ese parche en un no-op silencioso.
+    geoms_div = {n: QgsGeometry.fromPolylineXY(
+                     [QgsPointXY(x, y) for _s, x, y in d.dens])
+                 for n, d in disenos.items()
+                 if getattr(d, "dens", None) and len(d.dens) >= 2}
+    if len(geoms_div) != len(disenos):
+        geoms_div = None            # algún diseño sin valle: se cae a los ejes
     contorno = QgsGeometry.fromPolylineXY(
         g_lim.asPolygon()[0] if not g_lim.isMultipart()
         else g_lim.asMultiPolygon()[0][0])
@@ -444,7 +473,8 @@ def generar_subcrestas(disenos, g_lim, glob, lm, dem=None, crestas=None,
                                 banda_mezcla=banda_mezcla,
                                 forzar_bajo=glob.forzar_crestas_bajo_limite,
                                 crestas=crestas,
-                                factor_dz=factor_dz, glob=glob)
+                                factor_dz=factor_dz, glob=glob,
+                                geoms_div=geoms_div)
 
     def _registrar(_d, linea):
         registro.anadir(linea)
@@ -534,7 +564,7 @@ def _linea_ladera_en(d, k, signo, ang, geoms, g_lim, disenos, s_max,
                      convexo=None, dem=None, lineas_previas=None,
                      factor_fin=1.0, contorno=None, banda_mezcla=0.0,
                      forzar_bajo=False, crestas=None,
-                     factor_dz=1.0, glob=None):
+                     factor_dz=1.0, glob=None, geoms_div=None):
     """Construye la línea de ladera (subcresta o vaguada) que arranca del
     punto k del eje del canal d, hacia la margen 'signo', girada 'ang' hacia
     aguas arriba. La referencia angular es la tangente de la LÍNEA DE VALLE
@@ -549,5 +579,6 @@ def _linea_ladera_en(d, k, signo, ang, geoms, g_lim, disenos, s_max,
                            factor_fin=factor_fin, contorno=contorno,
                            banda_mezcla=banda_mezcla, forzar_bajo=forzar_bajo,
                            crestas=crestas,
-                           factor_dz=factor_dz, glob=glob)
+                           factor_dz=factor_dz, glob=glob,
+                           geoms_div=geoms_div)
     return linea

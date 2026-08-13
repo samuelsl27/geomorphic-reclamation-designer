@@ -6,6 +6,382 @@
 
 ---
 
+## B-045 · La divisoria era equidistante del EJE, no de la LÍNEA DE VALLE 🔴
+
+**Síntoma.** Las crestas que separan las cuencas salen más quebradas que las del
+original, con picos. Giro acumulado **70 °/100 m** de media frente a 6.5–31.3 del
+original; ángulo de giro máximo **42.9°** frente a 17.3°; radio de curvatura
+mínimo 7 m frente a 19 m y p10 32 m frente a 74 m.
+
+**Causa raíz.** `ridges._capa_puntos_canales` muestreaba `d.puntos`, el **eje
+meandriforme**. La divisoria heredaba así la ondulación del meandro, con la
+longitud de onda del meandro y una amplitud que depende del **desfase entre dos
+cauces vecinos** — o sea, de algo que no la debería gobernar en absoluto.
+
+El método la quiere equidistante de las **polilíneas de fondo de valle**:
+
+> *«The main ridgelines are shown between the tributary channels and are
+> **sub-parallel to the channels**»* — Natural Regrade Module, p. 36-37.
+>
+> El Preview muestra *«main ridgelines (yellow) and **valley centerlines (more
+> linear blue)**»*, y los ejes zigzag o sinuosos *«will be designed **around**
+> the more linear valley input lines»* — LIBRO p. 242, pie de la fig. 9-13.
+
+**La medida.** `|d₁ − d₂|` en cada vértice, contra las dos líneas más próximas:
+
+| | a las líneas de VALLE | a los EJES meandriformes |
+|---|---|---|
+| original (7 divisorias) | **0.02 – 0.73 m** | 1.0 – 2.9 m (máx 15.5) |
+| nuestro, v1.0.24 (11) | 1.77 – 4.52 m | **0.14 – 1.78 m** |
+
+Y al revés: repitiendo el Voronoi sobre **muestras** de las líneas de valle, la
+divisoria del original queda a 0.02–0.85 m de la frontera resultante, con el
+mismo resultado para pasos de muestreo de 0.5, 1 y 5 m — el error de aproximar
+la bisectriz de dos curvas por la de dos nubes de puntos vale ~h²/8d, o sea
+0.05 m con h = 5 m y d = 65 m. **Lo único que importa es de qué línea se
+muestrea.**
+
+**La corrección.** `ridges._muestras_de_valle(d)` devuelve los puntos de `d.dens`
+(ya densificado a 1 m por `builder`), con respaldo a `d.puntos` si un diseño no
+lo trae. `_geoms_ejes` sigue devolviendo el eje meandriforme **a propósito**: la
+distancia cauce-divisoria que gobierna la cota de ladera se mide al agua de
+verdad. Hay una prueba que lo fija.
+
+**Efecto lateral medido y aceptado.** El área de cada subcuenca cambia entre
+**−1.21 % y +1.97 %** (rejilla de 2 m dentro del límite del Ej_2), y `Qpk` es
+proporcional al área.
+
+**Lo que NO era.** No era falta de suavizado. La ondulación tiene λ ≈ 40–50 m y
+amplitud de metros: para borrarla habría que suavizar tanto que la divisoria
+dejaría de ser equidistante de nada. `_suavizar_xy` se revisó y **se dejó como
+estaba**, con la cuenta en su docstring.
+
+---
+
+## B-046 · *(abierto)* La red de divisorias se trocea donde no toca 🟠
+
+**Medido y con causa demostrada, pero SIN corregir**: hay que regenerar con
+B-045 antes de tocarlo, porque la partición cambia de fuente.
+
+**Primero, dos correcciones a lo que yo mismo había escrito en esta sesión.**
+
+1. **El original tiene 7 divisorias y 2102.9 m**, no 6 y 1985. Me quedé con la
+   lista de cinco FID que me dio Samuel más las que encontré por equidistancia, y
+   **descarté la fid 1957 (117.5 m) sin comprobarla**, cuando estaba en mi propia
+   salida. Ya estaba en ADR-021 y en el docstring de `encadenar_arcos`.
+   El clasificador bueno **no es la longitud ni la equidistancia**, es la **malla
+   de emisión**: las 7 divisorias tienen ≥ 88 % de sus segmentos en múltiplos
+   enteros de 6.10 m (`m_fMaxDistOnRidges`), y ninguna otra línea de `GF_Ridges`
+   pasa de 0.40. Separación limpia, sin umbral que discutir.
+2. **`cresta 1` (116.0 m) NO es una colilla**: es la homóloga de la fid 1957
+   (117.5 m). Lo que sobra de verdad son `cresta 10` (45.7) y `cresta 11` (45.9),
+   y el original **sí dibuja algo ahí** —fids 1883 (41.6 m) y 1830 (49.9 m)— pero
+   fuera de la malla de 6.10: son red de ladera, no divisorias.
+
+**Causa (a): `_partir_en_confluencias` parte en confluencias AJENAS.**
+`puntos_confluencia` (`ridges.py`) devuelve `(x, y, z)` a secas, sin decir de qué
+pareja de cauces es cada confluencia, y el único filtro es la distancia, con
+`tol_conf = max(3·PASO_CRESTA, max_dist_cresta_cabecera)` = **50 m** en el Ej_2.
+Prueba en los datos:
+
+```
+cresta 5.fin ≡ cresta 6.ini = (719670.09, 4408225.34, 289.091453)  — distancia 0.000 m
+    confluencia de main L1 a 38.28 m, z de lecho = 289.091453   ← la cadena separa main|R1
+cresta 8.fin ≡ cresta 9.ini = (719753.84, 4408245.98, 285.047133)  — distancia 0.000 m
+    confluencia de main R1 a 33.54 m, z de lecho = 285.047133   ← la cadena separa R1|R2
+```
+
+La cota del corte coincide **a seis decimales** con el lecho de una confluencia
+que está a 33–38 m y que **no es de los dos cauces que esa divisoria separa**.
+`cresta 5+6` = 389.5 m frente a los 383.8 de la fid 1921; `cresta 8+9` = 320.2
+frente a 325.5 de la fid 1882. **No sobran divisorias: sobran dos cortes.**
+
+Eso **cierra P-26 con la explicación correcta**: no nos quedábamos 96 m cortos,
+estaban partidas. Emparejando por geometría y no por longitud, los siete residuos
+son ≤ 12 m y el total 2097.2 frente a 2102.9 m (**−0.27 %**).
+
+**Causa (b): el tercer brazo de un nudo triple se emite como divisoria.**
+`encadenar_arcos` cose solo la pareja más enfrentada y el bucle final emite el
+brazo sobrante como cadena propia. Los extremos de `cresta 10` y `cresta 11`
+equidistan de **tres** cauces a 42.68/42.68/42.68 y 50.78/50.78/50.78 m: es la
+definición de vértice de Voronoi.
+
+**El criterio que hay que implementar es topológico, no de longitud**: una
+divisoria principal va del **límite del proyecto** a una **confluencia**.
+Verificado sobre las 7 del original: las 7 tienen un extremo a 0.00 m del límite
+y el otro a 3.2–20.1 m de una confluencia. Aplicado a ciegas a las 244 líneas de
+`GF_Ridges`: **9 de 244, con las 7 dentro y cero falsos negativos**.
+
+**Y NO vale un umbral de longitud.** La divisoria legítima más corta del original
+mide **25.0 m** (fid 1922), que es exactamente `divides.min_divisoria`. Un umbral
+en 80 m mataría las crestas 6 y 9, que no sobran: **son el trozo que les falta**
+a las 5 y 8. Los tres filtros de longitud que hay hoy son además el mismo número
+tres veces (1×, ½× y ½× de `max_dist_cresta_cabecera`), y esa constante **no
+significa longitud de divisoria**: es *xrh*, distancia divisoria→cabecera
+(LIBRO p. 189).
+
+**Descartado por medida**: el criterio del «casquete final del tributario» da
+**0 %** en las tres líneas sospechosas, así que no las explica. Y el criterio de
+estación tampoco, porque el original **sí** tiene divisoria aguas abajo de la
+boca del último tributario (fid 1789, main|R4).
+
+---
+
+## B-049 · La marcha de ladera paraba en la equidistancia de los EJES 🔴
+
+**Regresión creada por B-045**, detectada antes de regenerar.
+
+**Síntoma esperado** (no observado aún, porque no se ha regenerado): la subcresta
+deja de morir sobre la divisoria. Vuelve B-034 por un lado —extremos altos en el
+aire— y `divides._cortar_en_divisorias` amputa por el otro.
+
+**Causa raíz.** `hillslopes._trazar_ladera` paraba cuando `d_otro <= d_propio`
+medido sobre `_geoms_ejes` (los **ejes meandriformes**), mientras que desde
+B-045 `GRD_Ridges` está sobre el eje medial de las **líneas de valle**. Son dos
+curvas distintas.
+
+**La medida.** Reconstruyendo el eje medial de los valles desde los 378 vértices
+de `GRD_Ridges`, la separación entre las dos curvas tiene **mediana 1.12 m, p90
+4.83, p95 6.63 y p99 7.52 m**. Contra las tolerancias del propio código:
+
+| tolerancia | dónde | % de vértices fuera |
+|---|---|---|
+| 2.0 m («ya está sobre una divisoria») | `topology` | **32.9 %** |
+| 2.5 m (`sellar_contra_divisorias`) | `topology` | **25.1 %** |
+| 4.5 m (`holgura_divisoria_m`) | `divides` | 11.3 % |
+| 24 m (`radio = 6·PASO_MARCHA`) | `hillslopes` | 0.3 % |
+
+El gancho de 24 m con el que la ladera cuelga de la divisoria **aguanta** (factor
+3 sobre el p99). Las que no aguantan son las dos primeras.
+
+**La corrección.** `_trazar_ladera` recibe `geoms_div` (líneas de valle) y la
+condición de parada se mide contra él; `geoms` (ejes) se queda **intacto** para
+`_z_ladera`, porque la cota de ladera depende de la distancia **al agua**. El
+diccionario se construye en `generar_subcrestas` y no se importa de `ridges` a
+propósito: el bloque `from .ridges import (...)` lo parchea
+`tests/test_registro_laderas.py` por cadena exacta.
+
+**Pendiente de la regeneración**: subir las dos tolerancias de `topology` (2.0 y
+2.5 m) al p95 medido de separación eje↔valle. **No copiar el 7 m de aquí**: hay
+que recalcularlo con la geometría nueva.
+
+---
+
+## B-044 · `encadenar_arcos` rebanaba un `QgsPointXY` 🔴
+
+---
+
+## B-047 · El enlace del tramo A con el sinuoso daba un salto 🔴
+
+**Síntoma.** «El enlace entre la zona sinuosa y la recta hace una geometría
+extraña.» En el eje `main` del Ej_2, entre los vértices 548 y 549 (estaciones
+628.8 y 634.1 m), el desplazamiento respecto al fondo de valle pasaba de
+**+0.10 m a −5.11 m en un paso de densificado de 1 m**, con giros de **108.7° y
+98.1°**. El original, en esa misma transición, no pasa de 66.6°, y los vértices
+de su zigzag giran 59.2°, que es exactamente el ápice teórico para k = 1.15 y
+reach = 20 m.
+
+**Causa raíz — dos cosas a la vez.**
+
+1. La forma de onda se **elegía** en cada vértice, y las dos tienen amplitud y
+   longitud de onda distintas pero **compartían una sola fase acumulada**. Al
+   cambiar λ, el mismo valor de fase cae en un sitio distinto de cada onda, así
+   que cuando le tocaba el relevo la triangular podía estar en cualquier punto de
+   su ciclo: el desplazamiento saltaba.
+2. La rampa `min(1, |s − s_t| / (λ/8))` estaba ahí para disimularlo, y con
+   λ/8 ≈ 5 m frente a una amplitud de 5.7 m no disimulaba nada: clavaba el
+   desplazamiento a cero en un punto y lo soltaba cinco metros después.
+
+Y de fondo, `abs(pendiente(s)) > 4 %` se evaluaba **vértice a vértice**, así que
+con la pendiente rondando el umbral la condición parpadeaba.
+
+**La corrección.** Las dos ondas se calculan **siempre**, cada una con su fase, y
+se mezclan con *smoothstep* sobre una ventana de **una longitud de meandro del
+canal A** (`2 × reach`; el *reach* es media longitud de meandro, LIBRO p. 35). La
+estación de transición se decide **una vez**, antes del bucle, como la más aguas
+arriba entre la marcada por el usuario y el cruce del 4 % — que es único porque
+el perfil es cóncavo. La rampa de la transición desaparece; la de los extremos se
+queda.
+
+**La medida.** Mismo caso de banco, código anterior contra el nuevo:
+
+| | giro máximo | dónde | salto máx. en la transición | sinuosidad |
+|---|---|---|---|---|
+| antes | 69.1° | **en la transición** | 1.59 m (×1.34 el del resto) | 1.181 |
+| ahora | **59.2°** = ápice teórico | igual que el resto | 1.06 m (×0.96) | 1.175 |
+
+---
+
+## B-048 · Una subcresta se doblaba 180° sobre sí misma 🔴
+
+**Síntoma.** `GRD_SubRidges` fid 86 (canal `main R2`, índice 15) salía con **66
+vértices oscilando entre tres puntos**, 260.6 m de longitud, **sinuosidad 8.318**
+y 28 giros de más de 60°, con máximo de **180.00°**. Otras quince subcrestas con
+anomalías menores del mismo origen. En el original, las 117 vaguadas tienen
+sinuosidad 1.000 y ángulo de giro máximo **0.00°**, y el 94 % de las 120
+subcrestas son rectas perfectas.
+
+**Causa raíz — una decisión no idempotente dentro de un bucle de punto fijo.**
+`topology.revisar()` repite el pase hasta que nada cambia, con tope de 30
+pasadas. El primer filtro de `empalmar_en_divisorias` era
+
+```python
+for d_xy, _fid, punto in _proyecciones(...):
+    if d_xy < 0.5 or d_xy > tol:
+        continue            # <- continue DEL BUCLE DE CANDIDATAS
+```
+
+Ese `d_xy < 0.5` quería decir «ya muere sobre la divisoria, no hay nada que
+hacer», pero lo que hacía era descartar **esa candidata** y probar la
+**siguiente**, hasta 18 m más allá — y prolongar la línea otra vez. A la pasada
+siguiente la más próxima era la que acababa de alcanzar, descartada de nuevo, y
+volvía a la anterior. **Ping-pong, una cola por pasada.**
+
+**Reproducido aparte** con la lógica anterior y una ladera de 6 vértices que ya
+moría sobre una divisoria, con otra a 8 m: 30 pasadas sin converger, **66
+vértices, 260.0 m y giro máximo de 180.0°** — la línea real clavada.
+
+**La corrección.** La decisión sale a `topology.destino_de_empalme()`, que tiene
+prueba propia: si la candidata más próxima está a menos de `TOL_PEGADO` = 0.5 m,
+**la línea está terminada y se devuelve None**. Segunda línea de defensa,
+`_se_dobla()`: una cola que sale hacia atrás respecto al último tramo de la
+propia línea no se admite nunca.
+
+**Explica también P-05**: el bucle no llegaba a punto fijo, se comía las 30
+pasadas.
+
+---
+
+## B-044 · `encadenar_arcos` rebanaba un `QgsPointXY` 🔴
+
+**Síntoma.** Con el DEM ya resuelto (B-042), «Draw Design Surface» llegaba a las
+divisorias y moría ahí: ni crestas, ni subcrestas, ni vaguadas, ni superficie,
+ni curvas. `GRD_Ridges` quedaba truncada y vacía.
+
+```
+ridges.py:996  generar_crestas    -> for dens in encadenar_arcos(arcos)
+ridges.py:683  encadenar_arcos    -> math.dist(pto(ext[a])[:2], ...)
+TypeError: QgsPointXY.__getitem__(): argument 1 has unexpected type 'slice'
+```
+
+**Causa raíz — y no es la línea, es dónde se metió la función.** En el módulo
+conviven dos representaciones de punto: `QgsPointXY` (lo que dan `asPolyline()`
+y `asMultiPolyline()`) y la tupla plana `(x, y)`. Se parecen lo bastante para
+engañar —ambas admiten `p[0]`, `p[1]`, `len(p)` y `x, y = p`, y hasta
+`math.dist` funciona con las dos— pero **el `QgsPointXY` no admite rebanadas**.
+
+`_densificar_xy` era el **único normalizador** del camino: recibía `QgsPointXY`
+y devolvía tuplas. B-040 insertó `encadenar_arcos` **entre la fuente y el
+normalizador**:
+
+```python
+# antes de B-040
+for pts in partes:                          # QgsPointXY
+    dens = _densificar_xy(pts, PASO_CRESTA)      # <- normalizaba AQUI
+
+# despues de B-040
+for pts in _cadenas_continuas(inter):
+    arcos.append(pts)                       # QgsPointXY, sin normalizar
+for dens in encadenar_arcos(arcos):         # <- codigo NUEVO, aguas arriba
+    dens = _densificar_xy(dens, PASO_CRESTA)
+```
+
+La función nueva se escribió contra el tipo que circula **después** de
+normalizar. Su propio docstring lo decía —«devuelve una lista de listas de
+(x, y)»— y era falso: devolvía lo que le entraba.
+
+**Corrección.** `_xy(p)` como único sitio donde vive la diferencia;
+`encadenar_arcos` normaliza en su entrada, con lo que toda su aritmética interna
+—y las dos llamadas a `_tangente`— trabaja con tuplas y el docstring vuelve a
+ser cierto; `_densificar_xy` acepta las dos formas.
+
+**Patrón para el catálogo.** *Al insertar una función nueva en un pipeline, hay
+que mirar qué tipo circula EN ESE PUNTO, no el que circula donde se la probó.*
+Un normalizador solo protege lo que va detrás de él.
+
+**Y la lección de los tests, que es la mitad del bug.** Las 164 pruebas estaban
+en verde: le pasaban **tuplas**, que sí admiten `[:2]`. El doble `_PtXY` ni
+siquiera tenía acceso por índice, así que a nadie se le ocurrió pasarle puntos.
+*Un doble más permisivo que el objeto real no prueba nada.* Ahora `_PtXY` imita
+al `QgsPointXY` de verdad —comprobado contra QGIS 3.44: `p[0]`/`p[1]` sí,
+`len(p)` 2, `x, y = p` sí, `p[-1]` IndexError, `p[:2]` TypeError— y los
+escenarios de encadenado se pasan con los dos tipos.
+
+**Medido.** El test nuevo lanza el mismo `TypeError` ejecutado contra el código
+de la v1.0.24, y pasa con el arreglo. Cadena idéntica con tuplas y con puntos de
+QGIS en los cuatro escenarios (dos arcos, sentido invertido, nudo triple, ciclo).
+
+**Contexto.** Todo el trabajo de divisorias de la v1.0.24 se midió reproduciendo
+el motor **fuera** de QGIS; el CHANGELOG lo avisaba. Este es el primer fallo de
+esa clase que aflora al ejecutarlo dentro. Ver B-042 (el que lo tapaba) y B-040
+(el que lo introdujo).
+
+---
+
+## B-042 · El DEM se guardaba como objeto, no como referencia 🔴
+
+**Síntoma.** «Draw Design Surface» no llegaba a arrancar:
+`Design error: wrapped C/C++ object of type QgsRasterLayer has been deleted`.
+
+**Causa raíz.** El panel guardaba el **objeto** de la capa de elevaciones en
+`self.dem_layer`. QGIS destruye el objeto C++ en cuanto la capa sale del
+proyecto —el usuario la quita del árbol, se lee otro proyecto,
+`removeMapLayer`—, pero el envoltorio de Python sobrevive. La primera lectura,
+`dem_layer.dataProvider().identify(...)` en `setup_tools.cota_dem`, revienta.
+`cota_dem` solo comprobaba `is None`, y no había un solo `sip.isdeleted` en todo
+el código. Lo que mató la capa fue B-043.
+
+**Lo revelador.** El resto del complemento **ya lo hacía bien**: las capas
+vectoriales se re-resuelven por nombre en cada uso vía
+`LayerManager.obtener_capa` y nunca se cachea el objeto. El ráster era la única
+excepción, y por eso fue el único que falló.
+
+**Corrección.** `compat.capa_viva()` (sip, con reserva de tocar la capa y ver si
+protesta; en `compat` porque depende de la versión, regla de oro nº 7).
+`dem_layer` pasa a ser una propiedad: comprueba que la capa viva y, si no, la
+recupera por `proyecto.ruta_dem` —adoptando la que ya esté cargada, o
+recargándola del disco— y avisa. `cota_dem` con capa muerta **lanza un error de
+dominio** en vez de dejar salir el mensaje de sip; devolver `None` habría sido
+peor, porque las cotas caerían al cálculo de reserva y saldría un diseño
+silenciosamente equivocado.
+
+**Patrón para el catálogo.** *Guardar el objeto de una capa de QGIS en vez de
+re-resolverla es una bomba de relojería.* Y de propina: los seis `except` del
+panel enseñaban solo `str(e)` en una barra que caduca a los seis segundos, sin
+`traceback` en ninguna parte. Acotar este fallo costó reconstruir a mano la
+cadena de llamadas entera. Ahora la traza va al registro de QGIS.
+
+**Medido.** 12 pruebas nuevas en `tests/test_capas.py`, incluida la que impide
+la trampa evidente: que la recuperación devuelva **el propio cadáver** por tener
+la ruta que se busca.
+
+---
+
+## B-043 · La capa del terreno se duplicaba al abrir el proyecto 🔴
+
+**Síntoma.** Samuel: *«al abrir de nuevas el proyecto se carga la capa en el
+grupo de input, a pesar de ya existir»*. Al arrancar no se genera ninguna capa
+ráster —el terreno lo elige el usuario— pero al reabrir aparecía repetido.
+
+**Causa raíz.** `_cargar_dem` construía **siempre** un `QgsRasterLayer` nuevo
+desde `proyecto.ruta_dem` y lo añadía a «01 Inputs», sin mirar si ese mismo
+fichero ya estaba cargado en el proyecto de QGIS.
+
+**Por qué importa más de lo que parece.** No es una molestia estética: es la
+causa de B-042. El usuario borra la copia sobrante —lo lógico— y con ella muere
+el objeto al que apuntaba el panel.
+
+**Corrección.** `setup_tools.raster_por_ruta()` busca una capa rastera **viva**
+del proyecto con esa ruta, comparando con `os.path.normcase(os.path.normpath())`
+—en Windows la misma ruta se escribe de varias formas y en crudo parecen
+ficheros distintos—. `_cargar_dem` la reutiliza y **la deja donde el usuario la
+tenga**, sin moverla de grupo. El mismo buscador sustituye el bucle calcado que
+ya había en `_capa_comparacion`.
+
+Ver B-042.
+
+---
+
 ## B-040 · La red de divisorias se emitía TROCEADA en los nudos 🔴
 
 **Síntoma.** Samuel señaló que el problema estaba ya en la forma **en planta**,

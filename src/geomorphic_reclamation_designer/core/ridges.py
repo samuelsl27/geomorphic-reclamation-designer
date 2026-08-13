@@ -4,9 +4,11 @@
 """Crestas, subcrestas, vaguadas y subcuencas del diseño GeoFluv.
 
 - SUBCUENCAS: partición del área del límite por proximidad a cada canal
-  (polígonos de Voronoi de los puntos densificados de los ejes, disueltos por
+  (polígonos de Voronoi de los puntos de las LÍNEAS DE VALLE, disueltos por
   canal y recortados al límite). Es la divisoria natural "equidistante" que
-  el método materializa como crestas entre canales adyacentes.
+  el método materializa como crestas entre canales adyacentes. Equidistante de
+  la línea de valle, **no del eje meandriforme**: ver `_capa_puntos_valle` y
+  B-045.
 - CRESTAS PRINCIPALES: fronteras compartidas entre subcuencas (excluyendo el
   propio límite GeoFluv). Cota de cresta: z del canal más próximo + el desnivel
   de ladera que da `desnivel_de_ladera()`, que NO es una constante: se despeja
@@ -187,17 +189,68 @@ def traza_y_cotas(linea):
             [p.z() for p in linea])
 
 
-def _capa_puntos_canales(disenos, crs):
-    """Capa temporal de puntos densificados de los ejes, con atributo 'canal'.
-    Muestreo denso (todos los puntos del eje) para que la divisoria Voronoi
-    entre subcuencas sea fiel a la equidistancia real entre canales."""
-    lyr = QgsVectorLayer(f"Point?crs={crs}", "tmp_pts_canales", "memory")
+def _muestras_de_valle(d):
+    """Puntos (x, y) de la LÍNEA DE VALLE de un diseño.
+
+    Es el punto de corte de todo el cambio de B-045, así que vive en su propia
+    función y tiene su propia prueba: `d.dens` es `[(s, x, y)]` del fondo de
+    valle, ya densificado a `builder.PASO_DENSIFICADO` = 1 m; `d.puntos` es
+    `[(x, y, z, s)]` del eje meandriforme. La partición de subcuencas se hace
+    con la primera.
+
+    El respaldo al eje es para diseños que no traigan `dens` (bancos de prueba
+    antiguos, o un `Diseno` construido a mano): mejor una cuenca con la fuente
+    equivocada que una cuenca sin puntos, que desaparecería del Voronoi y se
+    llevaría por delante las divisorias de sus vecinas."""
+    pts = [(x, y) for _s, x, y in getattr(d, "dens", None) or ()]
+    if not pts:
+        pts = [(p[0], p[1]) for p in getattr(d, "puntos", None) or ()]
+    return pts
+
+
+def _capa_puntos_valle(disenos, crs):
+    """Capa temporal de puntos de las LÍNEAS DE VALLE, con atributo 'canal'.
+
+    **La fuente es la línea de valle (`d.dens`), NO el eje meandriforme
+    (`d.puntos`)**, y esa es la corrección de B-045. La divisoria de cuenca del
+    método es equidistante de las *polilíneas de fondo de valle* —las que dibuja
+    el usuario—, no de los ejes sinuosos que se trazan alrededor de ellas:
+
+    > «The main ridgelines are shown between the tributary channels and are
+    > **sub-parallel to the channels**» (Natural Regrade Module p. 36-37), y el
+    > Preview muestra «main ridgelines (yellow) and **valley centerlines (more
+    > linear blue)**», con los ejes zigzag o sinuosos dibujados «**around** the
+    > more linear valley input lines» (LIBRO p. 242, pie de la fig. 9-13).
+
+    Medido en la salida original del Ej_2, `|d₁ − d₂|` de cada vértice de las
+    siete divisorias respecto a las dos líneas más próximas:
+
+    | | a las líneas de VALLE | a los EJES meandriformes |
+    |---|---|---|
+    | original | **0.02 – 0.73 m** | 1.0 – 2.9 m (máx 15.5) |
+    | nuestro (v1.0.24) | 1.77 – 4.52 m | **0.14 – 1.78 m** |
+
+    O sea, hacíamos exactamente lo contrario, y por eso la divisoria heredaba la
+    ondulación del meandro: giro acumulado de 70 °/100 m de media frente a los
+    6.5 – 31.3 del original, con giros de hasta 42.9° frente a 17.3°.
+
+    **El paso de muestreo da igual.** Repitiendo la medida contra las *muestras*
+    de las líneas de valle a 0.5, 1 y 5 m sale lo mismo (0.02 – 0.85 m): el error
+    de aproximar la bisectriz de dos curvas por la de dos nubes de puntos vale
+    ~h²/8d, o sea 0.05 m con h = 5 m y d = 65 m. Lo único que importa es **de qué
+    línea se muestrea**. Por eso se usa `d.dens` tal cual, que ya viene
+    densificado a `builder.PASO_DENSIFICADO` = 1 m.
+
+    Ojo: `_geoms_ejes()` sigue devolviendo el **eje meandriforme**, y tiene que
+    seguir haciéndolo. La distancia cauce-divisoria que gobierna la cota de
+    ladera es al agua de verdad, no a la línea de valle.
+    """
+    lyr = QgsVectorLayer(f"Point?crs={crs}", "tmp_pts_valle", "memory")
     lyr.dataProvider().addAttributes([QgsField("canal", CAMPO_STR)])
     lyr.updateFields()
     feats = []
     for d in disenos.values():
-        for i in range(0, len(d.puntos), 1):
-            x, y, _, _ = d.puntos[i]
+        for x, y in _muestras_de_valle(d):
             f = QgsFeature(lyr.fields())
             f.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(x, y)))
             f.setAttributes(attrs(lyr, [d.nombre]))
@@ -463,10 +516,19 @@ def _z_ladera(pt, disenos, geoms, s_max, dem=None, cap_dem=False,
 
 # ------------------------------------------------------------- subcuencas
 def generar_subcuencas(disenos, g_lim, lm, crs):
-    """Voronoi de los ejes → recorte al límite → disolución por canal.
-    Devuelve dict nombre → QgsGeometry (polígono de subcuenca)."""
+    """Voronoi de las LÍNEAS DE VALLE → disolución por canal → recorte al límite.
+    Devuelve dict nombre → QgsGeometry (polígono de subcuenca).
+
+    La fuente de puntos es `_capa_puntos_valle` y no el eje sinuoso; el porqué,
+    con las medidas, está en su docstring (B-045). El cambio de partición mueve
+    el área de cada cuenca entre −1.21 % y +1.97 % en el Ej_2 (rejilla de 2 m
+    dentro del límite), y como `Qpk` es proporcional al área, el efecto
+    hidráulico es de ese orden: despreciable.
+
+    `drainage_density` se calcula con `d.L_valle`, que es lo que pide el método
+    —«valley length **without meanders**», NRM p. 22— y ya era así."""
     from qgis import processing
-    pts = _capa_puntos_canales(disenos, crs)
+    pts = _capa_puntos_valle(disenos, crs)
     try:
         vor = processing.run("native:voronoipolygons",
                              {"INPUT": pts, "BUFFER": 100, "OUTPUT": "memory:"})["OUTPUT"]
@@ -498,6 +560,23 @@ def generar_subcuencas(disenos, g_lim, lm, crs):
 
 
 # ------------------------------------------------------------- crestas
+def _xy(p):
+    """Las coordenadas de un punto, venga como venga.
+
+    En este módulo conviven dos representaciones: `QgsPointXY`, que es lo que
+    devuelven `asPolyline()`/`asMultiPolyline()` y se lee con `.x()`/`.y()`, y
+    la tupla plana `(x, y)` que usan el resto de funciones. Se parecen lo
+    bastante para engañar —ambas admiten `p[0]` y `p[1]`, `len(p)` y el
+    desempaquetado `x, y = p`— pero **el QgsPointXY no admite rebanadas**:
+    `p[:2]` lanza TypeError. Ver B-044.
+
+    Este es el único sitio donde vive esa diferencia."""
+    x = getattr(p, "x", None)
+    if callable(x):
+        return (p.x(), p.y())
+    return (p[0], p[1])
+
+
 def _cadenas_continuas(inter):
     """Convierte la intersección de dos subcuencas en CADENAS CONTINUAS.
 
@@ -526,7 +605,17 @@ def _suavizar_xy(pts, pasadas=3, ventana=2):
 
     La divisoria de Voronoi es una escalera de bisectrices; una cresta real es
     una línea suave. Sin esto el TIN genera dientes de sierra sobre la
-    divisoria."""
+    divisoria.
+
+    **Se ha revisado al cambiar la fuente a la línea de valle (B-045) y se deja
+    como está, a propósito.** Con muestras a 1 m y cauces separados ~65 m, la
+    amplitud de la escalera vale ~h²/8d ≈ 0.002 m, así que ya casi no hay nada
+    que quitar; pero el filtro tampoco estorba: la cadena que llega aquí tiene
+    los vértices a ~1 m, o sea que la ventana ±2 son ±2 m y tres pasadas
+    equivalen a ±3.5 m. El sesgo hacia el interior de una curva es d²/8R, o sea
+    0.32 m en el radio más cerrado que tiene el original (19 m) y 0.02 m en el
+    típico (200 m). Bajar las pasadas es una decisión que hay que tomar
+    **midiendo en QGIS**, no a ojo: es exactamente el error de P-22."""
     if len(pts) < 5:
         return list(pts)
     out = list(pts)
@@ -543,28 +632,48 @@ def _suavizar_xy(pts, pasadas=3, ventana=2):
 
 
 def puntos_confluencia(disenos):
-    """Puntos (x, y, z) donde cada tributario se une a su receptor.
+    """Anclas `(x, y, z, pareja)` donde cada tributario se une a su receptor.
 
     La divisoria entre dos cuencas contiguas MUERE justo ahí: aguas abajo de
     la confluencia ya no hay dos cuencas que separar. Por eso la cresta tiene
-    que terminar en ese punto exacto, en planta y en cota."""
+    que terminar en ese punto exacto, en planta y en cota.
+
+    **`pareja` es la corrección de B-046**, y es lo único que faltaba. Esto
+    devolvía `(x, y, z)` a secas, así que `_partir_en_confluencias` no tenía
+    forma de saber **de qué dos cauces** era cada confluencia y partía la cadena
+    en la primera que le cayera dentro de la tolerancia — 50 m en el Ej_2.
+    Resultado: cadenas cortadas por confluencias **ajenas**. La prueba es que la
+    cota del corte coincidía a seis decimales con el lecho de una confluencia
+    situada a 33–38 m que no era de los dos cauces que esa divisoria separa:
+
+        cresta 5.fin ≡ cresta 6.ini = (719670.09, 4408225.34, 289.091453)
+            confluencia de main L1 a 38.28 m, z de lecho = 289.091453
+            …pero esa cadena separa main | main R1
+
+    Con la pareja, una confluencia solo parte la cadena donde la cadena separa
+    **precisamente esos dos** cauces."""
     out = []
     for d in disenos.values():
-        if getattr(d, "padre", "") and d.puntos:
+        padre = getattr(d, "padre", "")
+        if padre and d.puntos:
             x, y, z, _ = d.puntos[-1]
-            out.append((x, y, z))
+            out.append((x, y, z, frozenset((d.nombre, padre))))
     return out
 
 
 def cortes_con_cauces(dens, disenos, geoms):
-    """Puntos (x, y, z) donde la cadena de divisoria CRUZA el eje de un cauce.
+    """Anclas `(x, y, z, None)` donde la cadena de divisoria CRUZA un cauce.
 
     Una divisoria no puede atravesar un canal: al llegar al cauce la divisoria
     se ha acabado, porque al otro lado del agua empieza otra ladera de otra
     cuenca. La frontera de Voronoi sí puede cruzarlo (es un lugar geométrico,
     no una forma del terreno), y cuando lo hacía salía una cresta que pasaba
     por encima del canal principal. Aquí se localizan esos cruces para partir
-    la cadena en ellos, con la cota del cauce en el punto de cruce."""
+    la cadena en ellos, con la cota del cauce en el punto de cruce.
+
+    La `pareja` va a `None` **a propósito**: un cruce con un cauce parte la
+    cadena siempre, sin comprobar nada. No es una confluencia entre dos cuencas,
+    es agua en medio (ver B-046 y `puntos_confluencia`)."""
     if len(dens) < 2:
         return []
     linea = QgsGeometry.fromPolylineXY([QgsPointXY(x, y) for x, y in dens])
@@ -586,7 +695,7 @@ def cortes_con_cauces(dens, disenos, geoms):
             i = min(range(len(d.puntos)),
                     key=lambda k: (d.puntos[k][0] - pt.x()) ** 2
                     + (d.puntos[k][1] - pt.y()) ** 2)
-            cortes.append((pt.x(), pt.y(), d.puntos[i][2]))
+            cortes.append((pt.x(), pt.y(), d.puntos[i][2], None))
     return cortes
 
 
@@ -659,9 +768,16 @@ def encadenar_arcos(arcos, tol=TOL_NUDO, largo_tangente=LARGO_TANGENTE):
     `QgsGeometry.mergeLines()` no sirve para esto: solo funde nodos de grado 2 y
     en un punto triple deja los tres arcos.
 
-    Devuelve una lista de listas de (x, y). No filtra por longitud: eso va
-    después, sobre la cadena, porque descartar un arco corto ANTES partiría la
-    cadena por el medio y crearía dos extremos nuevos en el aire."""
+    Acepta arcos de `QgsPointXY` (lo que da `_cadenas_continuas`) o de tuplas, y
+    devuelve SIEMPRE listas de (x, y): normaliza en la entrada. Esta función se
+    intercaló entre la fuente de puntos y `_densificar_xy`, que era el único
+    normalizador del camino, y se escribió contra el tipo que circula DESPUÉS de
+    normalizar; por eso reventaba en QGIS y no en los tests (B-044).
+
+    No filtra por longitud: eso va después, sobre la cadena, porque descartar un
+    arco corto ANTES partiría la cadena por el medio y crearía dos extremos
+    nuevos en el aire."""
+    arcos = [[_xy(p) for p in arco] for arco in arcos]
     ext = []          # (indice de arco, 0=inicio | 1=final)
     for k in range(len(arcos)):
         ext.append((k, 0))
@@ -680,7 +796,7 @@ def encadenar_arcos(arcos, tol=TOL_NUDO, largo_tangente=LARGO_TANGENTE):
         for b in range(a + 1, len(ext)):
             if b in visto:
                 continue
-            if math.dist(pto(ext[a])[:2], pto(ext[b])[:2]) <= tol:
+            if math.dist(pto(ext[a]), pto(ext[b])) <= tol:
                 grupo.append(b)
                 visto.add(b)
         visto.add(a)
@@ -733,7 +849,25 @@ def encadenar_arcos(arcos, tol=TOL_NUDO, largo_tangente=LARGO_TANGENTE):
     return cadenas
 
 
-def _partir_en_confluencias(dens, confluencias, tol):
+def _separa(dens, i, pareja, geoms):
+    """¿La cadena separa, en su vértice `i`, exactamente los cauces de `pareja`?
+
+    `geoms` son los ejes por nombre. Los dos cauces más próximos a un punto de
+    una divisoria de Voronoi son, por definición, las dos cuencas que esa
+    divisoria separa ahí. Si no coinciden con la pareja de la confluencia, esa
+    confluencia es de otros dos cauces y no tiene por qué partir esta cadena.
+
+    Sin `geoms` no se puede comprobar y se deja pasar: es el comportamiento
+    anterior, que es el que hay que conservar para quien llame sin ellos."""
+    if not geoms or pareja is None:
+        return True
+    x, y = dens[i][0], dens[i][1]
+    g = QgsGeometry.fromPointXY(QgsPointXY(x, y))
+    dos = sorted(((ge.distance(g), n) for n, ge in geoms.items()))[:2]
+    return frozenset(n for _d, n in dos) == pareja
+
+
+def _partir_en_confluencias(dens, confluencias, tol, geoms=None):
     """Parte la cadena de divisoria EN la confluencia de cauces.
 
     La frontera Voronoi entre dos cuencas contiguas no es una línea que muere
@@ -753,14 +887,24 @@ def _partir_en_confluencias(dens, confluencias, tol):
         return [(dens, None)]
     # vértice de acercamiento máximo a cada confluencia
     mejor = None
-    for cx, cy, cz in confluencias:
+    for cx, cy, cz, pareja in confluencias:
         for i, (x, y) in enumerate(dens):
             dd = math.hypot(x - cx, y - cy)
-            if dd < tol and (mejor is None or dd < mejor[0]):
-                mejor = (dd, i, (cx, cy, cz))
+            if dd >= tol or (mejor is not None and dd >= mejor[0]):
+                continue
+            # B-046: una confluencia solo parte la cadena si la cadena separa
+            # PRECISAMENTE esos dos cauces en ese punto. Sin esto, con `tol` de
+            # 50 m, una confluencia ajena a 33-38 m partía la divisoria por el
+            # medio: medido en el Ej_2, dos de las siete cadenas salían en dos
+            # trozos, y la cota del corte era la del lecho de una confluencia
+            # que no era la suya. `pareja is None` = cruce con un cauce, que
+            # parte siempre (ver `cortes_con_cauces`).
+            if pareja is not None and not _separa(dens, i, pareja, geoms):
+                continue
+            mejor = (dd, i, (cx, cy, cz, pareja))
     if mejor is None:
         return [(dens, None)]
-    _, i, (cx, cy, cz) = mejor
+    _, i, (cx, cy, cz, _pareja) = mejor
     # Margen para decidir si la confluencia cae «en el interior» —y entonces se
     # PARTE en dos crestas— o «junto a un extremo» —y entonces se recorta—.
     # Era `max(2, int(0.08 * len(dens)))`, una fracción del NÚMERO DE VÉRTICES:
@@ -793,7 +937,7 @@ def _partir_en_confluencias(dens, confluencias, tol):
         for rama, extremo in ((rama_a, "fin"), (rama_b, "ini")):
             if len(rama) < 3:
                 continue
-            sub = _partir_en_confluencias(rama, restantes, tol)
+            sub = _partir_en_confluencias(rama, restantes, tol, geoms)
             if len(sub) == 1 and sub[0][1] is None:
                 salida.append((rama, (extremo, cz)))
             else:
@@ -1008,7 +1152,8 @@ def generar_crestas(disenos, subcuencas, g_lim, glob, dem, lm):
         # y NUNCA puede atravesar un cauce: los cruces con cualquier eje
         # de canal son también puntos de corte.
         anclas = list(confluencias) + cortes_con_cauces(dens, disenos, geoms)
-        for rama, anclaje in _partir_en_confluencias(dens, anclas, tol_conf):
+        for rama, anclaje in _partir_en_confluencias(
+                dens, anclas, tol_conf, geoms):
             largo_r = sum(math.hypot(b[0] - a[0], b[1] - a[1])
                           for a, b in zip(rama[:-1], rama[1:]))
             if largo_r < 0.5 * long_min:
@@ -1161,13 +1306,15 @@ def _perfil_cresta(dens, disenos, geoms, s_max, dem, glob, contorno, anclaje=Non
 
 
 def _densificar_xy(pts, paso):
-    out = [(pts[0].x(), pts[0].y())]
+    """Vértices cada `paso` metros. Acepta QgsPointXY o tuplas (ver `_xy`)."""
+    pts = [_xy(p) for p in pts]
+    out = [pts[0]]
     for a, b in zip(pts[:-1], pts[1:]):
-        d = math.hypot(b.x() - a.x(), b.y() - a.y())
+        d = math.hypot(b[0] - a[0], b[1] - a[1])
         n = max(1, int(d // paso))
         for k in range(1, n + 1):
             t = k / n
-            out.append((a.x() + t * (b.x() - a.x()), a.y() + t * (b.y() - a.y())))
+            out.append((a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])))
     return out
 
 

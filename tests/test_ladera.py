@@ -256,6 +256,18 @@ def test_una_ladera_sin_rumbo_no_se_clasifica_como_NE():
 # clase vacia del doble global: se inyectan geometrias falsas con la distancia
 # euclidea, que es lo unico que la funcion usa.
 class _PtXY:
+    """Doble FIEL de QgsPointXY. Comprobado contra QGIS 3.44:
+
+        p[0], p[1]  -> float          len(p) -> 2
+        x, y = p    -> OK             math.dist(p, q) -> OK
+        p[-1]       -> IndexError
+        p[:2]       -> TypeError ('slice')
+
+    Lo que este doble tenia de menos —el acceso por indice— es justo lo que hizo
+    que B-044 pasara desapercibido: un doble MAS PERMISIVO que el objeto real no
+    prueba nada, y uno mas restrictivo tampoco, porque nadie le pasa puntos.
+    """
+
     def __init__(self, x, y):
         self._x, self._y = float(x), float(y)
 
@@ -264,6 +276,17 @@ class _PtXY:
 
     def y(self):
         return self._y
+
+    def __len__(self):
+        return 2
+
+    def __getitem__(self, i):
+        if isinstance(i, slice):
+            raise TypeError("QgsPointXY.__getitem__(): argument 1 has "
+                            "unexpected type 'slice'")
+        if i not in (0, 1):
+            raise IndexError("Bad index: %s" % i)
+        return self._x if i == 0 else self._y
 
 
 class _Pt3(_PtXY):
@@ -577,7 +600,8 @@ def test_la_confluencia_no_se_inserta_en_la_planta():
     cadena se PARTE ahi —que es lo que da las dos crestas de ADR-003— y la
     confluencia se conserva solo como ancla de cota."""
     dens = [(float(i) * 10.0, 0.0) for i in range(21)]      # recta de 200 m
-    conf = [(100.0, 40.0, 55.0)]                            # a 40 m DE LADO
+    # ancla = (x, y, z, pareja); `pareja=None` = sin comprobacion de cauces
+    conf = [(100.0, 40.0, 55.0, None)]                      # a 40 m DE LADO
     ramas = rg._partir_en_confluencias(dens, conf, tol=50.0)
     assert len(ramas) == 2, ramas
     for rama, anclaje in ramas:
@@ -590,7 +614,8 @@ def test_la_confluencia_no_se_inserta_en_la_planta():
 def test_las_dos_ramas_siguen_saliendo_de_la_confluencia():
     """ADR-003 intacto: lo que da las DOS crestas es el corte, no el punto."""
     dens = [(float(i) * 10.0, 0.0) for i in range(21)]
-    ramas = rg._partir_en_confluencias(dens, [(100.0, 2.0, 55.0)], tol=50.0)
+    ramas = rg._partir_en_confluencias(dens, [(100.0, 2.0, 55.0, None)],
+                                       tol=50.0)
     assert [a[0] for _r, a in ramas] == ["fin", "ini"]
     # y las dos comparten el vertice del corte
     assert ramas[0][0][-1] == ramas[1][0][0]
@@ -735,6 +760,66 @@ def test_la_mezcla_de_la_bisectriz_acaba_donde_se_le_pide():
             assert out[i] == pts[i], (i, s, out[i], pts[i])
     # y dentro del tramo si se ha movido hacia la bisectriz
     assert out[1] != pts[1]
+
+
+# ============ B-044: el encadenado con los puntos QUE DE VERDAD LE LLEGAN
+def _qgis(arco):
+    """El mismo arco, pero con puntos como los que trae QGIS."""
+    return [_PtXY(x, y) for x, y in arco]
+
+
+def test_encadenar_con_puntos_de_QGIS_no_revienta():
+    """B-044. En QGIS los arcos llegan como QgsPointXY, no como tuplas: salen de
+    `_cadenas_continuas` -> `asPolyline()`. `encadenar_arcos` se intercalo entre
+    esa fuente y `_densificar_xy`, que era el unico normalizador del camino, y
+    hacia `pto(...)[:2]`: TypeError, y con el se caia la red de divisorias, la
+    superficie y las curvas. Los tests no lo vieron porque le pasan tuplas."""
+    a = [(0.0, 0.0), (10.0, 0.0), (20.0, 0.0)]
+    b = [(20.0, 0.0), (30.0, 0.0), (40.0, 0.0)]
+    cad = rg.encadenar_arcos([_qgis(a), _qgis(b)])
+    assert len(cad) == 1
+    assert cad[0][0] == (0.0, 0.0) and cad[0][-1] == (40.0, 0.0)
+    assert len(cad[0]) == 5, cad[0]
+
+
+def test_el_encadenado_da_LO_MISMO_con_tuplas_que_con_puntos_de_QGIS():
+    """Y ademas normaliza: devuelve tuplas siempre, que es lo que promete su
+    docstring y lo que `_densificar_xy` espera."""
+    casos = [
+        [[(0., 0.), (10., 0.), (20., 0.)], [(20., 0.), (30., 0.), (40., 0.)]],
+        [[(0., 0.), (10., 0.), (20., 0.)], [(40., 0.), (30., 0.), (20., 0.)]],
+        [[(-40., 0.), (-20., 0.), (0., 0.)], [(0., 0.), (20., 0.), (40., 0.)],
+         [(0., 0.), (10., 20.), (20., 40.)]],
+        [[(0., 0.), (10., 10.), (20., 0.)], [(20., 0.), (10., -10.), (0., 0.)]],
+    ]
+    for arcos in casos:
+        con_tuplas = rg.encadenar_arcos(arcos)
+        con_qgis = rg.encadenar_arcos([_qgis(a) for a in arcos])
+        assert con_qgis == con_tuplas, arcos
+        for cadena in con_qgis:
+            assert all(isinstance(p, tuple) for p in cadena), cadena
+
+
+def test_densificar_acepta_las_dos_formas_de_punto():
+    pts = [(0.0, 0.0), (30.0, 0.0)]
+    assert rg._densificar_xy(_qgis(pts), 10.0) == rg._densificar_xy(pts, 10.0)
+
+
+def test_el_doble_de_punto_rechaza_la_rebanada_como_el_de_verdad():
+    """Si este test se cae es que el doble ha dejado de ser fiel, y entonces los
+    de arriba no prueban lo que dicen probar."""
+    import math as _m
+    p = _PtXY(3.0, 4.0)
+    assert (p[0], p[1], len(p)) == (3.0, 4.0, 2)
+    assert tuple(p) == (3.0, 4.0)               # desempaquetado x, y = p
+    assert _m.dist(p, _PtXY(0.0, 0.0)) == 5.0   # math.dist SI funciona
+    for mal in (lambda: p[:2], lambda: p[::-1]):
+        try:
+            mal()
+        except TypeError:
+            pass
+        else:
+            raise AssertionError("la rebanada tenia que fallar")
 
 
 # ============ generalidad del encadenado: regla de oro nº 2 (AGENTS.md)

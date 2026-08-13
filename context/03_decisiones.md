@@ -6,6 +6,67 @@ la sustituyó.
 
 ---
 
+## ADR-023 · La divisoria es equidistante de la LÍNEA DE VALLE, no del eje
+
+**Fecha**: 2026-08-13 · **Estado**: aceptada · **Origen**: B-045
+
+**Contexto.** La partición de subcuencas se hacía por Voronoi de los vértices del
+**eje meandriforme** (`d.puntos`). La divisoria heredaba así la ondulación del
+meandro: su forma en planta dependía de la amplitud y del **desfase relativo**
+entre dos cauces vecinos. Con las dos ondas en fase la equidistante ondula ~6 m
+de pico a pico (medido sobre geometría sintética con 6 m de amplitud); con fases
+opuestas la simetría lo cancela. O sea, la divisoria dependía de algo que no la
+debería gobernar.
+
+**Decisión.** La fuente de la partición es la **polilínea de fondo de valle**
+(`d.dens`), que es lo que dibuja el usuario y lo que el método llama *valley
+input line*. `ridges._muestras_de_valle()` es la única puerta.
+
+**Fundamento documental.**
+
+> *«The main ridgelines are shown between the tributary channels and are
+> **sub-parallel to the channels**»* — Natural Regrade Module, p. 36-37.
+>
+> El Preview muestra *«main ridgelines (yellow) and **valley centerlines (more
+> linear blue)**»*, con los ejes dibujados *«**around** the more linear valley
+> input lines»* — LIBRO p. 242, pie de la fig. 9-13.
+>
+> *«…ridgelines spaced at a predetermined location (e.g., **substantially evenly
+> spaced**) between channels»* — patente US7596418, módulo de ridgeline 52.
+
+**Fundamento medido** (Ej_2, `|d₁ − d₂|` por vértice): el original está a
+**0.02–0.73 m** de la equidistancia respecto a las líneas de valle y a 1.0–2.9 m
+respecto a los ejes. Nosotros estábamos justo al revés.
+
+**Consecuencias.**
+
+- El área de cada subcuenca cambia entre −1.21 % y +1.97 %, y con ella `Qpk`.
+  Aceptado: está por debajo de la incertidumbre del propio método racional.
+- `_geoms_ejes()` **sigue devolviendo el eje meandriforme**, y tiene que seguir
+  haciéndolo: la distancia cauce-divisoria que gobierna la cota de ladera se mide
+  al agua de verdad, no a la línea de valle. Hay una prueba que lo fija para que
+  nadie lo «simetrice» por analogía.
+- El paso de muestreo es **irrelevante** (0.5, 1 y 5 m dan el mismo resultado),
+  así que no hay ninguna constante nueva que calibrar.
+
+**Y una corrección a P-23.** El libro (p. 180, §7.4.3) dice que el objetivo de
+pendiente máxima se cumple *«the ridgeline must move towards the valley on the
+other side of the ridge»*, y P-23 lo tenía anotado como «pieza del método sin
+implementar». **La medida dice que no es parte del borrador automático**: en el
+Ej_2 el original no movió ninguna de sus siete divisorias fuera de la
+equidistancia (|d₁ − d₂| ≤ 0.85 m en todas). Es una **herramienta de edición
+manual** del diseñador, como el resto del capítulo 8. P-23 se reescala.
+
+**Alternativas descartadas.**
+
+| Alternativa | Por qué no |
+|---|---|
+| Suavizar más la divisoria | La ondulación tiene λ ≈ 40–50 m y amplitud de metros; para borrarla habría que dejar la línea sin equidistancia de nada, y seguiría sin coincidir con la del original |
+| Módulo de eje medial exacto por marcha con corrección de Newton | Probado: reproduce el original con 0.04–0.16 m en 3 de 7 divisorias, pero es **inestable donde cambia la pareja de valles relevante** (errores de 1.4–5.3 m y picos espurios de hasta 109°). El Voronoi resuelve gratis los nudos triples y los cambios de pareja |
+| Triangulación de Delaunay etiquetada | Mismo resultado que el Voronoi —es su dual— con código nuevo que mantener |
+
+---
+
 ## ADR-022 · La cota de la divisoria es un DISEÑO, no una envolvente
 
 **Fecha**: 2026-08-11 · **Estado**: aceptada · **Origen**: B-037 ·

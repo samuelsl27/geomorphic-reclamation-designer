@@ -1,7 +1,63 @@
 # Backlog — lo que falta y lo que está a medias
 
-Estado a **v1.0.24**. Actualiza esta página en cada sesión: mueve lo hecho a
-`09_historial_sesiones.md` y añade lo nuevo.
+Estado a **v1.0.24 + tanda de divisorias sin publicar**. Actualiza esta página en
+cada sesión: mueve lo hecho a `09_historial_sesiones.md` y añade lo nuevo.
+
+---
+
+## 🟢 El Ej_2 YA se ha regenerado y medido (2026-08-13)
+
+Se hizo **headless**, con el python de QGIS, sin tocar los GeoPackage del
+usuario: el guión vive en el scratchpad de la sesión (`regenerar_ej2.py`) y
+merece la pena rescatarlo a `scripts/` — es, de hecho, **P-16**.
+
+```
+"C:/Program Files/QGIS 4.2.0/bin/python-qgis.bat" regenerar_ej2.py <salida>
+```
+
+Reproduce la secuencia de `dock._preview` entera y vuelca las capas a
+GeoPackage. Las de entrada (`GRD_Boundary`, `GRD_ValleyBottoms`, el DEM) se leen
+del disco; las de salida se crean en memoria (`modo_almacenamiento='memory'`).
+
+> ⚠️ **`mcp__qgis__execute_code` se cancela siempre**, aunque `ping`,
+> `get_layers` y `reload_plugin` respondan y la herramienta esté en la lista de
+> permitidos de `.claude/settings.local.json`. No se ha averiguado por qué. La
+> vía headless funciona y además es reproducible, así que es la buena.
+
+### Lo medido
+
+| Métrica | Antes (v1.0.24) | **Ahora** | Original |
+|---|---|---|---|
+| `\|d₁−d₂\|` a las líneas de valle *(7 principales)* | 1.92 – 3.35 m | **0.40 – 0.99 m** | 0.02 – 0.73 m |
+| Giro acumulado *(7 principales)* | 32 – 85 °/100 m | **18.7 – 36.3** | 6.5 – 31.3 |
+| Ángulo de giro máximo *(7 principales)* | 30.0° | **21.7°** | 17.3° |
+| Radio de curvatura mínimo *(7 principales)* | 11.6 m | **16.0 m** | 19 m |
+| Giro máximo del eje de canal | **108.7°** | **59.1°** | 85.6° |
+| Sinuosidad máxima de subcresta | **8.318** | **1.102** | 1.052 |
+| Giros de ladera > 90° | **30** | **0** | 0 |
+| Giro máximo de ladera | **180.0°** | **85.7°** | 37.9° |
+| Pasadas de `topology.revisar` | **30** | **4** | — |
+| Nº de divisorias | 11 | **10** | 7 |
+| Criterio topológico límite→confluencia | 4 de 12 | **6 de 10** | **7 de 7** |
+
+### Lo que queda, por orden
+
+1. **B-046, segunda mitad**: tres líneas que no son divisorias (97.1, 42.1,
+   40.4 m). Dos son el brazo sobrante de un nudo triple —sus extremos equidistan
+   de **tres** cauces— y la tercera es un trozo sin unir. Criterio a implementar:
+   **del límite del proyecto a una confluencia**, que acierta 7 de 7 en el
+   original. **No** un umbral de longitud: la legítima más corta del original
+   mide 25.0 m.
+2. **Recalibrar `topology`**: las tolerancias de 2.0 y 2.5 m estaban ajustadas a
+   la equidistancia de los ejes, y B-045 movió la divisoria al eje medial de los
+   valles. Hay que medir el p95 de esa separación en la geometría nueva y subir
+   las dos. Síntoma: 97 subcrestas «sin empalmar: la divisoria más próxima
+   quedaba a una cota inalcanzable».
+3. **Cota del pie de la divisoria** y **arranque del perfil**.
+4. **Emisión de vértices al estilo Carlson**, en `divides.remuestrear` — no en
+   `ridges`, porque el remuestreo deshace unos pasos después cualquier
+   decimación hecha antes.
+5. **Rehacer la tabla de `context/06`** y comprobar el Ej_1 como no-regresión.
 
 > **Numeración**: el proyecto sigue en **1.0.x** mientras no haya nada
 > definitivo. Aunque una versión cambie rótulos visibles, se numera como parche.
@@ -21,6 +77,30 @@ Estado a **v1.0.24**. Actualiza esta página en cada sesión: mueve lo hecho a
   de los nudos triples.
 - **La salida de la confluencia se mezclaba por índice** (B-041), así que el
   final de la mezcla caía en una estación arbitraria.
+
+### Segunda revisión de la 1.0.24 (2026-08-13)
+
+- **La capa del terreno se duplicaba al abrir el proyecto** (B-043) y, al borrar
+  el usuario la copia, el panel se quedaba con el objeto muerto y «Draw Design
+  Surface» reventaba (B-042). Corregido: `dem_layer` es ahora una propiedad que
+  se recupera sola, y ya hay traza en el registro de QGIS.
+- **`encadenar_arcos` rebanaba un `QgsPointXY`** (B-044), así que la red de
+  divisorias, la superficie y las curvas no llegaban a dibujarse. Lo destapó la
+  traza nueva, a la primera.
+
+> ⚠️ **El trabajo de divisorias de la v1.0.24 se midió FUERA de QGIS.** B-044 es
+> el primer fallo que aflora al ejecutarlo dentro, y puede no ser el último:
+> cada corrección destapa el siguiente tramo del camino. Hasta que el Ej_2 no
+> salga entero en QGIS, las medidas de la v1.0.24 siguen sin confirmar.
+
+### P-29 · Elegir superficie de comparación cambia también el DEM 🟡 (nuevo, 2026-08-13)
+
+Visto al corregir B-043, **no tocado**: `_sel_comparacion` llama a `_cargar_dem`,
+con lo que elegir una superficie de comparación sustituye además la superficie
+de **elevaciones** y reescribe `proyecto.ruta_dem`. Puede ser intencionado —en
+el original el terreno previo y la referencia de comparación son el mismo— pero
+está sin decidir en ningún ADR, y ahora que `_cargar_dem` reutiliza capas el
+efecto es más silencioso todavía. Decidir y, o se documenta, o se separan.
 
 ### Pendiente de confirmar en la regeneración
 
@@ -106,7 +186,16 @@ Sospechosos: `holgura_divisoria_m` (4.5 m), `recortar_contra_corredor` y
 `min_divisoria`. No confundir con P-22 (que va de cuántas divisorias hay, no de
 cuánto miden).
 
-### P-23 · La divisoria se coloca en PLANTA para cumplir la pendiente 🟠 (nuevo, 2026-08-11)
+### P-23 · La divisoria se coloca en PLANTA para cumplir la pendiente 🟢 (reescalado 2026-08-13)
+
+> **Ya no es «una pieza del método sin implementar».** Se midió: en el Ej_2 el
+> original **no movió ninguna** de sus siete divisorias fuera de la equidistancia
+> (`|d₁ − d₂| ≤ 0.85 m` en todas, contra las líneas de valle). El desplazamiento
+> que describe el libro es una **herramienta de edición manual** del diseñador,
+> como el resto del capítulo 8, no parte del borrador automático. Ver **ADR-023**.
+> Queda como funcionalidad opcional de la interfaz, no como deuda del motor.
+
+Texto original, por si algún día se implementa como herramienta:
 
 El libro (p. 180, §7.4.3, citado entero en `01_metodo_geofluv.md` §9) dice que
 *maximum straight-line slopes* se cumple **desplazando la divisoria en planta**:
@@ -235,12 +324,27 @@ Son los **únicos 2 errores** que quedan en el caso de prueba (invariante H1:
 y ver si se concentran en un tramo o están repartidas. Si están todas en el mismo
 tramo empinado, es (3).
 
-### P-02 · Espaciado y ángulo de las subcrestas
+### P-02 · Espaciado y ángulo de las subcrestas ✅ (cerrado 2026-08-13)
 
-Nuestro espaciado a lo largo del canal es 15.5 m (original 12.5 m) y el ángulo
-74° (original 64°). Palanca conocida: subir *Angle from sub-ridge to channel's
-perpendicular* de 10° a ~25°. Falta **verificar si es solo calibración** o si el
-motor reparte los ápices de forma distinta al original.
+**El ángulo estaba bien y la desviación era de la regla de medir**, como
+sospechaba P-18. Medido en el pie contra la tangente de la **línea de valle**
+—que es la regla del glosario (p. xxxiv) y la que usa
+`hillslopes.direccion_de_ladera`—, con `angulo_subcresta_deg` = 20 y por tanto un
+esperado de 70°:
+
+| | n | media | p50 | mín | máx |
+|---|---|---|---|---|---|
+| subcrestas ORIGINAL | 119 | 69.5 | **70.0** | 52.8 | 85.5 |
+| subcrestas NUESTRAS | 111 | 70.0 | **70.0** | 63.4 | 78.1 |
+| vaguadas ORIGINAL | 117 | 70.4 | **70.0** | 45.5 | 87.2 |
+| vaguadas NUESTRAS | 108 | 69.8 | **70.0** | 41.1 | 76.6 |
+
+**No hay que tocar `angulo_subcresta_deg`.** Lo que hay que arreglar es
+`comparar_original.angulo()`, que mide contra la tangente del cauce sinuoso.
+
+El espaciado también está en su sitio: 21.8 m de media a lo largo del cauce
+frente a 20.0 del original (que es exactamente `m_fAChannelReach` = 20), y el
+recuento por cuenca es {33, 11, 15, 21, 17, 14} frente a {35, 11, 17, 19, 23, 16}.
 
 ### P-03 · Δz residual en los cruces curva de nivel / cauce
 

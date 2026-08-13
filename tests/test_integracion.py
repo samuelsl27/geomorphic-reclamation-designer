@@ -183,9 +183,19 @@ def crestas(disenos, sub, g_lim, dem, lm):
     from geomorphic_reclamation_designer.core import ridges
     from geomorphic_reclamation_designer.core.params import GlobalSettings
     glob = GlobalSettings()
-    # generar_crestas devuelve (n_crestas, crestas_3d): las 3D las consume
-    # después generar_subcrestas, aquí solo interesa el recuento.
-    n, crestas_3d = ridges.generar_crestas(disenos, sub, g_lim, glob, dem, lm)
+    # generar_crestas devuelve (n_crestas, crestas_3d, peor_exceso): las 3D las
+    # consume después generar_subcrestas, y `peor_exceso` es cuánto rebasa el
+    # techo de ladera la peor cresta, que el panel informa y no recorta
+    # (ADR-022). Aquí solo interesa el recuento.
+    #
+    # OJO: esto desempaquetaba DOS valores de una tupla de TRES, así que el paso
+    # reventaba con ValueError... y no se notaba, porque `conftest.collect_ignore`
+    # se salta este fichero entero cuando no hay QGIS y la CI no lo tiene. Es
+    # decir: la única prueba de extremo a extremo que detectaría una regresión de
+    # recuento de divisorias o de cobertura de subcuencas llevaba desde la
+    # v1.0.21 sin ejecutarse. Mismo patrón que B-021.
+    n, crestas_3d, _peor_exceso = ridges.generar_crestas(
+        disenos, sub, g_lim, glob, dem, lm)
     assert n >= 3, n
     assert len(crestas_3d) == n, (len(crestas_3d), n)
     g = next(lm.obtener_capa("GRD_Ridges").getFeatures()).geometry()
