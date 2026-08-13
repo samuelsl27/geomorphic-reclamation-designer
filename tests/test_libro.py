@@ -83,14 +83,15 @@ def test_el_reach_de_canal_A_es_media_longitud_de_meandro():
 
     En `planform.trazar_canal` la onda del tramo A usa `lam_A = 2.0 * reach_A`,
     que es exactamente esa relacion despejada. La misma relacion fija la ventana
-    de mezcla entre las dos ondas (`largo_mezcla = 2.0 * reach_A`, B-047): una
-    longitud de meandro del canal A.
+    de mezcla entre las dos ondas (`largo_mezcla = min(2.0 * reach_A, ...)`,
+    B-047): una longitud de meandro del canal A, acotada a media longitud del
+    canal para que en un canal corto no se coma la traza entera.
     """
     ruta = os.path.join(os.path.dirname(__file__), "..", "src", "geomorphic_reclamation_designer", "core", "planform.py")
     src = open(ruta, encoding="utf-8").read()
     assert "lam_A = 2.0 * reach_A" in src, \
         "el tramo A ya no usa reach = media longitud de meandro"
-    assert "largo_mezcla = 2.0 * reach_A" in src, \
+    assert "largo_mezcla = min(2.0 * reach_A" in src, \
         "la ventana de mezcla ya no es una longitud de meandro del canal A"
 
 

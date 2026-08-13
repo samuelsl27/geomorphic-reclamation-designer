@@ -181,7 +181,10 @@ def trazar_canal(dens, perfil, s_transicion, q_en, settings_canal, settings_glob
     # Ventana de mezcla entre las dos ondas: UNA longitud de meandro del canal A
     # (el 'reach' es media longitud de meandro, LIBRO p. 35), mitad a cada lado
     # de la transición. Ver `_peso_de_mezcla`.
-    largo_mezcla = 2.0 * reach_A
+    # …acotada a media longitud del canal: con un 'reach' grande frente a un
+    # canal corto la ventana se comería la traza entera y no habría ni zigzag ni
+    # meandro, solo la mezcla de los dos.
+    largo_mezcla = min(2.0 * reach_A, 0.5 * max(perfil.L, 1e-6))
 
     # fase acumulada y factores aleatorios por meandro
     puntos = []

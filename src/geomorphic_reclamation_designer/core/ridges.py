@@ -849,14 +849,21 @@ def encadenar_arcos(arcos, tol=TOL_NUDO, largo_tangente=LARGO_TANGENTE):
     return cadenas
 
 
-MARGEN_TERCER_CAUCE = 1.0    # m; por debajo de esta diferencia entre el segundo
-                             # y el tercer cauce más próximos, el punto es un
-                             # NUDO TRIPLE y no se puede decir qué dos cuencas
-                             # separa. Ver `_separa` y B-050.
-TOL_LIMITE_DIVISORIA = 3.0   # m; las cadenas nacen a 0.5 m del contorno porque
-                             # `banda_limite` es `contorno.buffer(0.5)`, así que
-                             # basta con absorber ese medio metro y el ruido de
-                             # las operaciones geométricas
+# Un punto es un NUDO TRIPLE si el tercer cauce está tan cerca como el segundo, y
+# ahí no se puede decir qué dos cuencas separa la divisoria. El margen es RELATIVO
+# a la propia distancia y no un número de metros: en una cuenca con los cauces a
+# 40 m y en otra con los cauces a 400 el nudo triple es el mismo fenómeno, y un
+# umbral fijo valdría en una y no en la otra. El 2 % con un suelo de 10 cm cubre
+# el caso medido en el Ej_2 (42.76 y 42.78 m, o sea 0.05 %) con dos órdenes de
+# margen. Ver `_separa` y B-050.
+MARGEN_TERCER_CAUCE_PCT = 0.02
+MARGEN_TERCER_CAUCE_MIN = 0.10   # m, suelo para cauces muy juntos
+# Anchura de la banda del límite que se excluye de las divisorias. Las cadenas
+# nacen justo fuera de ella, así que es también la escala de la tolerancia con la
+# que se decide si una cadena «toca el límite»: las dos salen de aquí para que no
+# puedan separarse.
+BANDA_LIMITE = 0.5           # m
+TOL_LIMITE_DIVISORIA = 6.0 * BANDA_LIMITE
 
 
 def toca_el_limite(rama, contorno, tol=TOL_LIMITE_DIVISORIA):
@@ -907,7 +914,8 @@ def _separa(dens, i, pareja, geoms):
     x, y = dens[i][0], dens[i][1]
     g = QgsGeometry.fromPointXY(QgsPointXY(x, y))
     d = sorted(((ge.distance(g), n) for n, ge in geoms.items()))
-    if len(d) > 2 and d[2][0] - d[1][0] < MARGEN_TERCER_CAUCE:
+    margen = max(MARGEN_TERCER_CAUCE_MIN, MARGEN_TERCER_CAUCE_PCT * d[1][0])
+    if len(d) > 2 and d[2][0] - d[1][0] < margen:
         # NUDO TRIPLE: el tercer cauce está tan cerca como el segundo, así que
         # «los dos que separa» es una moneda al aire y la respuesta no significa
         # nada. Medido en el Ej_2, el corte que quedaba caía en un punto a
@@ -1151,7 +1159,7 @@ def generar_crestas(disenos, subcuencas, g_lim, glob, dem, lm):
     # franja mínima para excluir SOLO los tramos de divisoria que discurren
     # pegados sobre el propio límite (la cresta debe llegar al borde, no
     # recorrerlo)
-    banda_limite = contorno.buffer(0.5, 4)
+    banda_limite = contorno.buffer(BANDA_LIMITE, 4)
     # longitud mínima de una divisoria con sentido físico
     long_min = max(4.0 * PASO_CRESTA, glob.max_dist_cresta_cabecera)
     peor_exceso = 0.0       # cuánto rebasa el techo de ladera la peor cresta

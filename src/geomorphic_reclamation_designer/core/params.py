@@ -73,6 +73,13 @@ class GlobalSettings:
     # de una misma línea, con más de la mitad de los tramos por debajo de 3 m:
     # vértices de sobra que no añaden forma y sí ensucian la triangulación.
     max_dist_vertices_cresta: float = 6.1         # m
+    # 'm_fMaxDistOnVertCurves' del mismo fichero .geo: separación máxima entre
+    # vértices sobre una CURVA VERTICAL, o sea las líneas de ladera. En el Ej_2
+    # vale 3.0 m, la mitad que el de las crestas, y encaja con lo medido en su
+    # salida: sus subcrestas y vaguadas llevan 33.4 vértices por cada 100 m
+    # (mediana de 25 vértices en 78.4 m), mientras que las nuestras iban a 4.00 m
+    # fijos —25 por 100 m— midiera la línea 21 m o 125.
+    max_dist_vertices_curvas: float = 3.0         # m
     # --- 'Triangulate and Contour From TIN' (ventana de Draw Design Surface) ---
     resolucion_dem: float = 1.0                   # m, tamaño de celda de GRD_DesignSurface
     naturalidad: int = 3                          # 0-10, pasadas del filtro de redondeo

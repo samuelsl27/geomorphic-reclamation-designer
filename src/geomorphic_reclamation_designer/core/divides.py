@@ -230,9 +230,13 @@ TOL_TRAZA_CRESTA = 0.5     # m que se le permite recortar a una curva cerrada al
                            # holgura con que la divisoria se para del cauce.
 
 
-TOL_ADELGAZADO = 0.03      # m de desviación por debajo de la cual un vértice de
-                           # la retícula no aporta forma y sobra. Ver
-                           # `_adelgazar_colineales`.
+# Desviación por debajo de la cual un vértice de la retícula no aporta forma y
+# sobra, como FRACCIÓN DEL PASO y no en metros: el adelgazado tiene que
+# comportarse igual con `max_dist_vertices_cresta` = 6.1 m que con 2 o con 30,
+# y un número fijo de centímetros sería muy permisivo con el paso corto y muy
+# estricto con el largo. El 0.5 % del paso son 3 cm con los 6.1 m del Ej_2, que
+# es lo calibrado contra el histograma del original. Ver `_adelgazar_colineales`.
+TOL_ADELGAZADO_PCT = 0.005
 SALTO_MAX_ADELGAZADO = 5   # estaciones que puede saltarse el adelgazado. El
                            # original no pasa de 5 (un hueco de 30.5 m con paso
                            # de 6.1), y ese es el tope que se copia.
@@ -241,7 +245,7 @@ MIN_VERTICES_ADELGAZADO = 4   # por debajo de esto no se adelgaza: una linea de
                            # dejarla en dos la convierte en un segmento suelto.
 
 
-def _adelgazar_colineales(pts, tol=TOL_ADELGAZADO, salto_max=SALTO_MAX_ADELGAZADO):
+def _adelgazar_colineales(pts, tol, salto_max=SALTO_MAX_ADELGAZADO):
     """Quita los vértices de la retícula que no aportan forma en planta.
 
     El original **no emite un vértice cada 6.1 m**: emite una retícula de 6.1 m
@@ -361,7 +365,8 @@ def remuestrear(pts, paso, tol=TOL_TRAZA_CRESTA):
                 if 0.0 < vecina < L and abs(vecina - si) < sep_min:
                     muestras.pop(vecina, None)
             muestras[si] = p
-    return _adelgazar_colineales([muestras[k] for k in sorted(muestras)])
+    return _adelgazar_colineales([muestras[k] for k in sorted(muestras)],
+                                 TOL_ADELGAZADO_PCT * paso)
 
 
 def _dist_a_segmento(p, a, b):

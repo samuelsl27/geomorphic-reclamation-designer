@@ -197,6 +197,41 @@ def direccion_de_ladera(tx, ty, signo, ang):
             ny * math.cos(ang) - ty * math.sin(ang))
 
 
+def _remuestrear_xy(pts, paso):
+    """Vértices de una línea de ladera a un paso máximo `paso`, sobre su propia
+    traza y conservando los DOS extremos.
+
+    Se reparte en partes iguales, igual que `divides.remuestrear`: es una
+    distancia MÁXIMA, así que se sube al entero siguiente y el paso real queda
+    entre `paso`/2 y `paso`, nunca por encima, y sin el muñón que dejaría
+    caminar a paso fijo desde un extremo.
+
+    Los extremos no se tocan nunca: el de abajo es el borde del cauce y el de
+    arriba es el punto exacto donde la marcha se detuvo —sobre la divisoria, en
+    el límite del proyecto o sobre otra línea de ladera—, y de ahí cuelga la
+    cota (B-034)."""
+    if paso <= 0 or len(pts) < 2:
+        return list(pts)
+    s = [0.0]
+    for a, b in zip(pts[:-1], pts[1:]):
+        s.append(s[-1] + math.hypot(b[0] - a[0], b[1] - a[1]))
+    L = s[-1]
+    if paso >= L:
+        return list(pts)
+    n = max(2, int(math.ceil(L / paso - 1e-9)))
+    out, j = [], 0
+    for k in range(n + 1):
+        si = L * k / n
+        while j < len(s) - 2 and s[j + 1] < si:
+            j += 1
+        tr = (si - s[j]) / max(s[j + 1] - s[j], 1e-9)
+        tr = max(0.0, min(1.0, tr))
+        out.append((pts[j][0] + tr * (pts[j + 1][0] - pts[j][0]),
+                    pts[j][1] + tr * (pts[j + 1][1] - pts[j][1])))
+    out[0], out[-1] = pts[0], pts[-1]
+    return out
+
+
 def _z_en_linea(geom_xy, zs, pt):
     """Cota de la polilínea (geom_xy, zs) en el vértice más próximo a pt."""
     try:
@@ -300,6 +335,15 @@ def _trazar_ladera(origen, direccion, propio, geoms, g_lim, disenos, s_max,
     D = sum(math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(pts_xy[:-1], pts_xy[1:]))
     if D < PASO_MARCHA:
         return None
+    # El paso de MARCHA no tiene por qué ser el paso de EMISIÓN. La marcha avanza
+    # a 4 m porque ese es el grano con el que se busca dónde termina la línea; los
+    # vértices que se emiten son los de la curva vertical, y su separación máxima
+    # es un ajuste propio —'m_fMaxDistOnVertCurves', 3.0 m en el Ej_2—. Medido en
+    # la salida del original: 33.4 vértices por cada 100 m de línea de ladera,
+    # contra los 25 que dejaban los 4.00 m fijos.
+    paso_vert = getattr(glob, "max_dist_vertices_curvas", 0.0) if glob else 0.0
+    if paso_vert and paso_vert > 0:
+        pts_xy = _remuestrear_xy(pts_xy, paso_vert)
     if callable(convexo_m):
         conv_total = convexo_m(D)
     else:
