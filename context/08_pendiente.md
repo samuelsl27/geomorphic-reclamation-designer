@@ -197,7 +197,16 @@ divisoria sobre la coronación de orilla (`Corredor.cota_borde`). La magnitud
 sigue siendo decisión nuestra (ADR-020): el libro no da ninguna cifra.
 
 
-### P-26 · Nuestras divisorias se quedan ~100 m cortas por abajo 🟠 (nuevo, 2026-08-11)
+### P-26 · Nuestras divisorias se quedan ~100 m cortas por abajo ✅ (cerrado 2026-08-13)
+
+> **No estaban cortas: estaban partidas.** `cresta 5`+`6` = 389.5 m frente a
+> 383.8 de la fid 1921, y `cresta 8`+`9` = 320.2 frente a 325.5 de la 1882.
+> Emparejando por geometría y no por longitud, los siete residuos son ≤ 12 m.
+> Ver **B-046**. Total actual 2067.3 m frente a 2102.9 del original (−1.7 %).
+
+Texto original:
+
+### P-26 (histórico) · Nuestras divisorias se quedan ~100 m cortas por abajo
 
 Las dos parejas comparadas: 346 m frente a 454, y 290 frente a 397. Y acaban más
 altas: z=292 frente a 281, z=288 frente a 279. Con la boca del cauce a 275, el
@@ -254,7 +263,22 @@ esto. Es el mismo tipo de error de transcripción que se corrigió en el Ej_2
 (R1↔R4 y R2↔R3 cambiados, B-022): mirar los datos de entrada **antes** de medir
 la salida.
 
-### P-22 · ¿Sobran divisorias cortas? 🟠 (nuevo, 2026-08-11)
+### P-22 · ¿Sobran divisorias cortas? ✅ (cerrado 2026-08-13)
+
+> **Sí sobraban, y el motivo no era ningún umbral.** Eran dos cosas: cadenas
+> partidas por confluencias **ajenas** (`_partir_en_confluencias` no sabía de qué
+> dos cauces era cada confluencia y cortaba en la primera que le cayera a menos
+> de 50 m) y el **brazo sobrante de cada nudo triple**, que sale con los dos
+> extremos en el interior. Ver **B-046**. De 11 divisorias a **7**, que son las
+> que tiene el original.
+>
+> Y la decisión de no tocar los umbrales fue la correcta: la divisoria legítima
+> más corta del original mide **25.0 m**, o sea menos que los brazos que había
+> que tirar. Cualquier umbral de longitud los habría matado a los dos.
+
+Texto original:
+
+### P-22 (histórico) · ¿Sobran divisorias cortas?
 
 Con el clasificador ya calibrado (ADR-021), en el Ej_2 tenemos **13 divisorias
 y 2265 m** frente a **7 y 2103 m** del original, y generamos tres de 46, 46 y
@@ -302,7 +326,17 @@ Umbrales que deben cumplirse en el Ej_2 (el «antes» está en `context/06`):
 | Cabecera de main L1 | 23.67 % | 15.4 ± 1 % | 16.16 % |
 | Cabecera de main R4 | 32.72 % | 17.44 ± 1 % | 18.29 % |
 
-### P-18 · Las líneas de relieve son menos y más cortas que las del original 🔴 (nuevo)
+### P-18 · Las líneas de relieve son menos y más cortas que las del original ✅ (cerrado 2026-08-13)
+
+> **El ángulo no era un bug y ya está confirmado con la regla correcta** (ver
+> P-02). Y la densidad de vértices, que era la otra mitad, ya está: 36.0 por cada
+> 100 m frente a los 34.2 del original, contra los 27.2 que había. La longitud
+> total de líneas de ladera sigue por debajo (219 líneas frente a 237), y eso es
+> lo único que queda de este punto.
+
+Texto original:
+
+### P-18 (histórico) · Las líneas de relieve son menos y más cortas
 
 Medido en el Ej_2 **antes** de esta ronda: 218 líneas frente a 244, longitud
 total 14 352 m frente a 19 705 m (**−27 %**), una línea cada 13.0 m de cauce

@@ -5,6 +5,67 @@ terminar.** Plantilla al final.
 
 ---
 
+## 2026-08-13 · v1.0.25 — la divisoria era equidistante de la línea equivocada
+
+**Versión**: 1.0.25. Regenerada y medida en QGIS **headless**; falta mirarla en
+la interfaz y rehacer la tabla de `context/06`.
+
+**De dónde salió.** Samuel dijo que las crestas que separan las cuencas seguían
+saliendo más quebradas que las del original, con un pico raro, un enlace extraño
+entre el tramo zigzag y el sinuoso, y crestas de subcuenca donde el original no
+pone ninguna. Cuatro zonas marcadas en rojo sobre una captura.
+
+**Lo que desatascó el diagnóstico** fue medir `|d₁ − d₂|` —la diferencia de
+distancias a los dos cauces más próximos— en cada vértice de las divisorias del
+original, contra dos referencias distintas: sus **líneas de valle** y sus **ejes
+meandriformes**. Sale 0.02–0.73 m contra las primeras y 1.0–2.9 m contra los
+segundos. Nosotros, exactamente al revés. Todo lo demás salió de ahí.
+
+**La cadena de correcciones**, cada una destapando la siguiente:
+
+1. **B-045**, la fuente del Voronoi: las líneas de valle, no los ejes.
+2. **B-049**, regresión que creó la anterior: `hillslopes` seguía parando la
+   marcha en la equidistancia de los ejes. Detectada **antes** de regenerar,
+   midiendo la separación entre las dos curvas (mediana 1.12 m, p99 7.52).
+3. **B-046**, el troceado: confluencias ajenas y brazos de nudo triple. De 11
+   divisorias a **7**, las mismas que el original.
+4. **B-047**, el enlace A↔sinuoso: las dos ondas compartían una sola fase.
+5. **B-048** y **B-050**, los picos de las líneas de ladera: un ping-pong entre
+   dos divisorias que se comía las 30 pasadas de `revisar`, y una cola de
+   empalme que apuntaba al punto más próximo en vez de a donde va la línea.
+6. **B-051**, la cota: el pie se anclaba a la rasante y el perfil llevaba un pie
+   cóncavo de 75 m.
+7. **B-052**, la emisión: el original pone una retícula y **borra** los vértices
+   que caen sobre la recta.
+
+**Dos veces me equivoqué y hubo que corregirlo con datos**: dije que el original
+tenía 6 divisorias (tiene **7**; descarté la fid 1957 sin comprobarla) y dije que
+dos de las nuestras se quedaban 96 m cortas (estaban **partidas**). El
+clasificador fiable de divisoria no es la longitud ni la equidistancia: es la
+**malla de emisión de 6.10 m**.
+
+**Lo que se midió y NO se cambió.** El desacuerdo entre las dos particiones del
+territorio —la rejilla de `builder`, que alimenta el caudal, y el Voronoi de
+`ridges`, que dibuja las divisorias— es de −1.03 % a +0.68 % por cuenca y +0.01 %
+en total. Unificarlas es reordenar `builder.construir()` entero, y no se hace por
+un 1 %.
+
+**Infraestructura.** `mcp__qgis__execute_code` se cancelaba siempre, aunque
+`ping` y `get_layers` respondieran. La salida fue
+`scripts/regenerar_en_qgis_headless.py`, que reproduce `dock._preview` entero con
+el python de QGIS sin tocar los GeoPackage del usuario — y que cierra **P-16**.
+De paso apareció que `tests/test_integracion.py` desempaquetaba dos valores de
+una tupla de tres y llevaba **desde la v1.0.21 sin ejecutarse**, porque
+`conftest` se salta ese fichero cuando no hay QGIS y la CI no lo tiene.
+
+**Revisión de generalidad.** A petición de Samuel se repasaron las constantes
+nuevas: cuatro estaban en metros y atadas a la escala del Ej_2 (el margen del
+nudo triple, la tolerancia del límite, la ventana de mezcla y la del adelgazado).
+Las cuatro pasan a ser relativas — porcentaje de la distancia, múltiplo de la
+banda del límite, fracción de la longitud del canal y fracción del paso.
+
+---
+
 ## 2026-08-10 · v1.0.20 — la forma del relieve de ladera
 
 **Versión**: 1.0.20, **sin cerrar**: falta medirla en QGIS (P-17).

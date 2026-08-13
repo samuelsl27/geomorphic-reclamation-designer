@@ -20,9 +20,9 @@ import traceback
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-EJ = r"C:\Samuel\Software_en_desarrollo\IMGA_Geofluv\Ejemplos\Ej_2_Rom_Pla"
-GRD = os.path.join(EJ, "GRD_Files")
-PROY = os.path.join(GRD, "GRD_Rom_Pla_File.grd.json")
+# Carpeta del ejemplo: se puede pasar por argumento para correr cualquier
+# proyecto, no solo el que se usa para depurar.
+EJ_POR_DEFECTO = r"C:\Samuel\Software_en_desarrollo\IMGA_Geofluv\Ejemplos\Ej_2_Rom_Pla"
 
 sys.path.insert(0, os.path.join(RAIZ, "src"))
 
@@ -59,11 +59,17 @@ def log(msg):
     print(msg, flush=True)
 
 
-def main(salida):
+def main(salida, ejemplo=EJ_POR_DEFECTO):
+    global GRD
+    GRD = os.path.join(ejemplo, "GRD_Files")
+    proys = [f for f in os.listdir(GRD) if f.endswith(".grd.json")]
+    if not proys:
+        raise RuntimeError(f"no hay ningun .grd.json en {GRD}")
+    proy = os.path.join(GRD, proys[0])
     os.makedirs(salida, exist_ok=True)
     QgsProject.instance().setCrs(QgsCoordinateReferenceSystem("EPSG:25830"))
 
-    p = Proyecto.cargar(PROY)
+    p = Proyecto.cargar(proy)
     # NO escribir en la carpeta del usuario: todo en memoria
     p.settings.modo_almacenamiento = "memory"
     p.settings.carpeta_capas = ""
@@ -152,7 +158,8 @@ def main(salida):
 if __name__ == "__main__":
     try:
         main(sys.argv[1] if len(sys.argv) > 1 else os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "salida"))
+                 os.path.dirname(os.path.abspath(__file__)), "salida"),
+             sys.argv[2] if len(sys.argv) > 2 else EJ_POR_DEFECTO)
     except Exception:
         traceback.print_exc()
         sys.exit(1)

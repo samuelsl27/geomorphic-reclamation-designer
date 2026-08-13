@@ -6,7 +6,7 @@ Versionado [SemVer](https://semver.org/lang/es/).
 Los códigos `B-0xx` remiten a [`context/04_bugs_resueltos.md`], los `ADR-0xx` a
 [`context/03_decisiones.md`] y los `P-xx` a [`context/08_pendiente.md`].
 
-## [No publicado]
+## [1.0.25] — 2026-08-13
 
 **La divisoria de cuenca era equidistante de la línea equivocada.** Samuel señaló
 que las crestas que separan las cuencas siguen saliendo más quebradas que las del

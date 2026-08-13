@@ -37,7 +37,7 @@ from ..core.compat import (filtro_capas_raster, filtro_capas_poligono,
                            filtro_capas_linea, nivel_msg, capa_viva)
 from .settings_dialog import SettingsDialog
 
-VERSION = "1.0.24"
+VERSION = "1.0.25"
 
 # Ancho mínimo del CONTENIDO del panel (no del panel): por debajo de esto
 # los controles se solaparían, así que aparece la barra horizontal.

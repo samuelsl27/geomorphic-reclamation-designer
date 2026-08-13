@@ -291,10 +291,27 @@ de los ejes de canal, disuelta por canal y unida en cadenas continuas.
 > `ridges._partir_en_confluencias()` parte la cadena en la confluencia y genera
 > las dos, cada una anclada ahí en X, Y y Z.
 
-Perfil longitudinal de la divisoria: **desciende con fuerte pendiente**. Medido
-en el original: **41 % de media, 73 % de máximo**. Por eso **no** se le aplica
-`pendiente_max_pct` (que es el máximo de *ladera*); solo actúa
-`MAX_PENDIENTE_FILO = 100 %` como cortapicos.
+La fuente de la equidistancia es la **línea de fondo de valle**, no el eje
+meandriforme: ver **ADR-023** y **B-045**. Medido en la salida del original,
+`|d₁ − d₂|` de cada vértice de sus siete divisorias vale **0.02 – 0.73 m**
+respecto a las líneas de valle y 1.0 – 2.9 m respecto a los ejes.
+
+Y la red se compone de **siete** divisorias en el Ej_2, no seis: el clasificador
+fiable no es la longitud ni la equidistancia, es la **malla de emisión de
+6.10 m** (`m_fMaxDistOnRidges`), en la que las siete tienen ≥ 88 % de sus
+segmentos y ninguna otra línea de `GF_Ridges` pasa de 0.40.
+
+Perfil longitudinal de la divisoria: **desciende con fuerte pendiente**. Por eso
+**no** se le aplica `pendiente_max_pct` (que es el máximo de *ladera*); solo
+actúa `MAX_PENDIENTE_FILO = 100 %` como cortapicos.
+
+⚠️ **Cifra corregida.** Aquí decía «41 % de media, 73 % de máximo». Remedido
+sobre las **siete** divisorias del original —clasificadas por la malla de
+6.10 m—, sale **8.9 – 15.5 % de media y 14.8 – 33.0 % de máximo**. El 41/73 salía
+de medir sobre el conjunto amarillo entero de `GF_Ridges`, que incluye las 120
+subcrestas, y esas sí van al 15 – 41 %. La conclusión de fondo no cambia (la
+divisoria desciende más que el objetivo de ladera y no se le aplica), pero el
+número que había era de otra población.
 
 Esto ya no descansa solo en la medida: el libro lo dice, y de paso dice **cuál
 es el mando de verdad** (p. 180, §7.4.3, verificado literal):
