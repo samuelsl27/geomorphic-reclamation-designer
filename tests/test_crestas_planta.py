@@ -185,6 +185,8 @@ class _GeomFalsa:
         return _GeomFalsa([(p[0], p[1])])
 
     def distance(self, otra):
+        if len(self.pts) == 1 and len(otra.pts) > 1:
+            return otra.distance(self)
         px, py = otra.pts[0]
         mejor = float("inf")
         for a, b in zip(self.pts[:-1], self.pts[1:]):
@@ -271,6 +273,38 @@ def test_sin_geoms_se_comporta_como_antes():
     conf = [(100.0, -38.0, 55.0, frozenset(("C", "B")))]
     ramas = rg._partir_en_confluencias(dens, conf, tol=50.0)
     assert len(ramas) == 2
+
+
+# --------------------- B-046: una divisoria llega al limite del proyecto
+def _contorno(lado=1000.0):
+    return _GeomFalsa([(0.0, 0.0), (lado, 0.0), (lado, lado), (0.0, lado),
+                       (0.0, 0.0)])
+
+
+def test_una_cadena_con_un_extremo_en_el_limite_es_divisoria():
+    """Las 7 divisorias del original tienen un extremo a 0.00 m del limite y el
+    otro a 70-135 m. Las cadenas nacen a 0.5 m porque `banda_limite` es
+    `contorno.buffer(0.5)`."""
+    rama = [(0.5, 500.0), (100.0, 500.0), (300.0, 500.0)]
+    assert _con_geoms_falsas(lambda: rg.toca_el_limite(rama, _contorno())) is True
+    assert _con_geoms_falsas(
+        lambda: rg.toca_el_limite(rama[::-1], _contorno())) is True
+
+
+def test_una_cadena_interior_por_los_dos_extremos_no_lo_es():
+    """El brazo sobrante de un nudo triple: `encadenar_arcos` cose la pareja mas
+    enfrentada y deja el tercero suelto, con los DOS extremos dentro."""
+    rama = [(300.0, 400.0), (350.0, 450.0), (400.0, 500.0)]
+    assert _con_geoms_falsas(lambda: rg.toca_el_limite(rama, _contorno())) is False
+
+
+def test_el_criterio_no_es_de_longitud():
+    """La divisoria legitima mas corta del original mide 25.0 m, asi que un
+    umbral que matara los brazos de 40 m mataria divisorias buenas."""
+    corta = [(0.5, 500.0), (12.0, 505.0), (25.0, 510.0)]      # 25 m, al limite
+    larga = [(300.0, 300.0), (400.0, 400.0), (500.0, 500.0)]  # 283 m, interior
+    assert _con_geoms_falsas(lambda: rg.toca_el_limite(corta, _contorno())) is True
+    assert _con_geoms_falsas(lambda: rg.toca_el_limite(larga, _contorno())) is False
 
 
 # ------------------------------------------------------------ invariante

@@ -21,18 +21,19 @@ salida original del Ej_2 contra la nuestra apareció la causa de casi todo.
 
 | Métrica | Antes (v1.0.24) | **Ahora** | Original |
 |---|---|---|---|
-| `\|d₁−d₂\|` a las líneas de valle *(7 principales)* | 1.92 – 3.35 m | **0.40 – 0.99 m** | 0.02 – 0.73 m |
-| Giro acumulado *(7 principales)* | 32 – 85 °/100 m | **18.7 – 36.3** | 6.5 – 31.3 |
-| Ángulo de giro máximo *(7 principales)* | 30.0° | **21.7°** | 17.3° |
-| Radio de curvatura mínimo *(7 principales)* | 11.6 m | **16.0 m** | 19 m |
+| Nº de divisorias | 11 | **7** | **7** |
+| Longitud total de divisorias | 2188.8 m | **1981.0 m** | 2102.9 m |
+| `\|d₁−d₂\|` a las líneas de valle | 1.92 – 3.35 m | **0.40 – 0.99 m** | 0.02 – 0.73 m |
+| Giro acumulado | 32 – 85 °/100 m | **18.7 – 36.3** | 6.5 – 31.3 |
+| Ángulo de giro máximo | 30.0° | **21.9°** | 17.3° |
+| Radio de curvatura mínimo | 11.6 m | **15.8 m** | 19 m |
+| Criterio topológico límite→confluencia | 4 de 12 | **6 de 7** | 7 de 7 |
 | Giro máximo del eje de canal | **108.7°** | **59.1°** | 85.6° (arco de cabecera) |
 | Sinuosidad máxima de subcresta | **8.318** | **1.102** | 1.052 |
 | Giros de ladera > 90° | **30** | **0** | 0 |
-| Giros de ladera > 60° | 34 | **11** | 0 |
+| Giros de ladera > 60° | 34 | **10** | 0 |
 | Giro máximo de ladera | **180.0°** | **85.7°** | 37.9° |
 | Pasadas de `topology.revisar` | **30** (no convergía) | **4** | — |
-| Nº de divisorias | 11 | **10** | 7 |
-| Criterio topológico límite→confluencia | 4 de 12 | **6 de 10** | **7 de 7** |
 
 - 🔴 **La divisoria se calculaba equidistante del EJE MEANDRIFORME** (B-045). El
   método la quiere equidistante de las **polilíneas de fondo de valle**, que es
@@ -116,7 +117,18 @@ salida original del Ej_2 contra la nuestra apareció la causa de casi todo.
   Ahora cada confluencia lleva su pareja de cauces y solo parte la cadena donde
   los dos cauces más próximos son precisamente esos dos; un cruce con un cauce
   (`pareja = None`) sigue partiendo siempre, porque eso es agua en medio.
-  De 12 divisorias a **10**, y el criterio topológico pasa de 4 de 12 a **6 de 10**.
+- 🔴 **Y el brazo sobrante de cada nudo triple salía como divisoria** (B-046,
+  segunda mitad). `encadenar_arcos` cose la pareja más enfrentada de cada nudo y
+  deja el tercero suelto; ese brazo tiene **los dos extremos en el interior**.
+  El criterio es topológico: **una divisoria separa dos subcuencas, nace en la
+  confluencia donde sus aguas se juntan y se aleja hasta salir del área de
+  diseño**, así que un extremo llega siempre al límite. Verificado sobre el
+  original: sus siete divisorias tienen un extremo a **0.00 m** del límite y el
+  otro a 70–135 m. `ridges.toca_el_limite`.
+  **No es un umbral de longitud**, y no puede serlo: la divisoria legítima más
+  corta del original mide **25.0 m**, o sea menos que los brazos que hay que
+  tirar. Ese fue el error de P-22.
+  Resultado: de 11 divisorias a **7**, las mismas que el original.
 
 ### Lo que queda de esta tanda
 

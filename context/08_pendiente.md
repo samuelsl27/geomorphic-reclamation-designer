@@ -28,31 +28,34 @@ del disco; las de salida se crean en memoria (`modo_almacenamiento='memory'`).
 
 | Métrica | Antes (v1.0.24) | **Ahora** | Original |
 |---|---|---|---|
-| `\|d₁−d₂\|` a las líneas de valle *(7 principales)* | 1.92 – 3.35 m | **0.40 – 0.99 m** | 0.02 – 0.73 m |
-| Giro acumulado *(7 principales)* | 32 – 85 °/100 m | **18.7 – 36.3** | 6.5 – 31.3 |
-| Ángulo de giro máximo *(7 principales)* | 30.0° | **21.7°** | 17.3° |
-| Radio de curvatura mínimo *(7 principales)* | 11.6 m | **16.0 m** | 19 m |
-| Giro máximo del eje de canal | **108.7°** | **59.1°** | 85.6° |
+| Nº de divisorias | 11 | **7** | **7** |
+| Longitud total de divisorias | 2188.8 m | **1981.0 m** | 2102.9 m |
+| `\|d₁−d₂\|` a las líneas de valle | 1.92 – 3.35 m | **0.40 – 0.99 m** | 0.02 – 0.73 m |
+| Giro acumulado | 32 – 85 °/100 m | **18.7 – 36.3** | 6.5 – 31.3 |
+| Ángulo de giro máximo | 30.0° | **21.9°** | 17.3° |
+| Radio de curvatura mínimo | 11.6 m | **15.8 m** | 19 m |
+| Criterio topológico límite→confluencia | 4 de 12 | **6 de 7** | 7 de 7 |
+| Giro máximo del eje de canal | **108.7°** | **59.1°** | 85.6° (arco de cabecera) |
 | Sinuosidad máxima de subcresta | **8.318** | **1.102** | 1.052 |
 | Giros de ladera > 90° | **30** | **0** | 0 |
+| Giros de ladera > 60° | 34 | **10** | 0 |
 | Giro máximo de ladera | **180.0°** | **85.7°** | 37.9° |
-| Pasadas de `topology.revisar` | **30** | **4** | — |
-| Nº de divisorias | 11 | **10** | 7 |
-| Criterio topológico límite→confluencia | 4 de 12 | **6 de 10** | **7 de 7** |
+| Pasadas de `topology.revisar` | **30** (no convergía) | **4** | — |
 
 ### Lo que queda, por orden
 
-1. **B-046, segunda mitad**: tres líneas que no son divisorias (97.1, 42.1,
-   40.4 m). Dos son el brazo sobrante de un nudo triple —sus extremos equidistan
-   de **tres** cauces— y la tercera es un trozo sin unir. Criterio a implementar:
-   **del límite del proyecto a una confluencia**, que acierta 7 de 7 en el
-   original. **No** un umbral de longitud: la legítima más corta del original
-   mide 25.0 m.
-2. **Recalibrar `topology`**: las tolerancias de 2.0 y 2.5 m estaban ajustadas a
-   la equidistancia de los ejes, y B-045 movió la divisoria al eje medial de los
-   valles. Hay que medir el p95 de esa separación en la geometría nueva y subir
-   las dos. Síntoma: 97 subcrestas «sin empalmar: la divisoria más próxima
-   quedaba a una cota inalcanzable».
+1. **Una de las siete divisorias sigue partida.** Llega al límite por un extremo
+   pero acaba a **49 m** de su confluencia en vez de a ≤25, así que le falta un
+   trozo de unos 34 m. Es lo que explica que el total sea 1981.0 m frente a
+   2102.9 del original (−5.8 %). Mirar `encadenar_arcos` en ese nudo: el criterio
+   de coseno más enfrentado con `LARGO_TANGENTE` = 25 m puede estar eligiendo mal
+   la pareja donde la divisoria gira.
+2. **Los 17 picos que quedan en las líneas de ladera.** Máximo 85.7° frente a
+   37.9 del original, y 10 giros por encima de 60°. Ya no hay ninguno por encima
+   de 90 (antes 30), así que lo gordo está resuelto, pero el original no tiene
+   **ninguno** por encima de 40. Candidato: las tolerancias de `topology` (2.0 y
+   2.5 m) siguen ajustadas a la equidistancia de los ejes, y B-045 movió la
+   divisoria al eje medial de los valles.
 3. **Cota del pie de la divisoria** y **arranque del perfil**.
 4. **Emisión de vértices al estilo Carlson**, en `divides.remuestrear` — no en
    `ridges`, porque el remuestreo deshace unos pasos después cualquier

@@ -849,6 +849,45 @@ def encadenar_arcos(arcos, tol=TOL_NUDO, largo_tangente=LARGO_TANGENTE):
     return cadenas
 
 
+TOL_LIMITE_DIVISORIA = 3.0   # m; las cadenas nacen a 0.5 m del contorno porque
+                             # `banda_limite` es `contorno.buffer(0.5)`, así que
+                             # basta con absorber ese medio metro y el ruido de
+                             # las operaciones geométricas
+
+
+def toca_el_limite(rama, contorno, tol=TOL_LIMITE_DIVISORIA):
+    """¿Tiene esta cadena UN EXTREMO sobre el límite del proyecto?
+
+    Es el criterio que distingue una divisoria principal de un brazo suelto, y
+    es **topológico, no de longitud** (B-046, segunda mitad).
+
+    Una divisoria separa dos subcuencas: nace en la confluencia donde sus dos
+    aguas se juntan y se aleja de ella hasta salirse del área de diseño. El
+    extremo de dentro puede morir en una confluencia, en un cruce con un cauce o
+    contra otra divisoria; el de fuera **siempre** llega al límite. Lo que no
+    existe es una divisoria con los dos extremos en el interior: eso es el brazo
+    sobrante de un nudo triple, donde `encadenar_arcos` cose la pareja más
+    enfrentada y deja el tercero suelto.
+
+    **Verificado sobre la salida del original, Ej_2**: sus **siete** divisorias
+    tienen un extremo a 0.00 m del límite y el otro a 70-135 m. Y aplicado a
+    nuestras diez, se queda con siete y tira las tres que no lo son (97.1, 42.1
+    y 40.4 m), cuyos extremos equidistan de **tres** cauces — la definición de
+    vértice de Voronoi.
+
+    **Por qué no un umbral de longitud**: la divisoria legítima más corta del
+    original mide **25.0 m**, que es justo el valor de `divides.min_divisoria`.
+    Cualquier umbral que matara los brazos de 40 m mataría también divisorias
+    buenas, y ya se intentó una vez (P-22).
+    """
+    if len(rama) < 2:
+        return False
+    for x, y in (rama[0], rama[-1]):
+        if contorno.distance(QgsGeometry.fromPointXY(QgsPointXY(x, y))) <= tol:
+            return True
+    return False
+
+
 def _separa(dens, i, pareja, geoms):
     """¿La cadena separa, en su vértice `i`, exactamente los cauces de `pareja`?
 
@@ -1158,6 +1197,8 @@ def generar_crestas(disenos, subcuencas, g_lim, glob, dem, lm):
                           for a, b in zip(rama[:-1], rama[1:]))
             if largo_r < 0.5 * long_min:
                 continue
+            if not toca_el_limite(rama, contorno):
+                continue            # brazo interior de un nudo triple
             rama = _salir_por_bisectriz(
                 rama, anclaje, bisectrices,
                 largo=glob.max_dist_cresta_cabecera,

@@ -58,10 +58,10 @@ estaba**, con la cuenta en su docstring.
 
 ---
 
-## B-046 · *(abierto)* La red de divisorias se trocea donde no toca 🟠
+## B-046 · La red de divisorias se troceaba donde no toca 🔴
 
-**Medido y con causa demostrada, pero SIN corregir**: hay que regenerar con
-B-045 antes de tocarlo, porque la partición cambia de fuente.
+**Corregido y medido sobre el Ej_2 regenerado: de 11 divisorias a 7, que son
+exactamente las que tiene el original.**
 
 **Primero, dos correcciones a lo que yo mismo había escrito en esta sesión.**
 
@@ -106,11 +106,22 @@ brazo sobrante como cadena propia. Los extremos de `cresta 10` y `cresta 11`
 equidistan de **tres** cauces a 42.68/42.68/42.68 y 50.78/50.78/50.78 m: es la
 definición de vértice de Voronoi.
 
-**El criterio que hay que implementar es topológico, no de longitud**: una
-divisoria principal va del **límite del proyecto** a una **confluencia**.
-Verificado sobre las 7 del original: las 7 tienen un extremo a 0.00 m del límite
-y el otro a 3.2–20.1 m de una confluencia. Aplicado a ciegas a las 244 líneas de
-`GF_Ridges`: **9 de 244, con las 7 dentro y cero falsos negativos**.
+**El criterio implementado es topológico, no de longitud** (`ridges.toca_el_limite`):
+una divisoria separa dos subcuencas, nace en la confluencia donde sus aguas se
+juntan y se aleja de ella hasta salir del área de diseño, así que **un extremo
+llega siempre al límite**. Lo que no existe es una divisoria con los dos
+extremos dentro: eso es el brazo suelto del nudo triple.
+Verificado sobre las 7 del original: las 7 tienen un extremo a **0.00 m** del
+límite y el otro a 70–135 m. Aplicado a nuestras 10, se queda con **7** y tira
+las tres que no lo son (97.1, 42.1 y 40.4 m), cuyos extremos equidistan de
+**tres** cauces — la definición de vértice de Voronoi.
+
+**Resultado medido tras las dos mitades**: 7 divisorias y 1981.0 m frente a las
+7 y 2102.9 del original; `|d₁−d₂|` de 0.40 a 0.99 m (original 0.02–0.73); giro
+de 18.7 a 36.3 °/100 m (original 6.5–31.3); ángulo máximo 21.9° (original 17.3);
+radio mínimo 15.8 m (original 19). Seis de las siete cumplen además el criterio
+completo límite→confluencia; la séptima llega al límite pero acaba a 49 m de su
+confluencia en vez de a 25, o sea que **le sigue faltando un trozo**.
 
 **Y NO vale un umbral de longitud.** La divisoria legítima más corta del original
 mide **25.0 m** (fid 1922), que es exactamente `divides.min_divisoria`. Un umbral

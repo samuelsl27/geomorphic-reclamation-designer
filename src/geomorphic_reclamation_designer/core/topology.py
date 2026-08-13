@@ -275,13 +275,20 @@ def empalmar_en_divisorias(lm, tol=TOL_EMPALME, log=None):
     idx, divisorias = _indice(capa_div)
     if not divisorias:
         return 0
-    cambios, descartados = {}, 0
+    cambios, descartados, ya_estaban = {}, 0, 0
     for f in capa_sr.getFeatures():
         pts = _pts3(f)
         if len(pts) < 2:
             continue
         alto, en_inicio, _ = _extremo_hacia_divisoria(pts, idx, divisorias)
         cand = _proyecciones(idx, divisorias, alto)
+        # «Ya muere sobre la divisoria» y «no se puede empalmar» son cosas
+        # distintas y se cuentan aparte: la primera es el caso sano y desde
+        # B-048 es mayoría, así que meterlas en el mismo saco convertía el aviso
+        # del registro en una alarma falsa de casi cien líneas.
+        if cand and cand[0][0] < TOL_PEGADO:
+            ya_estaban += 1
+            continue
         destino = destino_de_empalme(pts, alto, en_inicio, cand, tol)
         if destino is None:
             descartados += 1
@@ -301,7 +308,7 @@ def empalmar_en_divisorias(lm, tol=TOL_EMPALME, log=None):
         capa_sr.commitChanges()
         capa_sr.triggerRepaint()
     log(f"   · {len(cambios)} subcresta(s) prolongada(s) hasta morir sobre la "
-        "cresta divisoria")
+        f"cresta divisoria ({ya_estaban} ya morían sobre ella)")
     if descartados:
         # No se calla: una subcresta que no empalma deja un hueco en planta, y
         # el hueco tiene que poder verse en el registro. La cota la resuelve
