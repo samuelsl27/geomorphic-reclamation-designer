@@ -229,6 +229,20 @@ def test_separa_reconoce_la_pareja_que_la_divisoria_separa_de_verdad():
         lambda: rg._separa(dens, 10, frozenset(("C", "B")), geoms)) is False
 
 
+def test_en_un_nudo_triple_no_se_puede_decir_que_separa():
+    """B-050. Si el tercer cauce esta tan cerca como el segundo, «los dos que
+    separa» es una moneda al aire. Medido en el Ej_2: el corte que quedaba caia
+    en un punto a 42.61 / 42.76 / 42.78 m de tres cauces —dos centimetros entre
+    el segundo y el tercero— y ahi partia la cadena por una confluencia que
+    estaba a 49 m. El original no parte ninguna a mas de 20.1 m de la suya."""
+    dens = [(float(i) * 10.0, 0.0) for i in range(21)]
+    nudo = {"A": _GeomFalsa([(-50.0, 42.61), (250.0, 42.61)]),
+            "B": _GeomFalsa([(-50.0, -42.76), (250.0, -42.76)]),
+            "C": _GeomFalsa([(-50.0, -42.78), (250.0, -42.78)])}
+    assert _con_geoms_falsas(
+        lambda: rg._separa(dens, 10, frozenset(("A", "B")), nudo)) is False
+
+
 def test_separa_deja_pasar_lo_que_no_puede_comprobar():
     """Sin ejes no hay comprobacion posible; y `pareja=None` es un cruce con un
     cauce, que parte siempre."""

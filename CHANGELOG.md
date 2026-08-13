@@ -22,18 +22,19 @@ salida original del Ej_2 contra la nuestra apareció la causa de casi todo.
 | Métrica | Antes (v1.0.24) | **Ahora** | Original |
 |---|---|---|---|
 | Nº de divisorias | 11 | **7** | **7** |
-| Longitud total de divisorias | 2188.8 m | **1981.0 m** | 2102.9 m |
-| `\|d₁−d₂\|` a las líneas de valle | 1.92 – 3.35 m | **0.40 – 0.99 m** | 0.02 – 0.73 m |
-| Giro acumulado | 32 – 85 °/100 m | **18.7 – 36.3** | 6.5 – 31.3 |
-| Ángulo de giro máximo | 30.0° | **21.9°** | 17.3° |
-| Radio de curvatura mínimo | 11.6 m | **15.8 m** | 19 m |
+| Longitud total de divisorias | 2188.8 m | **2067.3 m** | 2102.9 m |
+| `\|d₁−d₂\|` a las líneas de valle | 1.92 – 3.35 m | **0.36 – 1.04 m** | 0.02 – 0.73 m |
+| Giro acumulado | 32 – 85 °/100 m | **21.7 – 36.8** | 6.5 – 31.3 |
+| Ángulo de giro máximo | 30.0° | **21.8°** | 17.3° |
+| Radio de curvatura mínimo | 11.6 m | **15.9 m** | 19 m |
 | Criterio topológico límite→confluencia | 4 de 12 | **6 de 7** | 7 de 7 |
 | Giro máximo del eje de canal | **108.7°** | **59.1°** | 85.6° (arco de cabecera) |
-| Sinuosidad máxima de subcresta | **8.318** | **1.102** | 1.052 |
-| Giros de ladera > 90° | **30** | **0** | 0 |
-| Giros de ladera > 60° | 34 | **10** | 0 |
-| Giro máximo de ladera | **180.0°** | **85.7°** | 37.9° |
-| Pasadas de `topology.revisar` | **30** (no convergía) | **4** | — |
+| Sinuosidad máxima de subcresta | **8.318** | **1.055** | 1.052 |
+| Líneas de ladera con giro > 40° | 10 | **4** | 0 |
+| Giros de ladera > 60° | 34 | **2** | 0 |
+| Giros de ladera > 90° | **30** | **1** | 0 |
+| Giro máximo de ladera | **180.0°** | **130.4°** | 37.9° |
+| Pasadas de `topology.revisar` | **30** (no convergía) | **5** | — |
 
 - 🔴 **La divisoria se calculaba equidistante del EJE MEANDRIFORME** (B-045). El
   método la quiere equidistante de las **polilíneas de fondo de valle**, que es
@@ -129,6 +130,20 @@ salida original del Ej_2 contra la nuestra apareció la causa de casi todo.
   corta del original mide **25.0 m**, o sea menos que los brazos que hay que
   tirar. Ese fue el error de P-22.
   Resultado: de 11 divisorias a **7**, las mismas que el original.
+- 🔴 **Y dos cosas más que salieron al medir el resultado** (B-050). (a) Quedaba
+  un corte en un **nudo triple**: un punto a 42.61 / 42.76 / 42.78 m de tres
+  cauces —dos centímetros entre el segundo y el tercero—, donde «qué dos cuencas
+  separa» es una moneda al aire, y ahí se partía la cadena por una confluencia
+  que estaba a **49 m**; el original no parte ninguna de sus siete a más de
+  20.1 m de la suya. `ridges._separa` no responde en un nudo triple.
+  (b) Quedaban **17 líneas de ladera con un pico en la cabecera** —entre el 82 y
+  el 99.6 % del recorrido, máximo 85.7°—, todas con la misma firma:
+  `empalmar_en_divisorias` apuntaba la cola al punto **más próximo** de la
+  divisoria, que no está en la dirección de la ladera. `_se_dobla` rechazaba solo
+  los pliegues de más de 90°; ahora el tope es **40°**, que es el giro máximo que
+  el original se permite (37.9° en sus 120 subcrestas, 0.00° en sus 117
+  vaguadas). Si ninguna candidata entra, la ladera **no se prolonga**: es
+  preferible que se quede corta a que llegue con un codo.
 
 ### Lo que queda de esta tanda
 

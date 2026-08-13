@@ -138,6 +138,52 @@ boca del último tributario (fid 1789, main|R4).
 
 ---
 
+## B-050 · El nudo triple y el codo de la cabecera 🔴
+
+Los dos salieron **al medir el resultado de B-045/B-046**, no antes: son el
+tramo siguiente del camino, que es como ha ido saliendo todo esto.
+
+### (a) Se partía la cadena en un NUDO TRIPLE
+
+Quedaba un corte en un punto a **42.61 / 42.76 / 42.78 m** de `main`, `main R2`
+y `main R3`: dos centímetros de diferencia entre el segundo cauce y el tercero.
+Ahí «qué dos cuencas separa la divisoria» es una moneda al aire, así que la
+comprobación de pareja de B-046 daba una respuesta que no significa nada, y la
+cadena se partía por una confluencia que estaba a **49 m**. El original no parte
+ninguna de sus siete a más de **20.1 m** de la suya.
+
+`ridges._separa` devuelve `False` cuando el tercer cauce está a menos de
+`MARGEN_TERCER_CAUCE` = 1 m del segundo: en un nudo triple no se puede decidir,
+y no decidir es no cortar. La cadena partida vuelve a salir entera (350.2 + 86 =
+**436.5 m**) y el total pasa de 1981.0 a **2067.3 m**, a un 1.7 % del original.
+
+### (b) La cola de empalme apuntaba al sitio equivocado
+
+Quedaban **17 líneas de ladera con un pico en la cabecera**, entre el 82 y el
+99.6 % del recorrido y con máximo de **85.7°**, todas con la misma firma: un
+segmento normal de 2-4 m, un giro grande, y un último segmento de medio metro.
+
+`topology.empalmar_en_divisorias` apunta la cola al punto **más próximo** de la
+divisoria, que no está en la dirección de la ladera. Y `_se_dobla` solo rechazaba
+los pliegues de más de 90° (era la guarda de B-048, suficiente para lo que había
+entonces).
+
+El tope pasa a **40°**, que es el giro máximo que el original se permite en una
+línea de ladera: 37.9° en sus 120 subcrestas, **0.00°** en sus 117 vaguadas. Si
+ninguna candidata entra, la ladera **no se prolonga**; `divides` le encaja la
+cota después. Es preferible que se quede corta a que llegue con un codo, que es
+geometría que el método no produce.
+
+**Medido**: giros de ladera por encima de 40° de 38 a **4**; por encima de 60°,
+de 34 a **2**; por encima de 90°, de 30 a **1**; máximo de 180.0° a 130.4°; y
+sinuosidad máxima de subcresta de 8.318 a **1.055**, contra 1.052 del original.
+
+**Lo que queda**, anotado en `08_pendiente.md`: ese 130.4° que sobrevive está en
+el **pie** de `GRD_SubRidges` fid 32, no en la cabecera, y es del recorte contra
+el corredor. Una línea de 219.
+
+---
+
 ## B-049 · La marcha de ladera paraba en la equidistancia de los EJES 🔴
 
 **Regresión creada por B-045**, detectada antes de regenerar.

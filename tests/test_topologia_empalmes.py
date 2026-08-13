@@ -111,6 +111,28 @@ def test_la_cola_hacia_delante_si_se_admite():
     assert tp.destino_de_empalme(pts, alto, False, _cand((8.0, delante))) == delante
 
 
+def test_una_cola_muy_desviada_tampoco_se_admite():
+    """B-050. La cola apuntaba al punto MAS PROXIMO de la divisoria, que no esta
+    en la direccion de la ladera, y dejaba un codo en la cabecera: 17 lineas con
+    un pico entre el 82 y el 99.6 % del recorrido, maximo 85.7 grados. El
+    original no pasa de 37.9 en ninguna de sus 120 subcrestas, y sus 117
+    vaguadas tienen 0.00."""
+    pts = _ladera()
+    alto = pts[-1]
+    # 60 grados respecto a la direccion de la ladera (que va hacia el este)
+    desviada = (alto[0] + 4.0, alto[1] + 6.93, alto[2] + 1.0)
+    assert tp.destino_de_empalme(pts, alto, False, _cand((8.0, desviada))) is None
+    # 30 grados si entra
+    suave = (alto[0] + 6.93, alto[1] + 4.0, alto[2] + 1.0)
+    assert tp.destino_de_empalme(pts, alto, False, _cand((8.0, suave))) == suave
+
+
+def test_el_tope_de_desvio_es_el_del_original():
+    """37.9 grados es el giro maximo de las subcrestas del original; el tope se
+    pone en 40 para no rechazar justo lo que el metodo si produce."""
+    assert 38.0 <= tp.GIRO_MAX_COLA <= 45.0
+
+
 def test_el_pliegue_se_mide_tambien_cuando_la_linea_viene_invertida():
     """Si el extremo alto es el PRIMER vertice, la referencia de direccion es
     pts[1], no pts[-2]."""

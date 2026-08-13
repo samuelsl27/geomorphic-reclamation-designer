@@ -849,6 +849,10 @@ def encadenar_arcos(arcos, tol=TOL_NUDO, largo_tangente=LARGO_TANGENTE):
     return cadenas
 
 
+MARGEN_TERCER_CAUCE = 1.0    # m; por debajo de esta diferencia entre el segundo
+                             # y el tercer cauce más próximos, el punto es un
+                             # NUDO TRIPLE y no se puede decir qué dos cuencas
+                             # separa. Ver `_separa` y B-050.
 TOL_LIMITE_DIVISORIA = 3.0   # m; las cadenas nacen a 0.5 m del contorno porque
                              # `banda_limite` es `contorno.buffer(0.5)`, así que
                              # basta con absorber ese medio metro y el ruido de
@@ -902,8 +906,17 @@ def _separa(dens, i, pareja, geoms):
         return True
     x, y = dens[i][0], dens[i][1]
     g = QgsGeometry.fromPointXY(QgsPointXY(x, y))
-    dos = sorted(((ge.distance(g), n) for n, ge in geoms.items()))[:2]
-    return frozenset(n for _d, n in dos) == pareja
+    d = sorted(((ge.distance(g), n) for n, ge in geoms.items()))
+    if len(d) > 2 and d[2][0] - d[1][0] < MARGEN_TERCER_CAUCE:
+        # NUDO TRIPLE: el tercer cauce está tan cerca como el segundo, así que
+        # «los dos que separa» es una moneda al aire y la respuesta no significa
+        # nada. Medido en el Ej_2, el corte que quedaba caía en un punto a
+        # 42.61 / 42.76 / 42.78 m de main, main R2 y main R3 —dos centímetros de
+        # diferencia entre el segundo y el tercero— y ahí partía la cadena por
+        # una confluencia que estaba a 49 m. El original no parte ninguna de sus
+        # siete a más de 20.1 m de la suya. Ver B-050.
+        return False
+    return frozenset(n for _d, n in d[:2]) == pareja
 
 
 def _partir_en_confluencias(dens, confluencias, tol, geoms=None):

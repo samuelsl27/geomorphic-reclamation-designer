@@ -191,21 +191,43 @@ def _cruza_alguna(p_a, p_b, geoms2d):
     return any(seg.intersects(g) for g in geoms2d)
 
 
-def _se_dobla(pts, alto, en_inicio, destino):
-    """¿La cola que se va a añadir se dobla sobre la propia línea?
+GIRO_MAX_COLA = 40.0    # grados que puede desviarse la cola de empalme respecto
+                        # a la dirección de la propia ladera. Medido en el
+                        # original: sus 120 subcrestas no pasan de **37.9°** de
+                        # giro (y el 94 % son rectas perfectas), y sus 117
+                        # vaguadas tienen **0.00°**. Ver `_se_dobla` y B-050.
 
-    Una subcresta o una vaguada son RECTAS en planta —lo son en el original: las
-    117 vaguadas del Ej_2 tienen sinuosidad 1.000 y ángulo de giro máximo 0.00°—
-    así que una prolongación que salga hacia atrás no es una prolongación, es un
-    pliegue. Segunda línea de defensa de B-048: aunque alguien vuelva a abrir la
-    puerta a extender dos veces la misma línea, un pliegue no puede entrar."""
+
+def _se_dobla(pts, alto, en_inicio, destino, tope=GIRO_MAX_COLA):
+    """¿La cola que se va a añadir rompe la línea en vez de prolongarla?
+
+    Una subcresta o una vaguada son **rectas** en planta: en el original, las
+    117 vaguadas del Ej_2 tienen sinuosidad 1.000 y ángulo de giro máximo
+    **0.00°**, y el 94 % de las 120 subcrestas son rectas perfectas, con un
+    máximo de 37.9°. Así que la única prolongación legítima es la que sigue la
+    línea; una que salga en otra dirección no la prolonga, la parte.
+
+    **B-048**: rechazaba solo los pliegues (>90°), porque para lo que existía
+    entonces bastaba. **B-050**: con el pliegue ya cerrado quedaban 17 líneas con
+    un pico en la cabecera —82 a 99.6 % del recorrido, máximo 85.7°—, y todas
+    tenían la misma firma: una cola apuntando al punto más próximo de la
+    divisoria, que no está en la dirección de la ladera, seguida de un último
+    segmento de medio metro. `empalmar_en_divisorias` apunta a la proyección más
+    cercana, no a donde va la línea.
+
+    El tope es el giro máximo que el original se permite en una línea de ladera.
+    Si ninguna candidata entra, **no se prolonga**: es preferible que la ladera
+    se quede corta —`divides` le encaja después la cota— a que llegue con un
+    codo, que es geometría que el método no produce.
+    """
     vecino = pts[1] if en_inicio else pts[-2]
     ax, ay = alto[0] - vecino[0], alto[1] - vecino[1]
     bx, by = destino[0] - alto[0], destino[1] - alto[1]
     na, nb = math.hypot(ax, ay), math.hypot(bx, by)
     if na < 1e-9 or nb < 1e-9:
         return False
-    return (ax * bx + ay * by) / (na * nb) < 0.0
+    cos = max(-1.0, min(1.0, (ax * bx + ay * by) / (na * nb)))
+    return math.degrees(math.acos(cos)) > tope
 
 
 def _densificar3(p0, p1, paso=PASO):
