@@ -230,6 +230,60 @@ TOL_TRAZA_CRESTA = 0.5     # m que se le permite recortar a una curva cerrada al
                            # holgura con que la divisoria se para del cauce.
 
 
+TOL_ADELGAZADO = 0.03      # m de desviación por debajo de la cual un vértice de
+                           # la retícula no aporta forma y sobra. Ver
+                           # `_adelgazar_colineales`.
+SALTO_MAX_ADELGAZADO = 5   # estaciones que puede saltarse el adelgazado. El
+                           # original no pasa de 5 (un hueco de 30.5 m con paso
+                           # de 6.1), y ese es el tope que se copia.
+MIN_VERTICES_ADELGAZADO = 4   # por debajo de esto no se adelgaza: una linea de
+                           # tres o cuatro vertices no tiene nada que sobrar, y
+                           # dejarla en dos la convierte en un segmento suelto.
+
+
+def _adelgazar_colineales(pts, tol=TOL_ADELGAZADO, salto_max=SALTO_MAX_ADELGAZADO):
+    """Quita los vértices de la retícula que no aportan forma en planta.
+
+    El original **no emite un vértice cada 6.1 m**: emite una retícula de 6.1 m
+    y borra los que caen sobre la recta. Medido sobre sus siete divisorias, los
+    huecos son 6.10 (×155), 12.20 (×51), 18.30 (×14), 24.40 (×4) y 30.50 (×1),
+    o sea múltiplos enteros del paso, con un máximo de cinco estaciones. Y en
+    total pone **250 vértices en 2103 m** (11.9 por cada 100 m); nosotros
+    poníamos **350 en 2067** (16.9), un 41 % más para dibujar la misma línea.
+
+    No es cosmética: cada vértice de más es un triángulo de más en el TIN, y los
+    de una divisoria son líneas de rotura.
+
+    Va aquí y no en `ridges` porque **esto es lo último que toca la planta** de
+    una divisoria: cualquier adelgazado hecho antes lo deshace el remuestreo unos
+    pasos después, que reconstruye los vértices en `n` partes iguales.
+
+    Los vértices que `remuestrear` conserva por forma se salvan solos: se
+    conservan justamente porque se desvían más de `TOL_TRAZA_CRESTA` = 0.5 m,
+    diez veces la tolerancia de aquí."""
+    if len(pts) < max(3, MIN_VERTICES_ADELGAZADO) or tol <= 0:
+        return list(pts)
+    salida = [pts[0]]
+    i = 0
+    while i < len(pts) - 1:
+        j = min(i + salto_max, len(pts) - 1)
+        while j > i + 1:
+            ax, ay = pts[i][0], pts[i][1]
+            bx, by = pts[j][0], pts[j][1]
+            dx, dy = bx - ax, by - ay
+            dd = math.hypot(dx, dy)
+            if dd < 1e-9:
+                break
+            peor = max(abs(dx * (ay - pts[m][1]) - (ax - pts[m][0]) * dy) / dd
+                       for m in range(i + 1, j))
+            if peor <= tol:
+                break
+            j -= 1
+        salida.append(pts[j])
+        i = j
+    return salida
+
+
 def remuestrear(pts, paso, tol=TOL_TRAZA_CRESTA):
     """Vértices a un paso uniforme sobre la MISMA traza, con los dos extremos.
 
@@ -307,7 +361,7 @@ def remuestrear(pts, paso, tol=TOL_TRAZA_CRESTA):
                 if 0.0 < vecina < L and abs(vecina - si) < sep_min:
                     muestras.pop(vecina, None)
             muestras[si] = p
-    return [muestras[k] for k in sorted(muestras)]
+    return _adelgazar_colineales([muestras[k] for k in sorted(muestras)])
 
 
 def _dist_a_segmento(p, a, b):

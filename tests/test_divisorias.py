@@ -421,16 +421,40 @@ def test_extremo_alto_con_la_linea_al_reves():
 
 def test_remuestrear_respeta_la_traza_y_los_extremos():
     """'m_fMaxDistOnRidges' del original (6.1 m en el Ej_2). Los puntos se toman
-    SOBRE la polilinea, asi que la traza no se desplaza."""
-    pts = [(0.7 * i, 0.0, 100.0 + 0.7 * i) for i in range(30)]   # 20.3 m a 0.7
+    SOBRE la polilinea, asi que la traza no se desplaza.
+
+    El tope de separacion NO es el paso: el original emite una RETICULA de 6.1 m
+    y borra los vertices que caen sobre la recta, asi que sus huecos son 6.10,
+    12.20, 18.30, 24.40 y 30.50 m -multiplos enteros, hasta cinco estaciones-.
+    Antes esta prueba exigia `max(paso) <= 6.1`, que es un contrato que el
+    original no cumple y que nos hacia emitir un 41 % de vertices de mas.
+    Ver `_adelgazar_colineales`."""
+    pts = [(0.7 * i, 0.0, 100.0 + 0.7 * i) for i in range(60)]   # 41.3 m a 0.7
     out = dv.remuestrear(pts, 6.1)
     assert out[0] == pts[0] and out[-1] == pts[-1]
     s = dv._estaciones([(p[0], p[1]) for p in out])
     paso = [s[i + 1] - s[i] for i in range(len(s) - 1)]
-    assert max(paso) <= 6.1 + 1e-6, paso
+    assert max(paso) <= 5 * 6.1 + 1e-6, paso
     assert all(abs(p[1]) < 1e-9 for p in out)          # sigue sobre la recta
     for x, _y, z in out:                               # y la cota se interpola
         assert abs(z - (100.0 + x)) < 1e-6
+
+
+def test_una_recta_no_se_llena_de_vertices_que_no_aportan():
+    """El original pone 250 vertices en 2103 m de divisoria (11.9 por 100 m) y
+    nosotros poniamos 350 en 2067 (16.9). Cada vertice de mas es un triangulo
+    de mas en el TIN, y las divisorias son lineas de rotura."""
+    recta = [(1.0 * i, 0.0, 100.0) for i in range(101)]          # 100 m rectos
+    out = dv.remuestrear(recta, 6.1)
+    assert len(out) <= 6, len(out)          # sin adelgazar salian 18
+    assert out[0] == recta[0] and out[-1] == recta[-1]
+
+
+def test_una_linea_muy_corta_no_se_queda_en_un_segmento():
+    """Adelgazar una linea de cuatro vertices la dejaria en dos, y eso no es
+    adelgazar: es borrarla."""
+    corta = [(3.0 * i, 0.0, 100.0) for i in range(4)]            # 9 m
+    assert len(dv.remuestrear(corta, 6.1)) >= 2
 
 
 def test_remuestrear_conserva_una_curva_cerrada():

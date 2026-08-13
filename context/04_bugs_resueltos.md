@@ -138,6 +138,55 @@ boca del último tributario (fid 1789, main|R4).
 
 ---
 
+## B-052 · Emitíamos un 41 % de vértices que no dibujan nada 🟠
+
+**Síntoma.** Las divisorias salían con **350 vértices en 2067 m** (16.9 por cada
+100 m) cuando el original pone **250 en 2103** (11.9). Cada vértice de más es un
+triángulo de más en el TIN, y las divisorias son líneas de rotura.
+
+**Causa raíz.** `divides.remuestrear` reparte la línea en `n = ceil(L/paso)`
+partes iguales y emite **todas**. El original no hace eso: emite una **retícula**
+de `m_fMaxDistOnRidges` = 6.10 m y **borra los vértices que caen sobre la
+recta**. Se ve en el histograma de sus huecos, que son múltiplos enteros del
+paso: 6.10 (×156), 12.20 (×52), 18.30 (×14), 24.40 (×4) y 30.50 (×1). Nosotros
+teníamos 323 huecos y **todos de 1×**.
+
+**La corrección.** `divides._adelgazar_colineales`, con tolerancia de
+desviación en planta de **0.03 m** y un tope de **cinco estaciones**, que es el
+hueco máximo del original.
+
+Va en `divides` y no en `ridges` porque **`remuestrear` es lo último que toca la
+planta** de una divisoria: cualquier adelgazado hecho antes lo deshace el
+remuestreo unos pasos después, que reconstruye los vértices en partes iguales.
+
+Los vértices que `remuestrear` conserva por forma se salvan solos: se conservan
+justamente porque se desvían más de `TOL_TRAZA_CRESTA` = 0.5 m, **diecisiete
+veces** la tolerancia de aquí.
+
+**Medido** (Ej_2 regenerado, las siete divisorias):
+
+| | antes | **ahora** | original |
+|---|---|---|---|
+| Vértices | 350 | **234** | 250 |
+| Vértices por 100 m | 16.93 | **11.32** | 11.89 |
+| Huecos de 1× / 2× / 3× / 4× / 5× | 323 / 0 / 0 / 0 / 0 | **156 / 25 / 13 / 0 / 2** | 156 / 52 / 14 / 4 / 1 |
+| Radio de curvatura mínimo | 15.9 m | **27.4 m** | 19 m |
+
+El radio mínimo **mejora** al adelgazar, porque los micro-quiebros de la
+retícula desaparecen.
+
+⚠️ **Contrato roto a propósito.** `test_remuestrear_respeta_la_traza_y_los_extremos`
+exigía `max(paso) <= 6.1`, y eso es un contrato que **el original no cumple**:
+sus huecos llegan a 30.5 m. La prueba pasa a exigir `<= 5 × paso`, que es lo
+medido, más que la traza no se desplace. Y hay guarda para no adelgazar líneas
+de menos de cuatro vértices: dejarlas en dos no es adelgazar, es borrarlas.
+
+**Coste**: la equidistancia empeora un poco al sustituir el arco por la cuerda
+—`|d₁−d₂|` medio de 0.62 a 0.78 m, máximo de 1.04 a 1.40— porque eso es
+exactamente lo que hace el adelgazado. El original está en 0.02–0.73.
+
+---
+
 ## B-051 · La divisoria arrancaba por debajo del lecho de su cauce 🔴
 
 **Síntoma.** Cinco de las siete divisorias del Ej_2 arrancaban **por debajo** de

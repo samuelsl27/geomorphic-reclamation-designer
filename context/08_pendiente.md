@@ -45,6 +45,8 @@ del disco; las de salida se crean en memoria (`modo_almacenamiento='memory'`).
 | Δz del pie de divisoria sobre la rasante | −0.20 m (mediana) | **+1.67 m** | +1.68 m |
 | Divisorias por debajo del lecho | **5 de 7** | **0** | 0 |
 | Perfil Z de la divisoria al 10 % | 0.055 | **0.116** | 0.119 |
+| Vértices de divisoria por 100 m | 16.93 | **11.32** | 11.89 |
+| Huecos de 1× / 2× / 3× del paso de 6.1 m | 323 / 0 / 0 | **156 / 25 / 13** | 156 / 52 / 14 |
 
 ### Lo que queda, por orden
 
@@ -67,8 +69,11 @@ del disco; las de salida se crean en memoria (`modo_almacenamiento='memory'`).
    hay que remedirlo antes de tocarlo, no copiar la solución de la divisoria.
 5. **Una divisoria arranca a +4.53 m sobre la rasante** y el máximo del original
    es +2.63. Las otras seis van de +0.15 a +2.52.
-6. **Emisión de vértices al estilo Carlson**: malla de 6.10 m con eliminación de
-   vértices colineales en planta, en `divides.remuestrear`.
+6. **La emisión de vértices de las LÍNEAS DE LADERA.** La de las divisorias ya
+   está (B-052), pero el original reparte las subcrestas y vaguadas en un número
+   de estaciones **potencia de 2** (mediana 32, también 16 y 64), o sea paso
+   **proporcional a la longitud**, con ratio `d_max/d_min` exactamente 4.000 en
+   la mediana. Nosotros seguimos con 4.00 m fijos, midan 21 m o 125 m.
 3. **Cota del pie de la divisoria** y **arranque del perfil**.
 4. **Emisión de vértices al estilo Carlson**, en `divides.remuestrear` — no en
    `ridges`, porque el remuestreo deshace unos pasos después cualquier

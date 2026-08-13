@@ -38,6 +38,8 @@ salida original del Ej_2 contra la nuestra apareció la causa de casi todo.
 | Δz del pie de divisoria sobre la rasante | −0.20 m (mediana) | **+1.67 m** | +1.68 m |
 | Divisorias por debajo del lecho | **5 de 7** | **0** | 0 |
 | Perfil Z de la divisoria al 10 % | 0.055 | **0.116** | 0.119 |
+| Vértices de divisoria por 100 m | 16.93 | **11.32** | 11.89 |
+| Huecos de 1× / 2× / 3× del paso de 6.1 m | 323 / 0 / 0 | **156 / 25 / 13** | 156 / 52 / 14 |
 
 - 🔴 **La divisoria se calculaba equidistante del EJE MEANDRIFORME** (B-045). El
   método la quiere equidistante de las **polilíneas de fondo de valle**, que es
@@ -159,6 +161,14 @@ salida original del Ej_2 contra la nuestra apareció la causa de casi todo.
   **0.000**. Subcrestas y vaguadas conservan el suyo, que sí está medido.
   Resultado: **cero** divisorias bajo el lecho, Δz mediano del pie **+1.67 m**
   (original +1.68) y perfil al 10 % **0.116** (original 0.119).
+
+- 🟠 **Emitíamos un 41 % de vértices que no dibujan nada** (B-052). El original
+  no pone un vértice cada 6.1 m: pone una **retícula** de 6.1 m y **borra los que
+  caen sobre la recta**, y por eso sus huecos son múltiplos enteros del paso
+  —6.10 (×156), 12.20 (×52), 18.30 (×14), 24.40 (×4), 30.50 (×1)—. Los nuestros
+  eran 323 huecos, **todos de 1×**. `divides._adelgazar_colineales`, con 0.03 m
+  de tolerancia y un tope de cinco estaciones. De 350 vértices a **234**
+  (original 250), y de paso el radio de curvatura mínimo sube de 15.9 a **27.4 m**.
 
 ### Lo que queda de esta tanda
 
